@@ -1,0 +1,3 @@
+export function InputsSection() {
+  return <></>;
+}
