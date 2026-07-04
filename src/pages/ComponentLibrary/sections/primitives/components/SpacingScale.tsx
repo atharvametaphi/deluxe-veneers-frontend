@@ -8,9 +8,12 @@ export function SpacingScale() {
       sx={(theme) => ({
         display: "grid",
         gap: theme.spacing(2),
+        gridAutoRows: "1fr",
         gridTemplateColumns: {
-          xs: "repeat(1, minmax(0, 1fr))",
-          md: "repeat(2, minmax(0, 1fr))",
+          xs: "repeat(2, minmax(0, 1fr))",
+          sm: "repeat(3, minmax(0, 1fr))",
+          md: "repeat(5, minmax(0, 1fr))",
+          xl: "repeat(10, minmax(0, 1fr))",
         },
       })}
     >
@@ -18,51 +21,59 @@ export function SpacingScale() {
         <Box
           key={token.tokenName}
           sx={(theme) => ({
-            border: `1px solid ${theme.customTokens.borders.light}`,
-            borderRadius: `${theme.customTokens.radius.md}px`,
+            height: "100%",
+            border: `1px solid ${theme.customTokens.borders.default}`,
+            borderRadius: `${theme.customTokens.radius.sm}px`,
             backgroundColor: theme.customTokens.surfaces.surface,
             p: theme.spacing(2),
           })}
         >
           <Stack
+            alignItems="center"
             sx={(theme) => ({
               gap: theme.spacing(1.5),
             })}
           >
             <Box
               sx={(theme) => ({
-                height: theme.spacing(6),
+                width: "100%",
+                minHeight: theme.spacing(12),
                 display: "flex",
                 alignItems: "center",
-                borderRadius: `${theme.customTokens.radius.sm}px`,
-                backgroundColor: theme.customTokens.surfaces.paper,
-                border: `1px solid ${theme.customTokens.borders.subtle}`,
-                px: theme.spacing(2),
+                justifyContent: "center",
               })}
             >
               <Box
                 sx={(theme) => ({
-                  width: `${token.value}px`,
-                  minWidth: `${token.value}px`,
-                  height: theme.spacing(1.5),
-                  borderRadius: `${theme.customTokens.radius.pill}px`,
-                  backgroundColor: theme.palette.primary.main,
+                  width: `${Math.max(12, Math.round(token.value * 1.2))}px`,
+                  height: `${Math.max(12, Math.round(token.value * 1.2))}px`,
+                  minWidth: `${Math.max(12, Math.round(token.value * 1.2))}px`,
+                  minHeight: `${Math.max(12, Math.round(token.value * 1.2))}px`,
+                  borderRadius: `${theme.customTokens.radius.sm}px`,
+                  backgroundColor: theme.customTokens.brand.primaryScale[100],
+                  border: `1px solid ${theme.customTokens.brand.primaryScale[400]}`,
                 })}
               />
             </Box>
 
             <Stack
-              direction="row"
-              justifyContent="space-between"
+              alignItems="center"
               sx={(theme) => ({
-                gap: theme.spacing(2),
+                gap: theme.spacing(0.5),
               })}
             >
               <Typography variant="subtitle2" color="text.primary">
                 {token.value}px
               </Typography>
 
-              <Typography variant="caption" color="text.secondary">
+              <Typography
+                align="center"
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  wordBreak: "break-word",
+                }}
+              >
                 {token.tokenName}
               </Typography>
             </Stack>

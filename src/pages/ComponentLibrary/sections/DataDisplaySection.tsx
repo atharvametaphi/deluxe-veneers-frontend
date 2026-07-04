@@ -1,3 +1,1 @@
-export function DataDisplaySection() {
-  return <></>;
-}
+export { DataDisplaySection } from "./dataDisplay/DataDisplaySection";

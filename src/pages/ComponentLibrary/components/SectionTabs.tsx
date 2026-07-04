@@ -17,7 +17,7 @@ export function SectionTabs<TTab extends string>({
   return (
     <Box
       sx={(theme) => ({
-        borderBottom: `1px solid ${theme.customTokens.borders.subtle}`,
+        borderBottom: `1px solid ${theme.customTokens.borders.divider}`,
       })}
     >
       <Tabs
@@ -27,10 +27,10 @@ export function SectionTabs<TTab extends string>({
         value={activeTab}
         variant="scrollable"
         sx={(theme) => ({
-          minHeight: theme.spacing(6),
+          minHeight: theme.spacing(6.5),
           "& .MuiTabs-indicator": {
-            height: theme.customTokens.navigation.indicatorWidth,
-            borderRadius: `${theme.customTokens.radius.pill}px`,
+            height: 3,
+            borderRadius: `${theme.customTokens.radius.pill}px ${theme.customTokens.radius.pill}px 0 0`,
             backgroundColor: theme.customTokens.navigation.activeIndicator,
           },
         })}
@@ -42,30 +42,27 @@ export function SectionTabs<TTab extends string>({
             label={tab.label}
             value={tab.value}
             sx={(theme) => ({
-              minHeight: theme.spacing(6),
-              px: theme.spacing(2),
-              py: theme.spacing(1),
-              mr: theme.spacing(1),
-              borderRadius: `${theme.customTokens.radius.md}px ${theme.customTokens.radius.md}px 0 0`,
+              minHeight: theme.spacing(6.5),
+              minWidth: "auto",
+              px: theme.spacing(1.75),
+              py: theme.spacing(1.25),
+              mr: theme.spacing(2),
               color: theme.customTokens.navigation.inactiveText,
               fontFamily: theme.typography.fontFamily,
-              fontSize: theme.typography.body2.fontSize,
-              fontWeight: 500,
-              lineHeight: theme.typography.body2.lineHeight,
-              textTransform: "none",
-              transition: theme.transitions.create(
-                ["background-color", "color"],
-                {
-                  duration: theme.transitions.duration.shorter,
-                },
-              ),
+              fontSize: theme.typography.subtitle2.fontSize,
+              fontWeight: 700,
+              lineHeight: theme.typography.subtitle2.lineHeight,
+              letterSpacing: "0.03em",
+              textTransform: "uppercase",
+              transition: theme.transitions.create(["color"], {
+                duration: theme.transitions.duration.shorter,
+              }),
               "&:hover": {
-                backgroundColor: theme.customTokens.navigation.hoverBackground,
                 color: theme.customTokens.navigation.activeText,
               },
               "&.Mui-selected": {
                 color: theme.customTokens.navigation.activeText,
-                fontWeight: 600,
+                fontWeight: 700,
               },
             })}
           />

@@ -9,14 +9,21 @@ import {
   ListItemIcon,
   ListItemText,
   Stack,
+  Tooltip,
   useTheme,
 } from "@mui/material";
-import { ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, ChevronLeft } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link as RouterLink, useLocation } from "react-router";
 
 import deluxeWordmark from "../assets/deluxe-veneers.png";
-import { sidebarNavigation } from "./sidebarNavigation";
+import deluxeFavicon from "../assets/favicon.png";
+import {
+  sidebarNavigation,
+  type SidebarNavigationEntry,
+  type SidebarNavigationGroup,
+  type SidebarMatchLocation,
+} from "./sidebarNavigation";
 
 type SidebarProps = {
   collapsed: boolean;
@@ -26,6 +33,10 @@ type SidebarProps = {
   onToggleCollapse: () => void;
 };
 
+const isExpandableGroup = (
+  entry: SidebarNavigationEntry,
+): entry is SidebarNavigationGroup => "items" in entry;
+
 export function Sidebar({
   collapsed,
   isDesktop,
@@ -34,12 +45,39 @@ export function Sidebar({
   onToggleCollapse,
 }: SidebarProps) {
   const theme = useTheme();
-  const { pathname } = useLocation();
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(
-      sidebarNavigation.map((group) => [group.id, group.defaultOpen]),
-    ),
+  const location = useLocation();
+  const sidebarLocation: SidebarMatchLocation = {
+    pathname: location.pathname,
+    search: location.search,
+  };
+
+  const activeGroupId =
+    sidebarNavigation.find(
+      (entry) =>
+        isExpandableGroup(entry) &&
+        (
+          entry.items.some((item) => item.match(sidebarLocation)) ||
+          entry.additionalMatches?.some((match) => match(sidebarLocation))
+        ),
+    )?.id ?? null;
+
+  const initialOpenGroupId =
+    activeGroupId ??
+    sidebarNavigation.find(
+      (entry) => isExpandableGroup(entry) && entry.defaultOpen,
+    )?.id ??
+    null;
+
+  const [openGroupId, setOpenGroupId] = useState<string | null>(
+    initialOpenGroupId,
   );
+
+  useEffect(() => {
+    if (activeGroupId) {
+      setOpenGroupId(activeGroupId);
+    }
+  }, [activeGroupId]);
+
   const drawerWidth = collapsed
     ? theme.customTokens.layout.sidebarCollapsedWidth
     : theme.customTokens.layout.sidebarExpandedWidth;
@@ -61,11 +99,18 @@ export function Sidebar({
     },
   } as const;
 
-  const toggleGroup = (groupId: string) => {
-    setOpenGroups((current) => ({
-      ...current,
-      [groupId]: !current[groupId],
-    }));
+  const collapsedNavButtonSize = theme.spacing(6);
+
+  const renderTopLevelIcon = (entry: SidebarNavigationEntry) => {
+    const EntryIcon = entry.icon;
+
+    return (
+      <EntryIcon
+        fill={entry.filledIcon ? "currentColor" : "none"}
+        size={theme.customTokens.iconSizes.md}
+        strokeWidth={entry.filledIcon ? 1.8 : 2}
+      />
+    );
   };
 
   return (
@@ -88,60 +133,92 @@ export function Sidebar({
         <Stack
           direction="row"
           alignItems="center"
-          justifyContent="space-between"
+          justifyContent="center"
           sx={{
-            minHeight: 48,
-            px: collapsed ? 0 : 1,
+            minHeight: 52,
+            px: 0,
             borderRadius: `${theme.customTokens.radius.lg}px`,
+            width: "100%",
           }}
         >
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={collapsed ? 0 : 1.5}
-            sx={{
-              minWidth: 0,
-              overflow: "hidden",
-            }}
-          >
-            {!collapsed ? (
+          {!collapsed ? (
+            <>
+              <Box
+                sx={{
+                  flexGrow: 1,
+                  minWidth: 0,
+                  pr: 1,
+                  overflow: "hidden",
+                }}
+              >
+                <Box
+                  component="img"
+                  src={deluxeWordmark}
+                  alt="Deluxe Veneers"
+                  sx={{
+                    display: "block",
+                    width: "100%",
+                    maxWidth: "100%",
+                    height: "auto",
+                    objectFit: "contain",
+                  }}
+                />
+              </Box>
+
+              {isDesktop ? (
+                <IconButton
+                  aria-label="Collapse sidebar"
+                  color="inherit"
+                  onClick={onToggleCollapse}
+                  sx={{
+                    flexShrink: 0,
+                    color: theme.customTokens.navigation.inactiveText,
+                    border: 1,
+                    borderColor: "divider",
+                    width: 32,
+                    height: 32,
+                    bgcolor: "transparent",
+                    "&:hover": {
+                      bgcolor: theme.customTokens.navigation.hoverBackground,
+                      borderColor: "divider",
+                    },
+                  }}
+                >
+                  <ChevronLeft size={theme.customTokens.iconSizes.sm} />
+                </IconButton>
+              ) : null}
+            </>
+          ) : isDesktop ? (
+            <IconButton
+              aria-label="Expand sidebar"
+              color="inherit"
+              onClick={onToggleCollapse}
+              sx={{
+                width: 36,
+                height: 36,
+                p: 0.75,
+                border: 1,
+                borderColor: "divider",
+                borderRadius: `${theme.customTokens.radius.md}px`,
+                bgcolor: theme.customTokens.surfaces.surface,
+                "&:hover": {
+                  bgcolor: theme.customTokens.navigation.hoverBackground,
+                  borderColor: theme.customTokens.borders.hover,
+                },
+              }}
+            >
               <Box
                 component="img"
-                src={deluxeWordmark}
-                alt="Deluxe Veneers"
+                src={deluxeFavicon}
+                alt="Expand Deluxe Veneers sidebar"
                 sx={{
-                  width: "100%",
-                  maxWidth: 168,
+                  display: "block",
+                  width: 22,
+                  minWidth: 22,
                   height: "auto",
                   objectFit: "contain",
                 }}
               />
-            ) : null}
-          </Stack>
-
-          {isDesktop ? (
-            <IconButton
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              color="inherit"
-              onClick={onToggleCollapse}
-              sx={{
-                color: theme.customTokens.navigation.inactiveText,
-                border: 1,
-                borderColor: "divider",
-                width: 32,
-                height: 32,
-                bgcolor: "transparent",
-                "&:hover": {
-                  bgcolor: theme.customTokens.navigation.hoverBackground,
-                  borderColor: "divider",
-                },
-              }}
-            >
-              {collapsed ? (
-                <PanelLeftOpen size={theme.customTokens.iconSizes.sm} />
-              ) : (
-                <PanelLeftClose size={theme.customTokens.iconSizes.sm} />
-              )}
             </IconButton>
           ) : null}
         </Stack>
@@ -160,160 +237,259 @@ export function Sidebar({
               display: "flex",
               flexDirection: "column",
               gap: 1,
+              alignItems: collapsed ? "center" : "stretch",
             }}
           >
-            {sidebarNavigation.map((group) => {
-              const GroupIcon = group.icon;
-              const isGroupOpen = collapsed ? true : (openGroups[group.id] ?? group.defaultOpen);
+            {sidebarNavigation.map((entry) => {
+              const hasChildren = isExpandableGroup(entry);
+              const isActive = hasChildren
+                ? entry.items.some((item) => item.match(sidebarLocation))
+                : entry.match(sidebarLocation);
+              const isOpen = !collapsed && openGroupId === entry.id;
+
+              const parentButtonSx = {
+                position: "relative",
+                overflow: "hidden",
+                minHeight: 40,
+                width: collapsed ? collapsedNavButtonSize : "100%",
+                minWidth: collapsed ? collapsedNavButtonSize : undefined,
+                mx: collapsed ? "auto" : 0,
+                px: collapsed ? 0 : 1.5,
+                py: 0.5,
+                justifyContent: collapsed ? "center" : "flex-start",
+                color: isActive
+                  ? theme.customTokens.navigation.activeText
+                  : theme.customTokens.navigation.inactiveText,
+                bgcolor: isActive
+                  ? theme.customTokens.navigation.activeBackground
+                  : "transparent",
+                borderRadius: `${theme.customTokens.radius.md}px`,
+                "&::before": isActive
+                  ? {
+                      content: '""',
+                      position: "absolute",
+                      left: collapsed ? 4 : 0,
+                      top: 6,
+                      bottom: 6,
+                      width: theme.customTokens.navigation.indicatorWidth,
+                      borderRadius: `${theme.customTokens.radius.pill}px`,
+                      bgcolor: theme.customTokens.navigation.activeIndicator,
+                    }
+                  : {},
+                "&:hover": {
+                  bgcolor: isActive
+                    ? theme.customTokens.navigation.activeBackground
+                    : theme.customTokens.navigation.hoverBackground,
+                },
+                "&.Mui-selected": {
+                  bgcolor: theme.customTokens.navigation.activeBackground,
+                },
+                "&.Mui-selected:hover": {
+                  bgcolor: theme.customTokens.navigation.activeBackground,
+                },
+              } as const;
+
+              const parentButton = hasChildren ? (
+                <ListItemButton
+                  disableRipple
+                  onClick={() => {
+                    if (collapsed && isDesktop) {
+                      setOpenGroupId(entry.id);
+                      onToggleCollapse();
+                      return;
+                    }
+
+                    if (!collapsed) {
+                      setOpenGroupId((current) =>
+                        current === entry.id ? null : entry.id,
+                      );
+                    }
+                  }}
+                  selected={isActive}
+                  sx={parentButtonSx}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: collapsed ? 0 : 32,
+                      justifyContent: "center",
+                      color: isActive
+                        ? theme.customTokens.navigation.activeText
+                        : theme.customTokens.navigation.inactiveText,
+                    }}
+                  >
+                    {renderTopLevelIcon(entry)}
+                  </ListItemIcon>
+
+                  {!collapsed ? (
+                    <>
+                      <ListItemText
+                        primary={entry.label}
+                        primaryTypographyProps={{
+                          variant: "subtitle2",
+                          fontWeight: 600,
+                          color: isActive
+                            ? theme.customTokens.navigation.activeText
+                            : theme.customTokens.navigation.inactiveText,
+                        }}
+                      />
+                      <ChevronDown
+                        size={theme.customTokens.iconSizes.sm}
+                        style={{
+                          color: isActive
+                            ? theme.customTokens.navigation.activeText
+                            : theme.customTokens.navigation.inactiveText,
+                          transform: isOpen
+                            ? "rotate(0deg)"
+                            : "rotate(-90deg)",
+                          transition: "transform 180ms ease",
+                        }}
+                      />
+                    </>
+                  ) : null}
+                </ListItemButton>
+              ) : (
+                <ListItemButton
+                  disableRipple
+                  component={RouterLink}
+                  onClick={!isDesktop ? onClose : undefined}
+                  selected={isActive}
+                  to={entry.to}
+                  sx={parentButtonSx}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: collapsed ? 0 : 32,
+                      justifyContent: "center",
+                      color: isActive
+                        ? theme.customTokens.navigation.activeText
+                        : theme.customTokens.navigation.inactiveText,
+                    }}
+                  >
+                    {renderTopLevelIcon(entry)}
+                  </ListItemIcon>
+
+                  {!collapsed ? (
+                    <ListItemText
+                      primary={entry.label}
+                      primaryTypographyProps={{
+                        variant: "subtitle2",
+                        fontWeight: 600,
+                        color: isActive
+                          ? theme.customTokens.navigation.activeText
+                          : theme.customTokens.navigation.inactiveText,
+                      }}
+                    />
+                  ) : null}
+                </ListItemButton>
+              );
 
               return (
-                <Box key={group.id}>
-                  <ListItemButton
-                    disableRipple
-                    onClick={() => {
-                      if (!collapsed) {
-                        toggleGroup(group.id);
-                      }
-                    }}
-                    sx={{
-                      minHeight: 40,
-                      px: collapsed ? 1 : 1.5,
-                      py: 0.5,
-                      justifyContent: collapsed ? "center" : "flex-start",
-                      color: theme.customTokens.navigation.inactiveText,
-                      borderRadius: `${theme.customTokens.radius.md}px`,
-                      "&:hover": {
-                        bgcolor: theme.customTokens.navigation.hoverBackground,
-                      },
-                    }}
-                  >
-                    <ListItemIcon
-                      sx={{
-                        minWidth: collapsed ? 0 : 32,
-                        justifyContent: "center",
-                        color: theme.customTokens.navigation.inactiveText,
-                      }}
-                    >
-                      <GroupIcon size={theme.customTokens.iconSizes.sm} />
-                    </ListItemIcon>
+                <Box key={entry.id}>
+                  {collapsed ? (
+                    <Tooltip placement="right" title={entry.label}>
+                      <Box>{parentButton}</Box>
+                    </Tooltip>
+                  ) : (
+                    parentButton
+                  )}
 
-                    {!collapsed ? (
-                      <>
-                        <ListItemText
-                          primary={group.label}
-                          primaryTypographyProps={{
-                            variant: "subtitle2",
-                            fontWeight: 600,
-                            color: theme.customTokens.navigation.inactiveText,
-                          }}
-                        />
-                        <ChevronDown
-                          size={theme.customTokens.iconSizes.sm}
-                          style={{
-                            color: theme.customTokens.navigation.inactiveText,
-                            transform: isGroupOpen ? "rotate(0deg)" : "rotate(-90deg)",
-                            transition: "transform 180ms ease",
-                          }}
-                        />
-                      </>
-                    ) : null}
-                  </ListItemButton>
+                  {hasChildren && !collapsed ? (
+                    <Collapse in={isOpen} orientation="vertical" timeout="auto">
+                      <List
+                        disablePadding
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 0.5,
+                          pt: 0.5,
+                          pl: 4,
+                        }}
+                      >
+                        {entry.items.map((item) => {
+                          const isItemActive = item.match(sidebarLocation);
 
-                  <Collapse
-                    in={isGroupOpen}
-                    orientation="vertical"
-                    timeout="auto"
-                  >
-                    <List
-                      disablePadding
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 0.5,
-                        pt: 0.5,
-                        pl: collapsed ? 0 : 3,
-                      }}
-                    >
-                      {group.items.map((item) => {
-                        const isActive = item.match(pathname);
-                        const ItemIcon = item.icon;
-
-                        return (
-                          <ListItemButton
-                            key={item.id}
-                            disableRipple
-                            component={RouterLink}
-                            onClick={!isDesktop ? onClose : undefined}
-                            selected={isActive}
-                            to={item.to}
-                            sx={{
-                              position: "relative",
-                              overflow: "hidden",
-                              minHeight: 40,
-                              px: collapsed ? 1 : 1.5,
-                              py: 0.5,
-                              justifyContent: collapsed ? "center" : "flex-start",
-                              color: isActive
-                                ? theme.customTokens.navigation.activeText
-                                : theme.customTokens.navigation.inactiveText,
-                              bgcolor: isActive
-                                ? theme.customTokens.navigation.activeBackground
-                                : "transparent",
-                              borderRadius: `${theme.customTokens.radius.md}px`,
-                              "&::before": isActive
-                                ? {
-                                    content: '""',
-                                    position: "absolute",
-                                    left: 0,
-                                    top: 6,
-                                    bottom: 6,
-                                    width: theme.customTokens.navigation.indicatorWidth,
-                                    borderRadius: `${theme.customTokens.radius.pill}px`,
-                                    bgcolor: theme.customTokens.navigation.activeIndicator,
-                                  }
-                                : {},
-                              "&:hover": {
-                                bgcolor: isActive
-                                  ? theme.customTokens.navigation.activeBackground
-                                  : theme.customTokens.navigation.hoverBackground,
-                              },
-                              "&.Mui-selected": {
-                                bgcolor: theme.customTokens.navigation.activeBackground,
-                              },
-                              "&.Mui-selected:hover": {
-                                bgcolor: theme.customTokens.navigation.activeBackground,
-                              },
-                            }}
-                          >
-                            <ListItemIcon
+                          return (
+                            <ListItemButton
+                              key={item.id}
+                              disableRipple
+                              component={RouterLink}
+                              onClick={!isDesktop ? onClose : undefined}
+                              selected={isItemActive}
+                              to={item.to}
                               sx={{
-                                minWidth: collapsed ? 0 : 32,
-                                justifyContent: "center",
-                                color: isActive
+                                position: "relative",
+                                overflow: "hidden",
+                                minHeight: 38,
+                                px: 1.5,
+                                py: 0.5,
+                                gap: 1,
+                                justifyContent: "flex-start",
+                                color: isItemActive
                                   ? theme.customTokens.navigation.activeText
                                   : theme.customTokens.navigation.inactiveText,
+                                bgcolor: isItemActive
+                                  ? theme.customTokens.navigation.activeBackground
+                                  : "transparent",
+                                borderRadius: `${theme.customTokens.radius.md}px`,
+                                "&::before": isItemActive
+                                  ? {
+                                      content: '""',
+                                      position: "absolute",
+                                      left: 0,
+                                      top: 6,
+                                      bottom: 6,
+                                      width: theme.customTokens.navigation.indicatorWidth,
+                                      borderRadius: `${theme.customTokens.radius.pill}px`,
+                                      bgcolor:
+                                        theme.customTokens.navigation.activeIndicator,
+                                    }
+                                  : {},
+                                "&:hover": {
+                                  bgcolor: isItemActive
+                                    ? theme.customTokens.navigation.activeBackground
+                                    : theme.customTokens.navigation.hoverBackground,
+                                },
+                                "&.Mui-selected": {
+                                  bgcolor:
+                                    theme.customTokens.navigation.activeBackground,
+                                },
+                                "&.Mui-selected:hover": {
+                                  bgcolor:
+                                    theme.customTokens.navigation.activeBackground,
+                                },
                               }}
                             >
-                              <ItemIcon size={theme.customTokens.iconSizes.sm} />
-                            </ListItemIcon>
+                              <Box
+                                component="span"
+                                sx={{
+                                  minWidth: 16,
+                                  textAlign: "center",
+                                  color: isItemActive
+                                    ? theme.customTokens.navigation.activeText
+                                    : theme.customTokens.text.secondary,
+                                  fontSize: "1rem",
+                                  lineHeight: 1,
+                                }}
+                              >
+                                •
+                              </Box>
 
-                            {!collapsed ? (
                               <ListItemText
                                 primary={item.label}
                                 primaryTypographyProps={{
                                   variant: "body2",
-                                  fontWeight: isActive ? 600 : 500,
-                                  color: isActive
+                                  fontWeight: isItemActive ? 600 : 500,
+                                  color: isItemActive
                                     ? theme.customTokens.navigation.activeText
                                     : theme.customTokens.navigation.inactiveText,
                                 }}
                               />
-                            ) : null}
-                          </ListItemButton>
-                        );
-                      })}
-                    </List>
-                  </Collapse>
+                            </ListItemButton>
+                          );
+                        })}
+                      </List>
+                    </Collapse>
+                  ) : null}
                 </Box>
               );
             })}

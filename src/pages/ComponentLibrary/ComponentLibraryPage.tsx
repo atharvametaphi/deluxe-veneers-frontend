@@ -5,31 +5,29 @@ import { Box, Stack } from "@mui/material";
 import { ComponentLibraryHeader } from "./components/ComponentLibraryHeader";
 import { ContentContainer } from "./components/ContentContainer";
 import { SectionTabs } from "./components/SectionTabs";
-import { ColorsSection } from "./sections/ColorsSection";
 import { DataDisplaySection } from "./sections/DataDisplaySection";
-import { ERPSection } from "./sections/ERPSection";
+import { FormsSection } from "./sections/FormsSection";
 import { InputsSection } from "./sections/InputsSection";
 import { NavigationSection } from "./sections/NavigationSection";
 import { PrimitivesSection } from "./sections/PrimitivesSection";
 
 type ComponentLibraryTab =
   | "primitives"
-  | "inputs"
+  | "forms"
   | "data-display"
   | "navigation"
-  | "erp"
   | "colors";
 
 const sectionRegistry = [
   {
     value: "primitives" as const,
     label: "Primitives",
-    Component: PrimitivesSection,
+    Component: InputsSection,
   },
   {
-    value: "inputs" as const,
-    label: "Inputs",
-    Component: InputsSection,
+    value: "forms" as const,
+    label: "Forms",
+    Component: FormsSection,
   },
   {
     value: "data-display" as const,
@@ -42,14 +40,9 @@ const sectionRegistry = [
     Component: NavigationSection,
   },
   {
-    value: "erp" as const,
-    label: "ERP",
-    Component: ERPSection,
-  },
-  {
     value: "colors" as const,
     label: "Colors",
-    Component: ColorsSection,
+    Component: PrimitivesSection,
   },
 ] satisfies ReadonlyArray<{
   value: ComponentLibraryTab;
@@ -71,14 +64,14 @@ export function ComponentLibraryPage() {
       sx={(theme) => ({
         minHeight: "100%",
         bgcolor: "background.paper",
-        px: { xs: theme.spacing(3), md: theme.spacing(4) },
-        py: { xs: theme.spacing(3), md: theme.spacing(4) },
+        px: { xs: theme.spacing(2), md: theme.spacing(3) },
+        py: { xs: theme.spacing(2), md: theme.spacing(3) },
       })}
     >
       <Stack
         sx={(theme) => ({
           width: "100%",
-          gap: theme.spacing(3),
+          gap: theme.spacing(2.5),
         })}
       >
         <ComponentLibraryHeader />

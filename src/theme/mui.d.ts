@@ -15,6 +15,35 @@ declare module "@mui/material/styles" {
   }
 
   interface DeluxeThemeTokens {
+    brand: {
+      accent: string;
+      primary: string;
+      primaryScale: {
+        50: string;
+        100: string;
+        200: string;
+        300: string;
+        400: string;
+        500: string;
+        600: string;
+        700: string;
+        800: string;
+        900: string;
+      };
+      secondary: string;
+      secondaryScale: {
+        50: string;
+        100: string;
+        200: string;
+        300: string;
+        400: string;
+        500: string;
+        600: string;
+        700: string;
+        800: string;
+        900: string;
+      };
+    };
     layout: {
       sidebarExpandedWidth: number;
       sidebarCollapsedWidth: number;
@@ -44,6 +73,7 @@ declare module "@mui/material/styles" {
     surfaces: {
       background: string;
       surface: string;
+      alt: string;
       paper: string;
     };
     text: {
@@ -58,8 +88,75 @@ declare module "@mui/material/styles" {
       error: string;
       info: string;
     };
+    semanticScale: {
+      success: {
+        50: string;
+        100: string;
+        200: string;
+        300: string;
+        400: string;
+        500: string;
+        600: string;
+        700: string;
+        800: string;
+        900: string;
+      };
+      warning: {
+        50: string;
+        100: string;
+        200: string;
+        300: string;
+        400: string;
+        500: string;
+        600: string;
+        700: string;
+        800: string;
+        900: string;
+      };
+      error: {
+        50: string;
+        100: string;
+        200: string;
+        300: string;
+        400: string;
+        500: string;
+        600: string;
+        700: string;
+        800: string;
+        900: string;
+      };
+      info: {
+        50: string;
+        100: string;
+        200: string;
+        300: string;
+        400: string;
+        500: string;
+        600: string;
+        700: string;
+        800: string;
+        900: string;
+      };
+    };
+    neutrals: {
+      50: string;
+      100: string;
+      200: string;
+      300: string;
+      400: string;
+      500: string;
+      600: string;
+      700: string;
+      800: string;
+      900: string;
+    };
     borders: {
+      default: string;
+      hover: string;
+      focus: string;
+      selected: string;
       subtle: string;
+      divider: string;
       light: string;
       strong: string;
     };
@@ -84,11 +181,32 @@ declare module "@mui/material/styles" {
     };
   }
 
+  interface DeluxeNavigationTheme {
+    breadcrumb: {
+      default: {
+        currentColor: string;
+        currentFontWeight: number;
+        itemColor: string;
+        itemFontWeight: number;
+        fontSize: string;
+        mobileFontSize: string;
+        lineHeight: number;
+        letterSpacing: string;
+        separatorColor: string;
+        separatorSize: number;
+        separatorStrokeWidth: number;
+        separatorSpacing: number;
+      };
+    };
+  }
+
   interface Theme {
     customTokens: DeluxeThemeTokens;
+    navigation: DeluxeNavigationTheme;
   }
 
   interface ThemeOptions {
     customTokens?: Partial<DeluxeThemeTokens>;
+    navigation?: Partial<DeluxeNavigationTheme>;
   }
 }

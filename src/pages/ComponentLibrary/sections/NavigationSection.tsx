@@ -1,3 +1,1 @@
-export function NavigationSection() {
-  return <></>;
-}
+export { NavigationSection } from "./navigation/NavigationSection";

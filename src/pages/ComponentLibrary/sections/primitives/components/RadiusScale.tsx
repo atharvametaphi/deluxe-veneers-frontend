@@ -6,27 +6,27 @@ export function RadiusScale() {
   const items = [
     {
       label: "Small",
-      tokenName: "customTokens.radius.sm",
+      tokenName: "theme.customTokens.radius.sm",
       value: theme.customTokens.radius.sm,
     },
     {
       label: "Medium",
-      tokenName: "customTokens.radius.md",
+      tokenName: "theme.customTokens.radius.md",
       value: theme.customTokens.radius.md,
     },
     {
       label: "Large",
-      tokenName: "customTokens.radius.lg",
+      tokenName: "theme.customTokens.radius.lg",
       value: theme.customTokens.radius.lg,
     },
     {
       label: "Extra Large",
-      tokenName: "customTokens.radius.xl",
+      tokenName: "theme.customTokens.radius.xl",
       value: theme.customTokens.radius.xl,
     },
     {
       label: "Pill",
-      tokenName: "customTokens.radius.pill",
+      tokenName: "theme.customTokens.radius.pill",
       value: theme.customTokens.radius.pill,
     },
   ] as const;
@@ -37,8 +37,8 @@ export function RadiusScale() {
         display: "grid",
         gap: theme.spacing(2),
         gridTemplateColumns: {
-          xs: "repeat(1, minmax(0, 1fr))",
-          sm: "repeat(2, minmax(0, 1fr))",
+          xs: "repeat(2, minmax(0, 1fr))",
+          md: "repeat(3, minmax(0, 1fr))",
           lg: "repeat(5, minmax(0, 1fr))",
         },
       })}
@@ -49,25 +49,28 @@ export function RadiusScale() {
           sx={(theme) => ({
             border: `1px solid ${theme.customTokens.borders.light}`,
             borderRadius: `${theme.customTokens.radius.md}px`,
-            backgroundColor: theme.customTokens.surfaces.surface,
-            p: theme.spacing(2),
+            backgroundColor: theme.customTokens.surfaces.alt,
+            p: theme.spacing(1.5),
           })}
         >
           <Stack
+            alignItems="center"
             sx={(theme) => ({
-              gap: theme.spacing(1.5),
+              gap: theme.spacing(1.25),
             })}
           >
             <Box
               sx={(theme) => ({
-                height: theme.spacing(7),
+                width: item.label === "Pill" ? theme.spacing(9) : theme.spacing(7),
+                height: theme.spacing(5),
                 borderRadius: `${item.value}px`,
-                backgroundColor: theme.customTokens.surfaces.paper,
+                backgroundColor: theme.customTokens.surfaces.surface,
                 border: `1px solid ${theme.customTokens.borders.strong}`,
               })}
             />
 
             <Stack
+              alignItems="center"
               sx={(theme) => ({
                 gap: theme.spacing(0.5),
               })}
@@ -80,7 +83,14 @@ export function RadiusScale() {
                 {item.value}px
               </Typography>
 
-              <Typography variant="caption" color="text.secondary">
+              <Typography
+                align="center"
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  wordBreak: "break-word",
+                }}
+              >
                 {item.tokenName}
               </Typography>
             </Stack>

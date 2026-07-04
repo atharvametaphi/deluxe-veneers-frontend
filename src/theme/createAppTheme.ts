@@ -11,27 +11,28 @@ let theme = createTheme({
   palette: {
     mode: "light",
     primary: {
-      main: deluxeTokens.colors.walnutBrown,
-      light: deluxeTokens.colors.naturalOak,
-      dark: deluxeTokens.colors.walnutBrownDark,
+      main: deluxeTokens.brand.primary,
+      light: deluxeTokens.brand.primaryScale[500],
+      dark: deluxeTokens.brand.primaryScale[800],
       contrastText: deluxeTokens.colors.white,
     },
     secondary: {
-      main: deluxeTokens.colors.naturalOak,
-      light: deluxeTokens.colors.softGold,
-      dark: deluxeTokens.colors.walnutBrown,
+      main: deluxeTokens.brand.secondary,
+      light: deluxeTokens.brand.accent,
+      dark: deluxeTokens.brand.primaryScale[700],
       contrastText: deluxeTokens.colors.white,
     },
+    grey: deluxeTokens.neutrals,
     background: {
       default: deluxeTokens.surfaces.background,
-      paper: deluxeTokens.surfaces.paper,
+      paper: deluxeTokens.surfaces.surface,
     },
     text: {
       primary: deluxeTokens.text.primary,
       secondary: deluxeTokens.text.secondary,
       disabled: deluxeTokens.text.disabled,
     },
-    divider: deluxeTokens.borders.subtle,
+    divider: deluxeTokens.borders.divider,
     success: {
       main: deluxeTokens.semantic.success,
       contrastText: deluxeTokens.colors.white,
@@ -81,7 +82,9 @@ let theme = createTheme({
     },
   },
   shadows: deluxeTokens.shadows,
+  navigation: deluxeTokens.themeNavigation,
   customTokens: {
+    brand: deluxeTokens.brand,
     layout: deluxeTokens.layout,
     radius: deluxeTokens.radius,
     iconSizes: deluxeTokens.iconSizes,
@@ -89,6 +92,8 @@ let theme = createTheme({
     surfaces: deluxeTokens.surfaces,
     text: deluxeTokens.text,
     semantic: deluxeTokens.semantic,
+    semanticScale: deluxeTokens.semanticScale,
+    neutrals: deluxeTokens.neutrals,
     borders: deluxeTokens.borders,
     elevation: deluxeTokens.elevation,
     spacingScale: deluxeTokens.spacingScale,
@@ -117,7 +122,7 @@ let theme = createTheme({
         paper: {
           backgroundColor: deluxeTokens.navigation.surface,
           backgroundImage: "none",
-          borderRight: `1px solid ${deluxeTokens.borders.subtle}`,
+          borderRight: `1px solid ${deluxeTokens.borders.divider}`,
           boxShadow: "none",
         },
       },
@@ -130,7 +135,7 @@ let theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: "none",
-          borderBottom: `1px solid ${deluxeTokens.borders.subtle}`,
+          borderBottom: `1px solid ${deluxeTokens.borders.divider}`,
         },
       },
     },

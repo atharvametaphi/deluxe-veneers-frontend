@@ -1,4 +1,14 @@
-import { Box, Stack, Typography, useTheme } from "@mui/material";
+import {
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  useTheme,
+} from "@mui/material";
 
 export function TypographyScale() {
   const theme = useTheme();
@@ -7,160 +17,166 @@ export function TypographyScale() {
     {
       label: "Display",
       preview: "Deluxe Veneers ERP",
-      tokenName: "customTokens.typographyScale.display",
+      tokenName: "theme.customTokens.typographyScale.display",
       value: theme.customTokens.typographyScale.display,
     },
     {
       label: "H1",
       preview: "Component Foundations",
-      tokenName: "typography.h1",
+      tokenName: "theme.typography.h1",
       value: theme.customTokens.typographyScale.h1,
     },
     {
       label: "H2",
       preview: "Enterprise Page Structure",
-      tokenName: "typography.h2",
+      tokenName: "theme.typography.h2",
       value: theme.customTokens.typographyScale.h2,
     },
     {
       label: "H3",
       preview: "Section Heading",
-      tokenName: "typography.h3",
+      tokenName: "theme.typography.h3",
       value: theme.customTokens.typographyScale.h3,
     },
     {
       label: "Title",
       preview: "Reusable component title",
-      tokenName: "typography.subtitle1",
+      tokenName: "theme.typography.subtitle1",
       value: theme.customTokens.typographyScale.title,
     },
     {
       label: "Body Large",
       preview: "Primary reading copy for ERP layouts and product guidance.",
-      tokenName: "typography.body1",
+      tokenName: "theme.typography.body1",
       value: theme.customTokens.typographyScale.bodyLarge,
     },
     {
       label: "Body",
       preview: "Secondary supporting copy for interface descriptions and notes.",
-      tokenName: "typography.body2",
+      tokenName: "theme.typography.body2",
       value: theme.customTokens.typographyScale.body,
     },
     {
       label: "Caption",
       preview: "Token metadata and compact annotations.",
-      tokenName: "typography.caption",
+      tokenName: "theme.typography.caption",
       value: theme.customTokens.typographyScale.caption,
     },
     {
       label: "Label",
       preview: "FIELD LABEL",
-      tokenName: "typography.subtitle2",
+      tokenName: "theme.typography.subtitle2",
       value: theme.customTokens.typographyScale.label,
     },
   ] as const;
 
   return (
-    <Stack>
-      {samples.map((sample, index) => (
-        <Box
-          key={sample.label}
-          sx={(theme) => ({
-            py: theme.spacing(2),
-            borderTop:
-              index === 0
-                ? "none"
-                : `1px solid ${theme.customTokens.borders.light}`,
-          })}
-        >
-          <Box
-            sx={(theme) => ({
-              display: "grid",
-              gap: theme.spacing(2),
-              gridTemplateColumns: {
-                xs: "1fr",
-                lg: "minmax(0, 1.4fr) minmax(0, 0.8fr)",
-              },
-              alignItems: "start",
-            })}
-          >
-            <Stack
-              sx={(theme) => ({
-                gap: theme.spacing(1),
-              })}
-            >
-              <Typography
-                color="text.primary"
-                sx={{
-                  fontFamily: theme.typography.fontFamily,
-                  fontSize: sample.value.fontSize,
-                  fontWeight: sample.value.fontWeight,
-                  lineHeight: sample.value.lineHeight,
-                  letterSpacing: sample.value.letterSpacing,
-                }}
+    <TableContainer
+      sx={(theme) => ({
+        overflowX: "auto",
+        border: `1px solid ${theme.customTokens.borders.light}`,
+        borderRadius: `${theme.customTokens.radius.md}px`,
+        backgroundColor: theme.customTokens.surfaces.surface,
+      })}
+    >
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            {["Style", "Preview", "Font Size", "Weight", "Line Height", "Token"].map(
+              (heading) => (
+                <TableCell
+                  key={heading}
+                  sx={(theme) => ({
+                    py: theme.spacing(1.25),
+                    px: theme.spacing(1.5),
+                    borderBottom: `1px solid ${theme.customTokens.borders.light}`,
+                    color: "text.secondary",
+                    fontSize: theme.typography.caption.fontSize,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  })}
+                >
+                  {heading}
+                </TableCell>
+              ),
+            )}
+          </TableRow>
+        </TableHead>
+
+        <TableBody>
+          {samples.map((sample) => (
+            <TableRow key={sample.label}>
+              <TableCell
+                sx={(theme) => ({
+                  py: theme.spacing(1.5),
+                  px: theme.spacing(1.5),
+                  borderBottom: `1px solid ${theme.customTokens.borders.light}`,
+                  whiteSpace: "nowrap",
+                })}
               >
-                {sample.preview}
-              </Typography>
+                <Typography variant="subtitle2" color="text.primary">
+                  {sample.label}
+                </Typography>
+              </TableCell>
 
-              <Typography variant="caption" color="text.secondary">
-                {sample.label}
-              </Typography>
-            </Stack>
+              <TableCell
+                sx={(theme) => ({
+                  py: theme.spacing(1.5),
+                  px: theme.spacing(1.5),
+                  borderBottom: `1px solid ${theme.customTokens.borders.light}`,
+                  minWidth: 260,
+                })}
+              >
+                <Typography
+                  color="text.primary"
+                  sx={{
+                    fontFamily: theme.typography.fontFamily,
+                    fontSize: sample.value.fontSize,
+                    fontWeight: sample.value.fontWeight,
+                    lineHeight: sample.value.lineHeight,
+                    letterSpacing: sample.value.letterSpacing,
+                  }}
+                >
+                  {sample.preview}
+                </Typography>
+              </TableCell>
 
-            <Box
-              sx={(theme) => ({
-                display: "grid",
-                gap: theme.spacing(1),
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                border: `1px solid ${theme.customTokens.borders.light}`,
-                borderRadius: `${theme.customTokens.radius.md}px`,
-                backgroundColor: theme.customTokens.surfaces.surface,
-                p: theme.spacing(2),
-              })}
-            >
-              <MetadataItem label="Font size" value={sample.value.fontSize} />
-              <MetadataItem
-                label="Weight"
-                value={String(sample.value.fontWeight)}
-              />
-              <MetadataItem
-                label="Line height"
-                value={String(sample.value.lineHeight)}
-              />
-              <MetadataItem label="Token" value={sample.tokenName} />
-            </Box>
-          </Box>
-        </Box>
-      ))}
-    </Stack>
+              <DataCell value={sample.value.fontSize} />
+              <DataCell value={String(sample.value.fontWeight)} />
+              <DataCell value={String(sample.value.lineHeight)} />
+              <DataCell value={sample.tokenName} wrap />
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }
 
-type MetadataItemProps = {
-  label: string;
+type DataCellProps = {
   value: string;
+  wrap?: boolean;
 };
 
-function MetadataItem({ label, value }: MetadataItemProps) {
+function DataCell({ value, wrap = false }: DataCellProps) {
   return (
-    <Stack
+    <TableCell
       sx={(theme) => ({
-        gap: theme.spacing(0.5),
+        py: theme.spacing(1.5),
+        px: theme.spacing(1.5),
+        borderBottom: `1px solid ${theme.customTokens.borders.light}`,
+        whiteSpace: wrap ? "normal" : "nowrap",
       })}
     >
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-
       <Typography
         variant="body2"
-        color="text.primary"
+        color="text.secondary"
         sx={{
-          wordBreak: "break-word",
+          wordBreak: wrap ? "break-word" : "normal",
         }}
       >
         {value}
       </Typography>
-    </Stack>
+    </TableCell>
   );
 }

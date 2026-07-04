@@ -1,3 +1,1 @@
-export function InputsSection() {
-  return <></>;
-}
+export { InputsSection } from "./inputs/InputsSection";

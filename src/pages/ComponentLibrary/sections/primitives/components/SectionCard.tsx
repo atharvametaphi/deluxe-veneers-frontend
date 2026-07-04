@@ -14,9 +14,9 @@ export function SectionCard({
   return (
     <Box
       sx={(theme) => ({
-        border: `1px solid ${theme.customTokens.borders.light}`,
+        border: `1px solid ${theme.customTokens.borders.default}`,
         borderRadius: `${theme.customTokens.radius.lg}px`,
-        backgroundColor: theme.customTokens.surfaces.paper,
+        backgroundColor: theme.customTokens.surfaces.surface,
         p: { xs: theme.spacing(3), md: theme.spacing(4) },
       })}
     >
