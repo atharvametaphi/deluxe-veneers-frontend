@@ -18,15 +18,51 @@ export type SidebarMatchLocation = {
   search: string;
 };
 
+const inventorySlugs = [
+  "veneer-blocks",
+  "raw-veneer",
+  "plywood",
+  "mdf",
+] as const;
+
 const matchesPath = (location: SidebarMatchLocation, routePath: string) =>
   location.pathname === routePath ||
   location.pathname.startsWith(`${routePath}/`);
+
+const getSearchParam = (location: SidebarMatchLocation, key: string) =>
+  new URLSearchParams(location.search).get(key);
 
 const matchesSearchParam = (
   location: SidebarMatchLocation,
   key: string,
   expectedValue: string,
-) => new URLSearchParams(location.search).get(key) === expectedValue;
+) => getSearchParam(location, key) === expectedValue;
+
+const matchesInventoryRecordRoute = (
+  location: SidebarMatchLocation,
+  slug: (typeof inventorySlugs)[number],
+  warehouse: "warehouse-a" | "warehouse-b" | "warehouse-c",
+) => {
+  if (!matchesPath(location, `/inventory/${slug}`)) {
+    return false;
+  }
+
+  const activeWarehouse = getSearchParam(location, "warehouse");
+
+  if (warehouse === "warehouse-b") {
+    return !activeWarehouse || activeWarehouse === "warehouse-b";
+  }
+
+  return activeWarehouse === warehouse;
+};
+
+const matchesAnyWarehouseInventoryRecordRoute = (
+  location: SidebarMatchLocation,
+  warehouse: "warehouse-a" | "warehouse-c",
+) =>
+  inventorySlugs.some((slug) =>
+    matchesInventoryRecordRoute(location, slug, warehouse),
+  );
 
 export type SidebarNavigationItem = {
   id: string;
@@ -89,6 +125,13 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
     icon: Star,
     items: [
       {
+        id: "item-category-master",
+        label: "Category",
+        to: "/masters/item-category-master",
+        match: (location) =>
+          matchesPath(location, "/masters/item-category-master"),
+      },
+      {
         id: "color-master",
         label: "Color",
         to: "/masters/color-master",
@@ -105,6 +148,13 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         label: "Customer",
         to: "/masters/customer-master",
         match: (location) => matchesPath(location, "/masters/customer-master"),
+      },
+      {
+        id: "department-master",
+        label: "Department",
+        to: "/masters/department-master",
+        match: (location) =>
+          matchesPath(location, "/masters/department-master"),
       },
       {
         id: "gst-master",
@@ -125,15 +175,8 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) => matchesPath(location, "/masters/item-master"),
       },
       {
-        id: "item-category-master",
-        label: "Item Category",
-        to: "/masters/item-category-master",
-        match: (location) =>
-          matchesPath(location, "/masters/item-category-master"),
-      },
-      {
         id: "item-sub-category-master",
-        label: "Item Sub-Category",
+        label: "Sub Category",
         to: "/masters/item-sub-category-master",
         match: (location) =>
           matchesPath(location, "/masters/item-sub-category-master"),
@@ -166,7 +209,9 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
     label: "Warehouse A",
     icon: Warehouse,
     to: "/warehouse-a",
-    match: (location) => matchesPath(location, "/warehouse-a"),
+    match: (location) =>
+      matchesPath(location, "/warehouse-a") ||
+      matchesAnyWarehouseInventoryRecordRoute(location, "warehouse-a"),
   },
   {
     id: "warehouse-b",
@@ -185,7 +230,7 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) =>
           (matchesPath(location, "/warehouse-b") &&
             matchesSearchParam(location, "inventory", "veneer-blocks")) ||
-          matchesPath(location, "/inventory/veneer-blocks"),
+          matchesInventoryRecordRoute(location, "veneer-blocks", "warehouse-b"),
       },
       {
         id: "warehouse-b-raw-veneer",
@@ -194,7 +239,7 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) =>
           (matchesPath(location, "/warehouse-b") &&
             matchesSearchParam(location, "inventory", "raw-veneer")) ||
-          matchesPath(location, "/inventory/raw-veneer"),
+          matchesInventoryRecordRoute(location, "raw-veneer", "warehouse-b"),
       },
       {
         id: "warehouse-b-plywood",
@@ -203,7 +248,7 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) =>
           (matchesPath(location, "/warehouse-b") &&
             matchesSearchParam(location, "inventory", "plywood")) ||
-          matchesPath(location, "/inventory/plywood"),
+          matchesInventoryRecordRoute(location, "plywood", "warehouse-b"),
       },
       {
         id: "warehouse-b-mdf",
@@ -212,7 +257,7 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) =>
           (matchesPath(location, "/warehouse-b") &&
             matchesSearchParam(location, "inventory", "mdf")) ||
-          matchesPath(location, "/inventory/mdf"),
+          matchesInventoryRecordRoute(location, "mdf", "warehouse-b"),
       },
     ],
   },
@@ -221,7 +266,9 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
     label: "Warehouse C",
     icon: Warehouse,
     to: "/warehouse-c",
-    match: (location) => matchesPath(location, "/warehouse-c"),
+    match: (location) =>
+      matchesPath(location, "/warehouse-c") ||
+      matchesAnyWarehouseInventoryRecordRoute(location, "warehouse-c"),
   },
   {
     id: "qc",

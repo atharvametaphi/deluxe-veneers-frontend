@@ -11,6 +11,7 @@ import {
   type MasterFieldValue,
 } from "../../masters/shared";
 import {
+  createPackingEntry,
   getPackingPaths,
   type PackingRecord,
   updatePackingRecord,
@@ -30,6 +31,9 @@ const packingRecordFields: readonly MasterFieldDefinition[] = [
   { key: "series", label: "Series", type: "text" },
   { key: "grade", label: "Grade", type: "text" },
   { key: "amount", label: "Amount", type: "text" },
+  { key: "remark", label: "Remark", type: "text" },
+  { key: "packingDate", label: "Packing Date", type: "date" },
+  { key: "dispatchDate", label: "Dispatch Date", type: "date" },
   { key: "createdBy", label: "Created By", type: "text" },
   { key: "updatedBy", label: "Updated By", type: "text" },
   { key: "createdDate", label: "Created Date", type: "date" },
@@ -37,7 +41,7 @@ const packingRecordFields: readonly MasterFieldDefinition[] = [
 ];
 
 interface PackingRecordPageProps {
-  mode: "edit" | "view";
+  mode: "add" | "edit" | "view";
 }
 
 export function PackingRecordPage({ mode }: PackingRecordPageProps) {
@@ -49,18 +53,59 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
     () => records.find((entry) => entry.id === id),
     [id, records],
   );
+  const createPackingFields = useMemo<readonly MasterFieldDefinition[]>(
+    () => [
+      {
+        key: "packingDate",
+        label: "Packing Date",
+        type: "date",
+      },
+      {
+        key: "customerName",
+        label: "Customer Name",
+        type: "select",
+        options: uniquePackingOptions(records, "customerName"),
+        placeholder: "Select Customer Name",
+      },
+      {
+        key: "orderType",
+        label: "Order Type",
+        type: "select",
+        options: uniquePackingOptions(records, "orderType"),
+        placeholder: "Select Order Type",
+      },
+      {
+        key: "productCategory",
+        label: "Product Category",
+        type: "select",
+        options: uniquePackingOptions(records, "productCategory"),
+        placeholder: "Select Product Category",
+      },
+      {
+        key: "remark",
+        label: "Remark",
+        type: "text",
+        placeholder: "Enter Remark",
+      },
+    ],
+    [records],
+  );
+  const activeFields = mode === "add" ? createPackingFields : packingRecordFields;
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildPackingInitialValues(record),
+    buildPackingInitialValues(activeFields, record, mode),
   );
 
   useEffect(() => {
-    setValues(buildPackingInitialValues(record));
-  }, [record]);
+    setValues(buildPackingInitialValues(activeFields, record, mode));
+  }, [activeFields, mode, record]);
 
   if (!record) {
     return (
       <MasterPageShell
-        breadcrumbs={[{ label: "Packing" }, { label: "Not Found" }]}
+        breadcrumbs={[
+          { label: "Packing", to: paths.list },
+          { label: "Not Found" },
+        ]}
         title="Packing"
       >
         <MasterSectionCard>
@@ -75,10 +120,10 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
   return (
     <MasterPageShell
       breadcrumbs={[
-        { label: "Packing" },
-        { label: mode === "edit" ? "Edit Packing" : "View Packing" },
+        { label: "Packing", to: paths.list },
+        { label: mode === "add" ? "Create Packing" : mode === "edit" ? "Edit Packing" : "View Packing" },
       ]}
-      title={mode === "edit" ? "Edit Packing" : "View Packing"}
+      title={mode === "add" ? "Create Packing" : mode === "edit" ? "Edit Packing" : "View Packing"}
     >
       <MasterSectionCard>
         <Stack
@@ -88,7 +133,7 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
         >
           <MasterFormFields
             definition={{
-              fields: packingRecordFields,
+              fields: activeFields,
               gridColumns: 4,
             }}
             onChange={(key, value) =>
@@ -138,13 +183,35 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
 
                 <Button
                   onClick={() => {
-                    updatePackingRecord(record.id, buildPackingUpdatePayload(values));
+                    if (mode === "add") {
+                      createPackingEntry(record.id, {
+                        packingDate:
+                          values.packingDate instanceof Date
+                            ? values.packingDate
+                            : null,
+                        ...(typeof values.customerName === "string"
+                          ? { customerName: values.customerName }
+                          : {}),
+                        ...(typeof values.orderType === "string"
+                          ? { orderType: values.orderType }
+                          : {}),
+                        ...(typeof values.productCategory === "string"
+                          ? { productCategory: values.productCategory }
+                          : {}),
+                        ...(typeof values.remark === "string"
+                          ? { remark: values.remark }
+                          : {}),
+                      });
+                    } else {
+                      updatePackingRecord(record.id, buildPackingUpdatePayload(values));
+                    }
+
                     navigate(paths.list);
                   }}
                   startIcon={<Save size={16} />}
                   variant="contained"
                 >
-                  Save
+                  {mode === "add" ? "Submit" : "Save"}
                 </Button>
               </>
             )}
@@ -155,12 +222,21 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
   );
 }
 
-function buildPackingInitialValues(record?: PackingRecord) {
-  return packingRecordFields.reduce<Record<string, MasterFieldValue>>(
+function buildPackingInitialValues(
+  fields: readonly MasterFieldDefinition[],
+  record: PackingRecord | undefined,
+  mode: "add" | "edit" | "view",
+) {
+  return fields.reduce<Record<string, MasterFieldValue>>(
     (accumulator, field) => {
       const value = record?.[field.key as keyof PackingRecord];
 
       if (field.type === "date") {
+        if (mode === "add" && field.key === "packingDate") {
+          accumulator[field.key] = new Date();
+          return accumulator;
+        }
+
         accumulator[field.key] = value instanceof Date ? value : null;
         return accumulator;
       }
@@ -178,11 +254,8 @@ function buildPackingUpdatePayload(values: Record<string, MasterFieldValue>) {
       const value = values[field.key];
 
       if (field.type === "date") {
-        if (value instanceof Date) {
-          accumulator[field.key as keyof PackingRecord] =
-            value as PackingRecord[keyof PackingRecord];
-        }
-
+        accumulator[field.key as keyof PackingRecord] =
+          (value instanceof Date ? value : null) as PackingRecord[keyof PackingRecord];
         return accumulator;
       }
 
@@ -195,4 +268,11 @@ function buildPackingUpdatePayload(values: Record<string, MasterFieldValue>) {
     },
     {},
   );
+}
+
+function uniquePackingOptions(
+  records: readonly PackingRecord[],
+  key: "customerName" | "orderType" | "productCategory",
+) {
+  return Array.from(new Set(records.map((record) => record[key]).filter(Boolean)));
 }

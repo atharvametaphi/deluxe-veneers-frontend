@@ -12,14 +12,17 @@ import {
 } from "../../masters/shared";
 import {
   createOrderRecord,
+  getOrderLineItems,
   getOrdersPaths,
   orderFormFields,
   orderViewFields,
   type OrderDraft,
+  type OrderLineItem,
   type OrderRecord,
   updateOrderRecord,
   useOrderRecords,
 } from "./ordersStore";
+import { OrderLineItemsTable } from "./OrderLineItemsTable";
 
 interface OrderRecordPageProps {
   mode: "add" | "edit" | "view";
@@ -38,10 +41,17 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildOrderInitialValues(activeFields, record),
   );
+  const [lineItems, setLineItems] = useState<OrderLineItem[]>(() =>
+    record ? getOrderLineItems(record.id) : [],
+  );
 
   useEffect(() => {
     setValues(buildOrderInitialValues(activeFields, record));
   }, [activeFields, record]);
+
+  useEffect(() => {
+    setLineItems(record ? getOrderLineItems(record.id) : []);
+  }, [record]);
 
   if ((mode === "edit" || mode === "view") && !record) {
     return (
@@ -90,6 +100,12 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
             values={values}
           />
 
+          <OrderLineItemsTable
+            items={lineItems}
+            onChange={setLineItems}
+            readOnly={mode === "view"}
+          />
+
           <Box
             sx={(theme) => ({
               display: "flex",
@@ -131,7 +147,7 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
 
                 <Button
                   onClick={() => {
-                    const payload = buildOrderPayload(values);
+                    const payload = buildOrderPayload(values, lineItems);
 
                     if (mode === "add") {
                       createOrderRecord(payload);
@@ -172,8 +188,13 @@ function buildOrderInitialValues(
   }, {});
 }
 
-function buildOrderPayload(values: Record<string, MasterFieldValue>) {
-  const payload: Partial<OrderDraft> = {};
+function buildOrderPayload(
+  values: Record<string, MasterFieldValue>,
+  lineItems: readonly OrderLineItem[],
+) {
+  const payload: Partial<OrderDraft> = {
+    lineItems: [...lineItems],
+  };
 
   assignStringValue(payload, "amount", values.amount);
   assignStringValue(payload, "customerName", values.customerName);

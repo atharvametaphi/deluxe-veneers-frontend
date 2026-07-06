@@ -25,8 +25,24 @@ export interface UserPermissionSection {
 
 interface UserManagementSeedRow {
   userName: string;
+  userType: string;
   department: string;
-  remark: string;
+  approver: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  country: string;
+  state: string;
+  city: string;
+  address: string;
+  pincode: string;
+  gender: string;
+  bloodGroup: string;
+  dateOfBirth: Date;
+  age: string;
+  phoneNo: string;
+  remarks: string;
   createdBy: string;
   createdDate: Date;
   isActive: boolean;
@@ -35,15 +51,31 @@ interface UserManagementSeedRow {
 }
 
 export interface UserManagementRecord extends EnterpriseTableRow {
+  id: string;
+  userName: string;
+  userType: string;
+  department: string;
+  approver: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  country: string;
+  state: string;
+  city: string;
+  address: string;
+  pincode: string;
+  gender: string;
+  bloodGroup: string;
+  dateOfBirth: Date;
+  age: string;
+  phoneNo: string;
+  remarks: string;
   createdBy: string;
   createdDate: Date;
-  department: string;
-  id: string;
   isActive: boolean;
-  remark: string;
   statusLabel: string;
   updatedDate: Date;
-  userName: string;
 }
 
 export interface UserManagementDetail extends UserManagementSeedRow {
@@ -54,12 +86,24 @@ export interface UserManagementDetail extends UserManagementSeedRow {
 export const userManagementColumns: readonly EnterpriseTableColumn<UserManagementRecord>[] =
   [
     { key: "userName", label: "User Name" },
-    { key: "department", label: "Department Name" },
-    { key: "statusLabel", label: "Status" },
-    { key: "remark", label: "Remarks" },
-    { key: "createdBy", label: "Created By" },
-    { key: "createdDate", label: "Created Date" },
-    { key: "updatedDate", label: "Updated Date" },
+    { key: "userType", label: "User Type" },
+    { key: "department", label: "Department" },
+    { key: "approver", label: "Approver" },
+    { key: "role", label: "Role" },
+    { key: "firstName", label: "First Name" },
+    { key: "lastName", label: "Last Name" },
+    { key: "email", label: "Email" },
+    { key: "country", label: "Country" },
+    { key: "state", label: "State" },
+    { key: "city", label: "City" },
+    { key: "address", label: "Address" },
+    { key: "pincode", label: "Pincode" },
+    { key: "gender", label: "Gender" },
+    { key: "bloodGroup", label: "Blood Group" },
+    { key: "dateOfBirth", label: "Date Of Birth" },
+    { key: "age", label: "Age" },
+    { key: "phoneNo", label: "Phone No" },
+    { key: "remarks", label: "Remarks" },
   ];
 
 export const departmentOptions = [
@@ -70,6 +114,61 @@ export const departmentOptions = [
   "Dispatch Team",
   "Sales Team",
   "Accounts Team",
+] as const;
+
+export const userTypeOptions = [
+  "Admin",
+  "Manager",
+  "Supervisor",
+  "Executive",
+] as const;
+
+export const roleOptions = [
+  "System Administrator",
+  "Executive Approver",
+  "Warehouse Supervisor",
+  "Warehouse Executive",
+  "QC Analyst",
+  "Production Supervisor",
+  "Sales Coordinator",
+  "Sales Executive",
+  "Accounts Executive",
+  "Dispatch Coordinator",
+] as const;
+
+export const countryOptions = ["India"] as const;
+
+export const stateOptions = [
+  "Gujarat",
+  "Maharashtra",
+  "Rajasthan",
+  "Delhi",
+  "Karnataka",
+  "West Bengal",
+] as const;
+
+export const cityOptions = [
+  "Ahmedabad",
+  "Surat",
+  "Mumbai",
+  "Pune",
+  "Jaipur",
+  "New Delhi",
+  "Bengaluru",
+  "Kolkata",
+] as const;
+
+export const genderOptions = ["Male", "Female", "Other"] as const;
+
+export const bloodGroupOptions = [
+  "A+",
+  "A-",
+  "B+",
+  "B-",
+  "AB+",
+  "AB-",
+  "O+",
+  "O-",
 ] as const;
 
 export const userPermissionSections: readonly UserPermissionSection[] = [
@@ -89,11 +188,12 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
       { key: "colorMaster", label: "Color Master" },
       { key: "currencyMaster", label: "Currency Master" },
       { key: "customerMaster", label: "Customer Master" },
+      { key: "departmentMaster", label: "Department Master" },
       { key: "gstMaster", label: "GST Master" },
       { key: "hsnMaster", label: "HSN Master" },
-      { key: "itemCategoryMaster", label: "Item Category" },
+      { key: "itemCategoryMaster", label: "Category" },
       { key: "itemMaster", label: "Item Master" },
-      { key: "itemSubCategoryMaster", label: "Item Sub-Category" },
+      { key: "itemSubCategoryMaster", label: "Sub Category" },
       { key: "supplierMaster", label: "Supplier Master" },
       { key: "unitMaster", label: "Unit Master" },
       { key: "warehouseLocationMaster", label: "Warehouse / Location" },
@@ -174,8 +274,24 @@ function buildPermissionState(
 const userManagementSeedRows: UserManagementSeedRow[] = [
   {
     userName: "Rohan Patel",
+    userType: "Executive",
     department: "Warehouse Team",
-    remark: "Warehouse stock visibility and inward configuration.",
+    approver: "Dev Joshi",
+    role: "Warehouse Executive",
+    firstName: "Rohan",
+    lastName: "Patel",
+    email: "rohan.patel@deluxeveneers.com",
+    country: "India",
+    state: "Gujarat",
+    city: "Ahmedabad",
+    address: "Warehouse Campus, Sarkhej Road",
+    pincode: "380051",
+    gender: "Male",
+    bloodGroup: "B+",
+    dateOfBirth: new Date("1995-03-14"),
+    age: "31",
+    phoneNo: "+91 9876501201",
+    remarks: "Warehouse stock visibility and inward coordination.",
     createdBy: "Neha Sharma",
     createdDate: new Date("2026-06-12"),
     updatedDate: new Date("2026-06-24"),
@@ -191,8 +307,24 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
   {
     userName: "Ananya Saxena",
+    userType: "Manager",
     department: "Sales Team",
-    remark: "Sales coordination, order intake, and dispatch visibility.",
+    approver: "Tanya Khanna",
+    role: "Sales Coordinator",
+    firstName: "Ananya",
+    lastName: "Saxena",
+    email: "ananya.saxena@deluxeveneers.com",
+    country: "India",
+    state: "Delhi",
+    city: "New Delhi",
+    address: "Corporate Office, Connaught Place",
+    pincode: "110001",
+    gender: "Female",
+    bloodGroup: "A+",
+    dateOfBirth: new Date("1992-08-22"),
+    age: "33",
+    phoneNo: "+91 9876501202",
+    remarks: "Sales coordination, order intake, and dispatch visibility.",
     createdBy: "Vikram Mehta",
     createdDate: new Date("2026-06-10"),
     updatedDate: new Date("2026-06-26"),
@@ -208,8 +340,24 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
   {
     userName: "Karan Gupta",
+    userType: "Executive",
     department: "Sales Team",
-    remark: "External coordination access for client and order follow-up.",
+    approver: "Ananya Saxena",
+    role: "Sales Executive",
+    firstName: "Karan",
+    lastName: "Gupta",
+    email: "karan.gupta@deluxeveneers.com",
+    country: "India",
+    state: "Rajasthan",
+    city: "Jaipur",
+    address: "Regional Sales Office, Tonk Road",
+    pincode: "302018",
+    gender: "Male",
+    bloodGroup: "O+",
+    dateOfBirth: new Date("1996-01-09"),
+    age: "30",
+    phoneNo: "+91 9876501203",
+    remarks: "Client coordination for orders and dispatch updates.",
     createdBy: "Aarav Bansal",
     createdDate: new Date("2026-06-08"),
     updatedDate: new Date("2026-06-18"),
@@ -223,8 +371,24 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
   {
     userName: "Meera Iyer",
+    userType: "Executive",
     department: "QC Team",
-    remark: "QC pending review and approval movement access.",
+    approver: "Dev Joshi",
+    role: "QC Analyst",
+    firstName: "Meera",
+    lastName: "Iyer",
+    email: "meera.iyer@deluxeveneers.com",
+    country: "India",
+    state: "Maharashtra",
+    city: "Pune",
+    address: "Quality Block, Plant 2",
+    pincode: "411045",
+    gender: "Female",
+    bloodGroup: "AB+",
+    dateOfBirth: new Date("1994-11-03"),
+    age: "31",
+    phoneNo: "+91 9876501204",
+    remarks: "QC pending review and approval movement access.",
     createdBy: "Neha Sharma",
     createdDate: new Date("2026-06-14"),
     updatedDate: new Date("2026-06-25"),
@@ -239,8 +403,24 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
   {
     userName: "Samar Singh",
+    userType: "Supervisor",
     department: "Production Team",
-    remark: "Factory process execution across active production stages.",
+    approver: "Dev Joshi",
+    role: "Production Supervisor",
+    firstName: "Samar",
+    lastName: "Singh",
+    email: "samar.singh@deluxeveneers.com",
+    country: "India",
+    state: "Gujarat",
+    city: "Surat",
+    address: "Factory Unit 1, Kamrej",
+    pincode: "394185",
+    gender: "Male",
+    bloodGroup: "A-",
+    dateOfBirth: new Date("1989-06-17"),
+    age: "37",
+    phoneNo: "+91 9876501205",
+    remarks: "Factory process execution across active production stages.",
     createdBy: "Vikram Mehta",
     createdDate: new Date("2026-06-07"),
     updatedDate: new Date("2026-06-22"),
@@ -263,8 +443,24 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
   {
     userName: "Priya Desai",
+    userType: "Executive",
     department: "Accounts Team",
-    remark: "Commercial documentation and inward financial visibility.",
+    approver: "Tanya Khanna",
+    role: "Accounts Executive",
+    firstName: "Priya",
+    lastName: "Desai",
+    email: "priya.desai@deluxeveneers.com",
+    country: "India",
+    state: "Gujarat",
+    city: "Ahmedabad",
+    address: "Accounts Office, SG Highway",
+    pincode: "380015",
+    gender: "Female",
+    bloodGroup: "O-",
+    dateOfBirth: new Date("1993-02-26"),
+    age: "32",
+    phoneNo: "+91 9876501206",
+    remarks: "Commercial documentation and inward financial visibility.",
     createdBy: "Aarav Bansal",
     createdDate: new Date("2026-06-11"),
     updatedDate: new Date("2026-06-23"),
@@ -282,8 +478,24 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
   {
     userName: "Dev Joshi",
+    userType: "Admin",
     department: "Management / Admin",
-    remark: "Administrative oversight across commercial and factory modules.",
+    approver: "Tanya Khanna",
+    role: "System Administrator",
+    firstName: "Dev",
+    lastName: "Joshi",
+    email: "dev.joshi@deluxeveneers.com",
+    country: "India",
+    state: "Delhi",
+    city: "New Delhi",
+    address: "Head Office, Barakhamba Road",
+    pincode: "110001",
+    gender: "Male",
+    bloodGroup: "B-",
+    dateOfBirth: new Date("1988-12-05"),
+    age: "38",
+    phoneNo: "+91 9876501207",
+    remarks: "Administrative oversight across commercial and factory modules.",
     createdBy: "Vikram Mehta",
     createdDate: new Date("2026-06-09"),
     updatedDate: new Date("2026-06-27"),
@@ -310,8 +522,24 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
   {
     userName: "Nisha Kapoor",
+    userType: "Executive",
     department: "Dispatch Team",
-    remark: "Dispatch documentation and packed order release workflow.",
+    approver: "Tanya Khanna",
+    role: "Dispatch Coordinator",
+    firstName: "Nisha",
+    lastName: "Kapoor",
+    email: "nisha.kapoor@deluxeveneers.com",
+    country: "India",
+    state: "West Bengal",
+    city: "Kolkata",
+    address: "Dispatch Block, Unit 3",
+    pincode: "700091",
+    gender: "Female",
+    bloodGroup: "A+",
+    dateOfBirth: new Date("1995-09-30"),
+    age: "30",
+    phoneNo: "+91 9876501208",
+    remarks: "Dispatch documentation and packed order release workflow.",
     createdBy: "Neha Sharma",
     createdDate: new Date("2026-06-13"),
     updatedDate: new Date("2026-06-28"),
@@ -326,8 +554,24 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
   {
     userName: "Ritesh Vora",
+    userType: "Supervisor",
     department: "Warehouse Team",
-    remark: "Warehouse B inventory and movement monitoring access.",
+    approver: "Dev Joshi",
+    role: "Warehouse Supervisor",
+    firstName: "Ritesh",
+    lastName: "Vora",
+    email: "ritesh.vora@deluxeveneers.com",
+    country: "India",
+    state: "Gujarat",
+    city: "Surat",
+    address: "Warehouse B, Ring Road",
+    pincode: "395002",
+    gender: "Male",
+    bloodGroup: "AB-",
+    dateOfBirth: new Date("1991-05-11"),
+    age: "35",
+    phoneNo: "+91 9876501209",
+    remarks: "Warehouse B inventory and movement monitoring access.",
     createdBy: "Aarav Bansal",
     createdDate: new Date("2026-06-15"),
     updatedDate: new Date("2026-06-29"),
@@ -342,8 +586,24 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
   {
     userName: "Tanya Khanna",
+    userType: "Manager",
     department: "Management / Admin",
-    remark: "Executive visibility for customer, order, and dispatch flow.",
+    approver: "Dev Joshi",
+    role: "Executive Approver",
+    firstName: "Tanya",
+    lastName: "Khanna",
+    email: "tanya.khanna@deluxeveneers.com",
+    country: "India",
+    state: "Maharashtra",
+    city: "Mumbai",
+    address: "Executive Office, BKC",
+    pincode: "400051",
+    gender: "Female",
+    bloodGroup: "O+",
+    dateOfBirth: new Date("1990-07-19"),
+    age: "36",
+    phoneNo: "+91 9876501210",
+    remarks: "Executive visibility for customer, order, and dispatch flow.",
     createdBy: "Neha Sharma",
     createdDate: new Date("2026-06-16"),
     updatedDate: new Date("2026-06-30"),
@@ -368,32 +628,164 @@ const userManagementDetails: UserManagementDetail[] = userManagementSeedRows.map
   }),
 );
 
+export const approverOptions = userManagementDetails.map((row) => row.userName);
+
 export const userManagementRows: UserManagementRecord[] = userManagementDetails.map(
   ({ permissions, ...row }) => row,
 );
-
-export const userNameOptions = userManagementDetails.map((row) => row.userName);
 
 export const userManagementFormFields: readonly MasterFieldDefinition[] = [
   {
     key: "userName",
     label: "User Name",
+    type: "text",
+    placeholder: "Enter User Name",
+  },
+  {
+    key: "userType",
+    label: "User Type",
     type: "select",
-    options: userNameOptions,
-    placeholder: "Select user name",
+    options: [...userTypeOptions],
+    placeholder: "Select User Type",
   },
   {
     key: "department",
     label: "Department",
     type: "select",
     options: [...departmentOptions],
-    placeholder: "Select department",
+    placeholder: "Select Department",
   },
   {
-    key: "remark",
-    label: "Remark",
+    key: "approver",
+    label: "Approver",
+    type: "select",
+    options: approverOptions,
+    placeholder: "Select Approver",
+  },
+  {
+    key: "role",
+    label: "Role",
+    type: "select",
+    options: [...roleOptions],
+    placeholder: "Select Role",
+  },
+  {
+    key: "firstName",
+    label: "First Name",
     type: "text",
-    placeholder: "Enter remark",
+    placeholder: "Enter First Name",
+  },
+  {
+    key: "lastName",
+    label: "Last Name",
+    type: "text",
+    placeholder: "Enter Last Name",
+  },
+  {
+    key: "email",
+    label: "Email",
+    type: "text",
+    placeholder: "Enter Email",
+  },
+  {
+    key: "country",
+    label: "Country",
+    type: "select",
+    options: [...countryOptions],
+    placeholder: "Select Country",
+  },
+  {
+    key: "state",
+    label: "State",
+    type: "select",
+    options: [...stateOptions],
+    placeholder: "Select State",
+  },
+  {
+    key: "city",
+    label: "City",
+    type: "select",
+    options: [...cityOptions],
+    placeholder: "Select City",
+  },
+  {
+    key: "address",
+    label: "Address",
+    type: "text",
+    placeholder: "Enter Address",
+  },
+  {
+    key: "pincode",
+    label: "Pincode",
+    type: "text",
+    placeholder: "Enter Pincode",
+  },
+  {
+    key: "gender",
+    label: "Gender",
+    type: "select",
+    options: [...genderOptions],
+    placeholder: "Select Gender",
+  },
+  {
+    key: "bloodGroup",
+    label: "Blood Group",
+    type: "select",
+    options: [...bloodGroupOptions],
+    placeholder: "Select Blood Group",
+  },
+  {
+    key: "dateOfBirth",
+    label: "Date Of Birth",
+    type: "date",
+    placeholder: "Select Date Of Birth",
+  },
+  {
+    key: "age",
+    label: "Age",
+    type: "text",
+    placeholder: "Enter Age",
+  },
+  {
+    key: "phoneNo",
+    label: "Phone No",
+    type: "text",
+    placeholder: "Enter Phone No",
+  },
+  {
+    key: "remarks",
+    label: "Remarks",
+    type: "text",
+    placeholder: "Enter Remarks",
+  },
+];
+
+export const userManagementConfigureFields: readonly MasterFieldDefinition[] = [
+  {
+    key: "userName",
+    label: "User Name",
+    type: "text",
+    placeholder: "Selected User",
+  },
+  {
+    key: "department",
+    label: "Department",
+    type: "select",
+    options: [...departmentOptions],
+    placeholder: "Select Department",
+  },
+  {
+    key: "role",
+    label: "Role",
+    type: "select",
+    options: [...roleOptions],
+    placeholder: "Select Role",
+  },
+  {
+    key: "remarks",
+    label: "Remarks",
+    type: "text",
+    placeholder: "Enter Remarks",
   },
   {
     key: "isActive",
@@ -411,6 +803,18 @@ export function getUserManagementPaths() {
     edit: (id: string) => `/user-management/edit/${id}`,
     view: (id: string) => `/user-management/view/${id}`,
   };
+}
+
+export function getUserManagementSearchValues(row: UserManagementRecord) {
+  return [
+    ...userManagementColumns.map(
+      (column) => row[column.key as keyof UserManagementRecord],
+    ),
+    row.statusLabel,
+    row.createdBy,
+    row.createdDate,
+    row.updatedDate,
+  ];
 }
 
 export function buildUserManagementInitialValues(

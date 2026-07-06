@@ -69,7 +69,7 @@ export function MasterFormFields({
             {field.type === "text" ? (
               <TextField
                 fullWidth
-                placeholder={field.placeholder ?? `Enter ${field.label.toLowerCase()}`}
+                placeholder={field.placeholder ?? `Enter ${field.label}`}
                 value={typeof fieldValue === "string" ? fieldValue : ""}
                 onChange={(event) => onChange(field.key, event.target.value)}
                 sx={getCompactFieldSx(theme, fieldIsReadOnly ? "readOnly" : "default")}
@@ -86,7 +86,7 @@ export function MasterFormFields({
                 fullWidth
                 multiline
                 minRows={field.rows ?? 3}
-                placeholder={field.placeholder ?? `Enter ${field.label.toLowerCase()}`}
+                placeholder={field.placeholder ?? `Enter ${field.label}`}
                 value={typeof fieldValue === "string" ? fieldValue : ""}
                 onChange={(event) => onChange(field.key, event.target.value)}
                 sx={getCompactFieldSx(theme, fieldIsReadOnly ? "readOnly" : "default")}
@@ -103,8 +103,8 @@ export function MasterFormFields({
                 helperText={field.helperText}
                 onChange={(value) => onChange(field.key, value)}
                 options={field.options ?? []}
-                placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`}
-                state={readOnly ? "disabled" : "default"}
+                placeholder={field.placeholder ?? `Select ${field.label}`}
+                state={fieldIsReadOnly ? "disabled" : "default"}
                 value={typeof fieldValue === "string" ? fieldValue : ""}
               />
             ) : null}
@@ -113,8 +113,8 @@ export function MasterFormFields({
               <ErpDatePickerField
                 helperText={field.helperText}
                 onChange={(value) => onChange(field.key, value)}
-                placeholder={field.placeholder ?? `Select ${field.label.toLowerCase()}`}
-                state={readOnly ? "disabled" : "default"}
+                placeholder={field.placeholder ?? `Select ${field.label}`}
+                state={fieldIsReadOnly ? "disabled" : "default"}
                 value={fieldValue instanceof Date ? fieldValue : null}
               />
             ) : null}

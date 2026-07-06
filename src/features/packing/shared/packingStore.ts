@@ -18,6 +18,9 @@ export interface PackingRecord extends EnterpriseTableRow {
   series: string;
   grade: string;
   amount: string;
+  remark: string;
+  packingDate: Date | null;
+  dispatchDate: Date | null;
   createdBy: string;
   updatedBy: string;
   createdDate: Date;
@@ -118,9 +121,83 @@ export function dispatchPackingRecord(recordId: string) {
   );
 }
 
+export function createPackingEntry(
+  recordId: string,
+  payload: {
+    customerName?: string;
+    orderType?: string;
+    packingDate?: Date | null;
+    productCategory?: string;
+    remark?: string;
+  },
+) {
+  const timestamp = payload.packingDate instanceof Date
+    ? payload.packingDate
+    : new Date();
+
+  updatePackingRecords((records) =>
+    records.map((record) =>
+      record.id === recordId
+        ? {
+            ...record,
+            customerName: normalizeString(payload.customerName, record.customerName),
+            orderType: normalizeString(payload.orderType, record.orderType),
+            productCategory: normalizeString(
+              payload.productCategory,
+              record.productCategory,
+            ),
+            remark: normalizeString(payload.remark, record.remark),
+            packingDate: payload.packingDate instanceof Date ? payload.packingDate : timestamp,
+            packingState: "done",
+            updatedBy: "Packing Supervisor",
+            updatedDate: timestamp,
+          }
+        : record,
+    ),
+  );
+}
+
+export function createDispatchEntry(
+  recordId: string,
+  payload: {
+    customerName?: string;
+    dispatchDate?: Date | null;
+    orderType?: string;
+    productCategory?: string;
+    remark?: string;
+  },
+) {
+  const timestamp = payload.dispatchDate instanceof Date
+    ? payload.dispatchDate
+    : new Date();
+
+  updatePackingRecords((records) =>
+    records.map((record) =>
+      record.id === recordId
+        ? {
+            ...record,
+            customerName: normalizeString(payload.customerName, record.customerName),
+            orderType: normalizeString(payload.orderType, record.orderType),
+            productCategory: normalizeString(
+              payload.productCategory,
+              record.productCategory,
+            ),
+            remark: normalizeString(payload.remark, record.remark),
+            dispatchDate:
+              payload.dispatchDate instanceof Date ? payload.dispatchDate : timestamp,
+            packingState: "dispatched",
+            updatedBy: "Dispatch Coordinator",
+            updatedDate: timestamp,
+          }
+        : record,
+    ),
+  );
+}
+
 export function getPackingPaths() {
   return {
     list: "/packing",
+    add: (id: string) => `/packing/add/${id}`,
     edit: (id: string) => `/packing/edit/${id}`,
     view: (id: string) => `/packing/view/${id}`,
   };
@@ -143,6 +220,10 @@ function updatePackingRecords(
 ) {
   packingRecords = updater(packingRecords);
   packingListeners.forEach((listener) => listener());
+}
+
+function normalizeString(value: string | undefined, fallback: string) {
+  return value && value.trim().length > 0 ? value.trim() : fallback;
 }
 
 function createPackingRecords(): PackingRecord[] {
@@ -212,6 +293,9 @@ function createPackingRecords(): PackingRecord[] {
       series: pickValue(seriesValues, index),
       grade: pickValue(gradeValues, index),
       amount: `${(18500 + index * 875).toLocaleString("en-IN")}.00`,
+      remark: "",
+      packingDate: packingState === "issued" ? null : updatedDate,
+      dispatchDate: packingState === "dispatched" ? updatedDate : null,
       createdBy: index < 25 ? "Packing Planner" : "Packing Operator",
       updatedBy,
       createdDate,

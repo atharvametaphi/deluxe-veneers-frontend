@@ -10,6 +10,10 @@ import {
 } from "../../masters/shared";
 import { InventoryPageShell } from "./InventoryPageShell";
 import {
+  isWarehouseAAddStockSlug,
+  WarehouseAAddStockLineItems,
+} from "./WarehouseAAddStockLineItems";
+import {
   buildInventoryInitialValues,
   getInventoryPageSubtitle,
   getInventoryPageTitle,
@@ -108,12 +112,22 @@ export function InventoryForm<Row extends InventoryRecord>({
     warehouseRootPath,
     warehouseType: activeWarehouse,
   });
+  const warehouseAAddStockSlug =
+    mode === "add" &&
+    activeWarehouse === "warehouse-a" &&
+    isWarehouseAAddStockSlug(definition.slug)
+      ? definition.slug
+      : null;
+  const pageSubtitle =
+    warehouseAAddStockSlug === null
+      ? getInventoryPageSubtitle(definition, mode)
+      : null;
 
   return (
     <InventoryPageShell
       breadcrumbs={warehouseInventoryBreadcrumbs}
-      subtitle={getInventoryPageSubtitle(definition, mode)}
       title={getInventoryPageTitle(definition, mode)}
+      {...(pageSubtitle ? { subtitle: pageSubtitle } : {})}
     >
       <MasterSectionCard>
         <Box
@@ -137,6 +151,10 @@ export function InventoryForm<Row extends InventoryRecord>({
             readOnly={mode === "view"}
             values={values}
           />
+
+          {warehouseAAddStockSlug ? (
+            <WarehouseAAddStockLineItems slug={warehouseAAddStockSlug} />
+          ) : null}
 
           <Box
             sx={(theme) => ({

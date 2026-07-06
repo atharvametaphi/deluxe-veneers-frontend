@@ -3,12 +3,34 @@ import { createMasterRows } from "./utils";
 
 const asDate = (value: string) => new Date(value);
 
-const itemRows = createMasterRows("item-master", [
+function withAuditFields<T extends MasterRecord>(rows: ReadonlyArray<T>) {
+  return rows.map((row) => ({
+    ...row,
+    createdBy: String(row.createdBy ?? row.createdEditedBy ?? ""),
+    editedBy: String(row.editedBy ?? row.updatedBy ?? row.createdEditedBy ?? ""),
+    createdDate:
+      (row.createdDate ??
+        row.createdEditedDate ??
+        row.createdEditedAt ??
+        null) as MasterRecord[string],
+    updatedDate:
+      (row.updatedDate ??
+        row.updatedAt ??
+        row.createdEditedDate ??
+        row.createdEditedAt ??
+        null) as MasterRecord[string],
+  }));
+}
+
+const itemRows = withAuditFields(createMasterRows("item-master", [
   {
     itemName: "Oak Quarter Cut Veneer",
     itemCode: "ITM-OAK-001",
     category: "Decorative Veneer",
     subCategory: "Quarter Cut",
+    color: "Natural Oak",
+    gst: "12%",
+    hsn: "4408",
     remark: "Standard oak veneer catalog item.",
     createdEditedBy: "Atharva Patil",
     createdEditedDate: asDate("2026-05-10"),
@@ -18,6 +40,9 @@ const itemRows = createMasterRows("item-master", [
     itemCode: "ITM-WAL-014",
     category: "Decorative Veneer",
     subCategory: "Crown Cut",
+    color: "Classic Walnut",
+    gst: "12%",
+    hsn: "4408",
     remark: "Premium walnut veneer for interior applications.",
     createdEditedBy: "Neha Shah",
     createdEditedDate: asDate("2026-05-16"),
@@ -27,6 +52,9 @@ const itemRows = createMasterRows("item-master", [
     itemCode: "ITM-TEK-021",
     category: "Engineered Panel",
     subCategory: "Natural",
+    color: "Golden Teak",
+    gst: "18%",
+    hsn: "4412",
     remark: "Architectural teak sheet for premium paneling.",
     createdEditedBy: "Rohit Jain",
     createdEditedDate: asDate("2026-05-22"),
@@ -36,13 +64,16 @@ const itemRows = createMasterRows("item-master", [
     itemCode: "ITM-ASH-032",
     category: "Engineered Panel",
     subCategory: "Rift Cut",
+    color: "Soft Ash",
+    gst: "18%",
+    hsn: "4411",
     remark: "Ash panel aligned to rift-cut project demand.",
     createdEditedBy: "Aditi Desai",
     createdEditedDate: asDate("2026-06-03"),
   },
-]);
+]));
 
-const itemCategoryRows = createMasterRows("item-category-master", [
+const itemCategoryRows = withAuditFields(createMasterRows("item-category-master", [
   {
     categoryName: "Decorative Veneer",
     remark: "Interior decorative veneer category.",
@@ -67,9 +98,9 @@ const itemCategoryRows = createMasterRows("item-category-master", [
     createdEditedBy: "Aditi Desai",
     createdEditedDate: asDate("2026-06-01"),
   },
-]);
+]));
 
-const itemSubCategoryRows = createMasterRows("item-sub-category-master", [
+const itemSubCategoryRows = withAuditFields(createMasterRows("item-sub-category-master", [
   {
     itemSubCategory: "Quarter Cut",
     category: "Decorative Veneer",
@@ -94,9 +125,9 @@ const itemSubCategoryRows = createMasterRows("item-sub-category-master", [
     createdEditedBy: "Aditi Desai",
     createdEditedDate: asDate("2026-06-02"),
   },
-]);
+]));
 
-const colorRows = createMasterRows("color-master", [
+const colorRows = withAuditFields(createMasterRows("color-master", [
   {
     colorName: "Natural Oak",
     status: "Active",
@@ -129,9 +160,9 @@ const colorRows = createMasterRows("color-master", [
     createdEditedDate: asDate("2026-05-18"),
     updatedDate: asDate("2026-06-04"),
   },
-]);
+]));
 
-const customerRows = createMasterRows("customer-master", [
+const customerRows = withAuditFields(createMasterRows("customer-master", [
   {
     customerName: "Vikram Mehta",
     companyName: "Prime Habitat Studio",
@@ -200,9 +231,9 @@ const customerRows = createMasterRows("customer-master", [
     createdEditedDate: asDate("2026-03-28"),
     updatedDate: asDate("2026-05-19"),
   },
-]);
+]));
 
-const unitRows = createMasterRows("unit-master", [
+const unitRows = withAuditFields(createMasterRows("unit-master", [
   {
     unitName: "Square Meter",
     symbolicName: "SQM",
@@ -239,9 +270,9 @@ const unitRows = createMasterRows("unit-master", [
     createdEditedDate: asDate("2026-05-24"),
     updatedDate: asDate("2026-06-06"),
   },
-]);
+]));
 
-const supplierRows = createMasterRows("supplier-master", [
+const supplierRows = withAuditFields(createMasterRows("supplier-master", [
   {
     supplierName: "Arihant Veneers LLP",
     supplierType: "Domestic",
@@ -258,6 +289,10 @@ const supplierRows = createMasterRows("supplier-master", [
     gstUpload: "arihant-gst.pdf",
     panNo: "AAWFA2214F",
     panUpload: "arihant-pan.pdf",
+    createdEditedBy: "Atharva Patil",
+    updatedBy: "Neha Shah",
+    createdEditedDate: asDate("2026-04-12"),
+    updatedDate: asDate("2026-05-07"),
   },
   {
     supplierName: "Baltic Timber Supply",
@@ -275,6 +310,10 @@ const supplierRows = createMasterRows("supplier-master", [
     gstUpload: "baltic-gst.pdf",
     panNo: "BTSUP7710K",
     panUpload: "baltic-pan.pdf",
+    createdEditedBy: "Neha Shah",
+    updatedBy: "Rohit Jain",
+    createdEditedDate: asDate("2026-04-27"),
+    updatedDate: asDate("2026-05-20"),
   },
   {
     supplierName: "City Timber Traders",
@@ -292,6 +331,10 @@ const supplierRows = createMasterRows("supplier-master", [
     gstUpload: "city-timber-gst.pdf",
     panNo: "AAKFC5561N",
     panUpload: "city-timber-pan.pdf",
+    createdEditedBy: "Rohit Jain",
+    updatedBy: "Aditi Desai",
+    createdEditedDate: asDate("2026-05-10"),
+    updatedDate: asDate("2026-05-29"),
   },
   {
     supplierName: "Nordic Veneer House",
@@ -309,10 +352,14 @@ const supplierRows = createMasterRows("supplier-master", [
     gstUpload: "nordic-gst.pdf",
     panNo: "NVHOU8832Q",
     panUpload: "nordic-pan.pdf",
+    createdEditedBy: "Aditi Desai",
+    updatedBy: "Atharva Patil",
+    createdEditedDate: asDate("2026-05-24"),
+    updatedDate: asDate("2026-06-08"),
   },
-]);
+]));
 
-const gstRows = createMasterRows("gst-master", [
+const gstRows = withAuditFields(createMasterRows("gst-master", [
   {
     gstPercentage: "5%",
     remark: "Raw material and accessory inward",
@@ -349,9 +396,9 @@ const gstRows = createMasterRows("gst-master", [
     createdEditedAt: asDate("2026-05-19"),
     updatedAt: asDate("2026-06-07"),
   },
-]);
+]));
 
-const hsnRows = createMasterRows("hsn-master", [
+const hsnRows = withAuditFields(createMasterRows("hsn-master", [
   {
     hsnCode: "4408",
     hsnCodeDescription: "Sheets for veneering, sliced",
@@ -392,9 +439,9 @@ const hsnRows = createMasterRows("hsn-master", [
     createdEditedDate: asDate("2026-05-25"),
     updatedDate: asDate("2026-06-08"),
   },
-]);
+]));
 
-const warehouseRows = createMasterRows("warehouse-location-master", [
+const warehouseRows = withAuditFields(createMasterRows("warehouse-location-master", [
   {
     warehouseName: "Warehouse A",
     warehouseCode: "WH-A-01",
@@ -451,9 +498,9 @@ const warehouseRows = createMasterRows("warehouse-location-master", [
     createdEditedDate: asDate("2026-05-23"),
     updatedDate: asDate("2026-06-06"),
   },
-]);
+]));
 
-const currencyRows = createMasterRows("currency-master", [
+const currencyRows = withAuditFields(createMasterRows("currency-master", [
   {
     currencyName: "Indian Rupee",
     remark: "Default local transaction currency",
@@ -490,7 +537,7 @@ const currencyRows = createMasterRows("currency-master", [
     createdEditedAt: asDate("2026-05-17"),
     updatedAt: asDate("2026-06-04"),
   },
-]);
+]));
 
 const uniqueOptions = (rows: ReadonlyArray<MasterRecord>, key: string) =>
   Array.from(
@@ -508,8 +555,10 @@ export const itemMasterDefinition: MasterDefinition = {
     { key: "category", label: "Category" },
     { key: "subCategory", label: "Sub Category" },
     { key: "remark", label: "Remark" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "createdEditedDate", label: "Created / Edited Date" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
     { key: "category", label: "Category", options: uniqueOptions(itemRows, "category") },
@@ -520,6 +569,9 @@ export const itemMasterDefinition: MasterDefinition = {
     { key: "itemCode", label: "Item Code", type: "text" },
     { key: "category", label: "Category", type: "select", options: uniqueOptions(itemRows, "category") },
     { key: "subCategory", label: "Sub Category", type: "select", options: uniqueOptions(itemRows, "subCategory") },
+    { key: "color", label: "Color", type: "select", options: uniqueOptions(colorRows, "colorName") },
+    { key: "gst", label: "GST", type: "select", options: uniqueOptions(gstRows, "gstPercentage") },
+    { key: "hsn", label: "HSN", type: "select", options: uniqueOptions(hsnRows, "hsnCode") },
     { key: "remark", label: "Remark", type: "text" },
   ],
   rows: itemRows,
@@ -533,8 +585,10 @@ export const itemCategoryMasterDefinition: MasterDefinition = {
     { key: "srNo", label: "Sr No" },
     { key: "categoryName", label: "Category Name" },
     { key: "remark", label: "Remark" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "createdEditedDate", label: "Created / Edited Date" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
     { key: "categoryName", label: "Category Name", options: uniqueOptions(itemCategoryRows, "categoryName") },
@@ -554,8 +608,10 @@ export const itemSubCategoryMasterDefinition: MasterDefinition = {
     { key: "srNo", label: "Sr No" },
     { key: "itemSubCategory", label: "Item Sub Category" },
     { key: "category", label: "Category" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "createdEditedDate", label: "Created / Edited Date" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
     { key: "category", label: "Category", options: uniqueOptions(itemSubCategoryRows, "category") },
@@ -575,15 +631,15 @@ export const colorMasterDefinition: MasterDefinition = {
     { key: "srNo", label: "Sr No" },
     { key: "colorName", label: "Color name" },
     { key: "status", label: "Status" },
-    { key: "updatedBy", label: "Updated By" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "createdEditedDate", label: "Created / Edited Date" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
     { key: "status", label: "Status", options: uniqueOptions(colorRows, "status") },
-    { key: "createdEditedBy", label: "Created / Edited By", options: uniqueOptions(colorRows, "createdEditedBy") },
-    { key: "updatedBy", label: "Updated By", options: uniqueOptions(colorRows, "updatedBy") },
+    { key: "createdBy", label: "Created By", options: uniqueOptions(colorRows, "createdBy") },
+    { key: "editedBy", label: "Edited By", options: uniqueOptions(colorRows, "editedBy") },
   ],
   fields: [
     { key: "colorName", label: "Color Name", type: "text" },
@@ -609,9 +665,9 @@ export const customerMasterDefinition: MasterDefinition = {
     { key: "panNo", label: "PAN No" },
     { key: "panUpload", label: "PAN Upload" },
     { key: "remark", label: "Remark" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "updatedBy", label: "Updated By" },
-    { key: "createdEditedDate", label: "Created / Edited Date" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
@@ -642,15 +698,15 @@ export const unitMasterDefinition: MasterDefinition = {
     { key: "srNo", label: "Sr No" },
     { key: "unitName", label: "Unit Name" },
     { key: "symbolicName", label: "Symbolic Name" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "updatedBy", label: "Updated By" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
     { key: "status", label: "Status" },
-    { key: "createdEditedDate", label: "Created / Edited Date" },
+    { key: "createdDate", label: "Created Date" },
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
     { key: "status", label: "Status", options: uniqueOptions(unitRows, "status") },
-    { key: "createdEditedBy", label: "Created / Edited By", options: uniqueOptions(unitRows, "createdEditedBy") },
+    { key: "createdBy", label: "Created By", options: uniqueOptions(unitRows, "createdBy") },
   ],
   fields: [
     { key: "unitName", label: "Unit Name", type: "text" },
@@ -678,6 +734,10 @@ export const supplierMasterDefinition: MasterDefinition = {
     { key: "msmeNo", label: "MSME No" },
     { key: "gstNo", label: "GST" },
     { key: "panNo", label: "PAN No" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
     { key: "supplierType", label: "Supplier Type", options: uniqueOptions(supplierRows, "supplierType") },
@@ -712,16 +772,16 @@ export const gstMasterDefinition: MasterDefinition = {
     { key: "srNo", label: "Sr No" },
     { key: "gstPercentage", label: "GST %" },
     { key: "remark", label: "Remark" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "updatedBy", label: "Updated By" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
     { key: "status", label: "Status" },
-    { key: "createdEditedAt", label: "Created / Edited At" },
-    { key: "updatedAt", label: "Updated At" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
     { key: "gstPercentage", label: "GST %", options: uniqueOptions(gstRows, "gstPercentage") },
     { key: "status", label: "Status", options: uniqueOptions(gstRows, "status") },
-    { key: "createdEditedBy", label: "Created / Edited By", options: uniqueOptions(gstRows, "createdEditedBy") },
+    { key: "createdBy", label: "Created By", options: uniqueOptions(gstRows, "createdBy") },
   ],
   fields: [
     { key: "gstPercentage", label: "GST %", type: "text" },
@@ -741,15 +801,15 @@ export const hsnMasterDefinition: MasterDefinition = {
     { key: "hsnCodeDescription", label: "HSN Code Description" },
     { key: "gstPercentage", label: "GST%" },
     { key: "status", label: "Status" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "updatedBy", label: "Updated By" },
-    { key: "createdEditedDate", label: "Created / Edited Date" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
     { key: "gstPercentage", label: "GST%", options: uniqueOptions(hsnRows, "gstPercentage") },
     { key: "status", label: "Status", options: uniqueOptions(hsnRows, "status") },
-    { key: "createdEditedBy", label: "Created / Edited By", options: uniqueOptions(hsnRows, "createdEditedBy") },
+    { key: "createdBy", label: "Created By", options: uniqueOptions(hsnRows, "createdBy") },
   ],
   fields: [
     { key: "hsnCode", label: "HSN Code", type: "text" },
@@ -774,9 +834,9 @@ export const warehouseLocationMasterDefinition: MasterDefinition = {
     { key: "city", label: "City" },
     { key: "state", label: "State" },
     { key: "pincode", label: "Pincode" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "createdEditedDate", label: "Created / Edited Date" },
-    { key: "updatedBy", label: "Updated By" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
@@ -806,14 +866,14 @@ export const currencyMasterDefinition: MasterDefinition = {
     { key: "currencyName", label: "Currency Name" },
     { key: "remark", label: "Remark" },
     { key: "status", label: "Status" },
-    { key: "createdEditedBy", label: "Created / Edited By" },
-    { key: "createdEditedAt", label: "Created / Edited At" },
-    { key: "updatedBy", label: "Updated By" },
-    { key: "updatedAt", label: "Updated At" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
     { key: "status", label: "Status", options: uniqueOptions(currencyRows, "status") },
-    { key: "createdEditedBy", label: "Created / Edited By", options: uniqueOptions(currencyRows, "createdEditedBy") },
+    { key: "createdBy", label: "Created By", options: uniqueOptions(currencyRows, "createdBy") },
     { key: "currencyName", label: "Currency Name", options: uniqueOptions(currencyRows, "currencyName") },
   ],
   fields: [

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Eye, Pencil, RotateCcw, Truck } from "lucide-react";
+import { Eye, PackageOpen, Pencil, RotateCcw, Truck } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import {
@@ -9,7 +9,6 @@ import {
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { MasterPageShell } from "../../masters/shared";
 import {
-  dispatchPackingRecord,
   getPackingPaths,
   packingListingColumns,
   revertPackingRecord,
@@ -42,6 +41,12 @@ export function PackingListingPage() {
   const issuedActions = useMemo<readonly EnterpriseTableAction<PackingRecord>[]>(
     () => [
       {
+        id: "create-packing",
+        label: "Create Packing",
+        icon: PackageOpen,
+        onSelect: (row) => navigate(paths.add(row.id)),
+      },
+      {
         id: "edit",
         label: "Edit",
         icon: Pencil,
@@ -73,9 +78,9 @@ export function PackingListingPage() {
       },
       {
         id: "dispatch",
-        label: "Dispatch",
+        label: "Create Dispatch",
         icon: Truck,
-        onSelect: (row) => dispatchPackingRecord(row.id),
+        onSelect: (row) => navigate(`/dispatch/add/${row.id}`),
       },
     ],
     [navigate, paths],

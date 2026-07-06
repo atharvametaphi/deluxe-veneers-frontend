@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Eye } from "lucide-react";
+import { Button } from "@mui/material";
+import { Eye, Truck } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import {
@@ -18,6 +19,10 @@ export function DispatchPage() {
   const navigate = useNavigate();
   const paths = getPackingPaths();
   const records = usePackingRecords();
+  const eligibleRecord = useMemo(
+    () => records.find((record) => record.packingState === "done"),
+    [records],
+  );
   const rows = useMemo(
     () => records.filter((record) => record.packingState === "dispatched"),
     [records],
@@ -36,6 +41,20 @@ export function DispatchPage() {
 
   return (
     <MasterPageShell
+      actions={
+        <Button
+          disabled={!eligibleRecord}
+          onClick={() => {
+            if (eligibleRecord) {
+              navigate(`/dispatch/add/${eligibleRecord.id}`);
+            }
+          }}
+          startIcon={<Truck size={16} />}
+          variant="contained"
+        >
+          Create Dispatch
+        </Button>
+      }
       breadcrumbs={[{ label: "Dispatch" }]}
       title="Dispatch"
     >

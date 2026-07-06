@@ -4,6 +4,7 @@ import { RouterProvider } from "react-router/dom";
 import { LoginPage, ProtectedAppShell } from "../features/auth";
 import { DashboardPage } from "../features/dashboard";
 import { DispatchPage } from "../features/dispatch";
+import { DispatchCreatePage } from "../features/dispatch/pages";
 import { factoryRoutes } from "../features/factory";
 import { inventoryRoutes } from "../features/inventory";
 import { masterRoutes } from "../features/masters";
@@ -87,6 +88,10 @@ const router = createBrowserRouter([
       },
       ...factoryRoutes,
       ...packingRoutes,
+      {
+        path: "dispatch/add/:id",
+        Component: DispatchCreatePage,
+      },
       {
         path: "dispatch",
         Component: DispatchPage,

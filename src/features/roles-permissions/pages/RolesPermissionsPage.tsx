@@ -3,6 +3,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Button,
   IconButton,
   InputAdornment,
   Stack,
@@ -11,7 +12,7 @@ import {
   useTheme,
 } from "@mui/material";
 import { ChevronDown, Search, Settings2 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { Link as RouterLink, useNavigate } from "react-router";
 
 import { EnterpriseDataTable } from "../../../components/data-display/EnterpriseDataTable";
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
@@ -19,9 +20,13 @@ import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inpu
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import {
   departmentOptions,
-  userManagementColumns,
-  userManagementRows,
 } from "../../user-management/shared";
+import {
+  getRolePermissionPaths,
+  getRolePermissionSearchValues,
+  rolePermissionColumns,
+  rolePermissionRows,
+} from "../shared";
 
 const statusOptions = ["Active", "Inactive"] as const;
 const allDepartmentsOption = "All Departments";
@@ -30,23 +35,16 @@ const allStatusesOption = "All Statuses";
 export function RolesPermissionsPage() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const paths = getRolePermissionPaths();
   const [searchValue, setSearchValue] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
   const filteredRows = useMemo(() => {
-    return userManagementRows.filter((row) => {
+    return rolePermissionRows.filter((row) => {
       const matchesSearch =
         searchValue.trim().length === 0 ||
-        [
-          row.userName,
-          row.department,
-          row.statusLabel,
-          row.remark,
-          row.createdBy,
-          row.createdDate,
-          row.updatedDate,
-        ].some((value) =>
+        getRolePermissionSearchValues(row).some((value) =>
           formatMasterValue(value)
             .toLowerCase()
             .includes(searchValue.trim().toLowerCase()),
@@ -159,18 +157,26 @@ export function RolesPermissionsPage() {
             },
           }}
         />
+
+        <Button
+          component={RouterLink}
+          to={paths.add}
+          variant="contained"
+        >
+          Add Role
+        </Button>
       </Stack>
 
       <EnterpriseDataTable
         actionColumnLabel="Actions"
         actionColumnWidth={88}
-        columns={userManagementColumns}
+        columns={rolePermissionColumns}
         defaultRowsPerPage={10}
         initialSort={{ key: "updatedDate", direction: "desc" }}
         renderActionCell={(row) => (
           <IconButton
-            aria-label={`Configure ${row.userName}`}
-            onClick={() => navigate(`/roles-permissions/configure/${row.id}`)}
+            aria-label={`Configure ${row.roleName}`}
+            onClick={() => navigate(paths.configure(row.id))}
             size="small"
             sx={{
               color: theme.customTokens.navigation.activeText,

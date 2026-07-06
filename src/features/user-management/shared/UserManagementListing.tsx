@@ -4,17 +4,17 @@ import {
   AccordionDetails,
   AccordionSummary,
   Button,
-  IconButton,
   InputAdornment,
   Stack,
   TextField,
   Typography,
   useTheme,
 } from "@mui/material";
-import { ChevronDown, Search, Settings2 } from "lucide-react";
+import { ChevronDown, Eye, Pencil, Search } from "lucide-react";
 import { Link as RouterLink, useNavigate } from "react-router";
 
 import {
+  type EnterpriseTableAction,
   EnterpriseDataTable,
 } from "../../../components/data-display/EnterpriseDataTable";
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
@@ -22,6 +22,7 @@ import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inpu
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import {
   departmentOptions,
+  getUserManagementSearchValues,
   getUserManagementPaths,
   userManagementColumns,
   userManagementRows,
@@ -43,15 +44,7 @@ export function UserManagementListing() {
     return userManagementRows.filter((row) => {
       const matchesSearch =
         searchValue.trim().length === 0 ||
-        [
-          row.userName,
-          row.department,
-          row.statusLabel,
-          row.remark,
-          row.createdBy,
-          row.createdDate,
-          row.updatedDate,
-        ].some((value) =>
+        getUserManagementSearchValues(row).some((value) =>
           formatMasterValue(value)
             .toLowerCase()
             .includes(searchValue.trim().toLowerCase()),
@@ -65,6 +58,23 @@ export function UserManagementListing() {
       return matchesSearch && matchesDepartment && matchesStatus;
     });
   }, [departmentFilter, searchValue, statusFilter]);
+
+  const tableActions: readonly EnterpriseTableAction<
+    (typeof userManagementRows)[number]
+  >[] = [
+    {
+      id: "view",
+      label: "View",
+      icon: Eye,
+      onSelect: (row) => navigate(paths.view(row.id)),
+    },
+    {
+      id: "edit",
+      label: "Edit",
+      icon: Pencil,
+      onSelect: (row) => navigate(paths.edit(row.id)),
+    },
+  ];
 
   return (
     <MasterPageShell
@@ -175,27 +185,11 @@ export function UserManagementListing() {
       </Stack>
 
       <EnterpriseDataTable
-        actionColumnLabel="Configure"
+        actionColumnLabel="Actions"
+        actions={tableActions}
         columns={userManagementColumns}
         defaultRowsPerPage={10}
         initialSort={{ key: "updatedDate", direction: "desc" }}
-        renderActionCell={(row) => (
-          <IconButton
-            aria-label={`Configure ${row.userName}`}
-            onClick={() => navigate(`/roles-permissions/configure/${row.id}`)}
-            size="small"
-            sx={{
-              color: theme.customTokens.navigation.activeText,
-              borderRadius: `${theme.customTokens.radius.md}px`,
-              "&:hover": {
-                backgroundColor: theme.customTokens.navigation.hoverBackground,
-                color: theme.customTokens.brand.secondary,
-              },
-            }}
-          >
-            <Settings2 size={16} />
-          </IconButton>
-        )}
         rows={filteredRows}
       />
     </MasterPageShell>

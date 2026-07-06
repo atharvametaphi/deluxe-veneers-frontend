@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { InputAdornment, Stack, TextField, useTheme } from "@mui/material";
-import { Eye, Pencil } from "lucide-react";
+import { Eye, Pencil, Plus } from "lucide-react";
 import { Search } from "lucide-react";
 import { useNavigate } from "react-router";
 
@@ -70,6 +70,15 @@ export function FactoryListing<Row extends FactoryRecord>({
           onSelect: (row) => navigate(paths.edit(row.id)),
         },
       ];
+
+      if (activeTab === "issued") {
+        baseActions.unshift({
+          id: "create-process",
+          label: `Create ${definition.title}`,
+          icon: Plus,
+          onSelect: () => navigate(paths.add),
+        });
+      }
 
       if (definition.slug === "slicing" && activeTab !== "history") {
         baseActions.push({

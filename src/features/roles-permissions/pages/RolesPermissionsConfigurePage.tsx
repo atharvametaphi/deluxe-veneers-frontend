@@ -12,47 +12,96 @@ import {
 } from "../../masters/shared";
 import {
   UserPermissionMatrix,
-  buildDefaultUserPermissions,
   buildUserManagementInitialValues,
   getUserManagementDetail,
   type UserPermissionFlags,
-  userManagementFormFields,
+  userManagementConfigureFields,
 } from "../../user-management/shared";
+import {
+  buildDefaultRolePermissions,
+  buildRolePermissionInitialValues,
+  getRolePermissionDetail,
+  getRolePermissionPaths,
+  rolePermissionConfigureFields,
+} from "../shared";
+
+type ConfigureRecord = ReturnType<typeof getRolePermissionDetail> | ReturnType<typeof getUserManagementDetail>;
+
+function getActiveFields(
+  selectedRole: ReturnType<typeof getRolePermissionDetail>,
+  selectedUser: ReturnType<typeof getUserManagementDetail>,
+) {
+  if (selectedRole) {
+    return rolePermissionConfigureFields as MasterFieldDefinition[];
+  }
+
+  return userManagementConfigureFields.map((field) =>
+    field.key === "userName"
+      ? {
+          ...field,
+          placeholder: "Selected User",
+          readOnly: true,
+          type: "text" as const,
+        }
+      : field,
+  ) as MasterFieldDefinition[];
+}
+
+function buildValues(
+  fields: readonly MasterFieldDefinition[],
+  selectedRole: ReturnType<typeof getRolePermissionDetail>,
+  selectedUser: ReturnType<typeof getUserManagementDetail>,
+) {
+  if (selectedRole) {
+    return buildRolePermissionInitialValues(fields, selectedRole);
+  }
+
+  return buildUserManagementInitialValues(fields, selectedUser);
+}
+
+function buildPermissions(record: ConfigureRecord) {
+  if (record?.permissions) {
+    return record.permissions;
+  }
+
+  return buildDefaultRolePermissions();
+}
+
+function getPageTitle(selectedRole: ReturnType<typeof getRolePermissionDetail>) {
+  return selectedRole ? "Configure Role" : "Configure Permissions";
+}
 
 export function RolesPermissionsConfigurePage() {
   const params = useParams<{ id: string }>();
-  const selectedUser = params.id ? getUserManagementDetail(params.id) : undefined;
+  const paths = getRolePermissionPaths();
+  const selectedRole = params.id ? getRolePermissionDetail(params.id) : undefined;
+  const selectedUser = selectedRole
+    ? undefined
+    : params.id
+      ? getUserManagementDetail(params.id)
+      : undefined;
+  const selectedRecord = selectedRole ?? selectedUser;
   const activeFields = useMemo(
-    () =>
-      userManagementFormFields.map((field) =>
-        field.key === "userName"
-          ? {
-              ...field,
-              placeholder: "Selected user",
-              readOnly: true,
-              type: "text" as const,
-            }
-          : field,
-      ) as MasterFieldDefinition[],
-    [],
+    () => getActiveFields(selectedRole, selectedUser),
+    [selectedRole, selectedUser],
   );
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildUserManagementInitialValues(activeFields, selectedUser),
+    buildValues(activeFields, selectedRole, selectedUser),
   );
   const [permissions, setPermissions] = useState<Record<string, UserPermissionFlags>>(
-    () => selectedUser?.permissions ?? buildDefaultUserPermissions(),
+    () => buildPermissions(selectedRecord),
   );
 
   useEffect(() => {
-    setValues(buildUserManagementInitialValues(activeFields, selectedUser));
-    setPermissions(selectedUser?.permissions ?? buildDefaultUserPermissions());
-  }, [activeFields, selectedUser]);
+    setValues(buildValues(activeFields, selectedRole, selectedUser));
+    setPermissions(buildPermissions(selectedRecord));
+  }, [activeFields, selectedRole, selectedRecord, selectedUser]);
 
-  if (!selectedUser) {
+  if (!selectedRecord) {
     return (
       <MasterPageShell
         breadcrumbs={[
-          { label: "Roles & Permissions", to: "/roles-permissions" },
+          { label: "Roles & Permissions", to: paths.list },
           { label: "Not Found" },
         ]}
         title="Roles & Permissions"
@@ -66,13 +115,15 @@ export function RolesPermissionsConfigurePage() {
     );
   }
 
+  const pageTitle = getPageTitle(selectedRole);
+
   return (
     <MasterPageShell
       breadcrumbs={[
-        { label: "Roles & Permissions", to: "/roles-permissions" },
-        { label: "Configure" },
+        { label: "Roles & Permissions", to: paths.list },
+        { label: pageTitle },
       ]}
-      title="Roles & Permissions"
+      title={pageTitle}
     >
       <MasterSectionCard>
         <Stack
