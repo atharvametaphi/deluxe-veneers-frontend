@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { MouseEvent, WheelEvent } from "react";
-import type { ReactNode } from "react";
+import type { Dispatch, MouseEvent, ReactNode, SetStateAction, WheelEvent } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowDownWideNarrow,
@@ -33,6 +32,8 @@ import {
   useTheme,
 } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
+
+import { ErpToggleSwitch } from "../inputs/ErpToggleSwitch";
 
 export type EnterpriseTableCellValue =
   | string
@@ -125,6 +126,9 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   );
   const [activeActionRowId, setActiveActionRowId] = useState<string | null>(
     null,
+  );
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, boolean>>(
+    {},
   );
 
   const usesActionMenu = actions.length > 0 || Boolean(getRowActions);
@@ -493,7 +497,13 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
 
                     {columns.map((column) => (
                       <TableCell key={column.key} sx={bodyCellSx(theme)}>
-                        {formatEnterpriseValue(row[column.key])}
+                        {renderEnterpriseTableCell(
+                          row,
+                          column,
+                          statusOverrides,
+                          setStatusOverrides,
+                          theme,
+                        )}
                       </TableCell>
                     ))}
 
@@ -977,6 +987,62 @@ function pageNumberButtonSx(
       boxShadow: "none",
     },
   };
+}
+
+const enterpriseStatusToggleValueMap: Record<string, boolean> = {
+  active: true,
+  enabled: true,
+  inactive: false,
+  disabled: false,
+};
+
+function getEnterpriseStatusToggleState<Row extends EnterpriseTableRow>(
+  column: EnterpriseTableColumn<Row>,
+  value: EnterpriseTableCellValue,
+) {
+  const isStatusColumn =
+    column.label === "Status" ||
+    column.key === "status" ||
+    column.key === "statusLabel";
+
+  if (!isStatusColumn) {
+    return null;
+  }
+
+  const normalizedValue = formatEnterpriseValue(value).trim().toLowerCase();
+  return normalizedValue in enterpriseStatusToggleValueMap
+    ? enterpriseStatusToggleValueMap[normalizedValue]
+    : null;
+}
+
+function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
+  row: Row,
+  column: EnterpriseTableColumn<Row>,
+  statusOverrides: Record<string, boolean>,
+  setStatusOverrides: Dispatch<SetStateAction<Record<string, boolean>>>,
+  theme: Theme,
+) {
+  const toggleState = getEnterpriseStatusToggleState(column, row[column.key]);
+
+  if (toggleState === null) {
+    return formatEnterpriseValue(row[column.key]);
+  }
+
+  const toggleKey = `${row.id}:${column.key}`;
+  const checked = statusOverrides[toggleKey] ?? Boolean(toggleState);
+
+  return (
+    <ErpToggleSwitch
+      ariaLabel={`${column.label} for row ${row.id}`}
+      checked={checked}
+      onChange={(nextChecked) =>
+        setStatusOverrides((current) => ({
+          ...current,
+          [toggleKey]: nextChecked,
+        }))
+      }
+    />
+  );
 }
 
 function clampPage(value: string, totalPages: number) {

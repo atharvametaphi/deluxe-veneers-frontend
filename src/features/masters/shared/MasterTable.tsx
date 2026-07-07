@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { MouseEvent } from "react";
+import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import {
   ArrowDownWideNarrow,
   ArrowUpDown,
@@ -25,8 +25,10 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
+import type { Theme } from "@mui/material/styles";
 import { useNavigate } from "react-router";
 
+import { ErpToggleSwitch } from "../../../components/inputs/ErpToggleSwitch";
 import type { MasterColumn, MasterRecord } from "./types";
 import { formatMasterValue, normalizeMasterSortValue } from "./utils";
 
@@ -65,6 +67,9 @@ export function MasterTable({
   );
   const [actionMenuAnchor, setActionMenuAnchor] = useState<HTMLElement | null>(null);
   const [activeActionRowId, setActiveActionRowId] = useState<string | null>(null);
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, boolean>>(
+    {},
+  );
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) =>
@@ -329,7 +334,13 @@ export function MasterTable({
                 >
                   {columns.map((column) => (
                     <TableCell key={column.key} sx={bodyCellSx}>
-                      {formatMasterValue(row[column.key])}
+                      {renderMasterTableCell(
+                        row,
+                        column,
+                        statusOverrides,
+                        setStatusOverrides,
+                        theme,
+                      )}
                     </TableCell>
                   ))}
 
@@ -665,6 +676,62 @@ function pageNumberButtonSx(active: boolean) {
       boxShadow: "none",
     },
   };
+}
+
+const statusToggleValueMap: Record<string, boolean> = {
+  active: true,
+  enabled: true,
+  inactive: false,
+  disabled: false,
+};
+
+function getStatusToggleState(
+  column: MasterColumn,
+  value: MasterRecord[string],
+) {
+  const isStatusColumn =
+    column.label === "Status" ||
+    column.key === "status" ||
+    column.key === "statusLabel";
+
+  if (!isStatusColumn) {
+    return null;
+  }
+
+  const normalizedValue = formatMasterValue(value).trim().toLowerCase();
+  return normalizedValue in statusToggleValueMap
+    ? statusToggleValueMap[normalizedValue]
+    : null;
+}
+
+function renderMasterTableCell(
+  row: MasterRecord,
+  column: MasterColumn,
+  statusOverrides: Record<string, boolean>,
+  setStatusOverrides: Dispatch<SetStateAction<Record<string, boolean>>>,
+  theme: Theme,
+) {
+  const toggleState = getStatusToggleState(column, row[column.key]);
+
+  if (toggleState === null) {
+    return formatMasterValue(row[column.key]);
+  }
+
+  const toggleKey = `${row.id}:${column.key}`;
+  const checked = statusOverrides[toggleKey] ?? Boolean(toggleState);
+
+  return (
+    <ErpToggleSwitch
+      ariaLabel={`${column.label} for row ${row.id}`}
+      checked={checked}
+      onChange={(nextChecked) =>
+        setStatusOverrides((current) => ({
+          ...current,
+          [toggleKey]: nextChecked,
+        }))
+      }
+    />
+  );
 }
 
 function clampPage(value: string, totalPages: number) {

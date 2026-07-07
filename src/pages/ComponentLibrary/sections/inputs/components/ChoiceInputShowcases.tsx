@@ -3,10 +3,10 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import {
   Box,
   Checkbox,
-  Switch,
   useTheme,
 } from "@mui/material";
 
+import { ErpToggleSwitch } from "../../../../../components/inputs/ErpToggleSwitch";
 import { InputShowcaseCard } from "./InputShowcaseCard";
 import { InputStateTile } from "./InputStateTile";
 
@@ -46,33 +46,6 @@ function getCheckboxSx(theme: Theme) {
     },
     "&.Mui-disabled": {
       color: theme.palette.text.disabled,
-    },
-  };
-}
-
-function getSwitchSx(theme: Theme) {
-  return {
-    padding: 1,
-    "& .MuiSwitch-switchBase": {
-      transitionDuration: "180ms",
-    },
-    "& .MuiSwitch-switchBase.Mui-checked": {
-      color: theme.customTokens.surfaces.surface,
-      "& + .MuiSwitch-track": {
-        backgroundColor: theme.customTokens.brand.primary,
-        opacity: 1,
-      },
-    },
-    "& .MuiSwitch-switchBase.Mui-disabled + .MuiSwitch-track": {
-      opacity: 0.58,
-    },
-    "& .MuiSwitch-track": {
-      backgroundColor: theme.customTokens.neutrals[300],
-      borderRadius: theme.customTokens.radius.pill,
-      opacity: 1,
-    },
-    "& .MuiSwitch-thumb": {
-      boxShadow: "none",
     },
   };
 }
@@ -178,7 +151,7 @@ export function SwitchShowcase({ sx }: ShowcaseProps) {
           previewAlign="center"
         >
           <CenteredControl>
-            <Switch sx={getSwitchSx(theme)} />
+            <ErpToggleSwitch checked={false} />
           </CenteredControl>
         </InputStateTile>
 
@@ -188,7 +161,7 @@ export function SwitchShowcase({ sx }: ShowcaseProps) {
           previewAlign="center"
         >
           <CenteredControl>
-            <Switch defaultChecked sx={getSwitchSx(theme)} />
+            <ErpToggleSwitch checked />
           </CenteredControl>
         </InputStateTile>
       </Box>

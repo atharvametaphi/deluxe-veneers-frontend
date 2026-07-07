@@ -1,26 +1,18 @@
 import { useMemo, useState } from "react";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Button,
   IconButton,
   InputAdornment,
   Stack,
   TextField,
-  Typography,
   useTheme,
 } from "@mui/material";
-import { ChevronDown, Search, Settings2 } from "lucide-react";
+import { Search, Settings2 } from "lucide-react";
 import { Link as RouterLink, useNavigate } from "react-router";
 
 import { EnterpriseDataTable } from "../../../components/data-display/EnterpriseDataTable";
-import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
-import {
-  departmentOptions,
-} from "../../user-management/shared";
 import {
   getRolePermissionPaths,
   getRolePermissionSearchValues,
@@ -28,17 +20,11 @@ import {
   rolePermissionRows,
 } from "../shared";
 
-const statusOptions = ["Active", "Inactive"] as const;
-const allDepartmentsOption = "All Departments";
-const allStatusesOption = "All Statuses";
-
 export function RolesPermissionsPage() {
   const theme = useTheme();
   const navigate = useNavigate();
   const paths = getRolePermissionPaths();
   const [searchValue, setSearchValue] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
 
   const filteredRows = useMemo(() => {
     return rolePermissionRows.filter((row) => {
@@ -49,87 +35,15 @@ export function RolesPermissionsPage() {
             .toLowerCase()
             .includes(searchValue.trim().toLowerCase()),
         );
-
-      const matchesDepartment =
-        departmentFilter.length === 0 || row.department === departmentFilter;
-      const matchesStatus =
-        statusFilter.length === 0 || row.statusLabel === statusFilter;
-
-      return matchesSearch && matchesDepartment && matchesStatus;
+      return matchesSearch;
     });
-  }, [departmentFilter, searchValue, statusFilter]);
+  }, [searchValue]);
 
   return (
     <MasterPageShell
       breadcrumbs={[{ label: "Roles & Permissions" }]}
       title="Roles & Permissions"
     >
-      <Accordion
-        disableGutters
-        sx={{
-          border: `1px solid ${theme.customTokens.borders.default}`,
-          borderRadius: `${theme.customTokens.radius.md}px !important`,
-          boxShadow: "none",
-          overflow: "hidden",
-          "&::before": {
-            display: "none",
-          },
-        }}
-      >
-        <AccordionSummary
-          expandIcon={<ChevronDown size={16} />}
-          sx={{
-            px: theme.spacing(2),
-            minHeight: theme.spacing(6),
-            backgroundColor: theme.customTokens.surfaces.surface,
-            "& .MuiAccordionSummary-content": {
-              my: theme.spacing(1.25),
-            },
-          }}
-        >
-          <Typography variant="subtitle1" color="text.primary">
-            Filters
-          </Typography>
-        </AccordionSummary>
-
-        <AccordionDetails
-          sx={{
-            p: theme.spacing(2),
-            borderTop: `1px solid ${theme.customTokens.borders.default}`,
-          }}
-        >
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={2}
-            useFlexGap
-          >
-            <Stack sx={{ width: { xs: "100%", md: 280 } }}>
-              <ErpSelectField
-                onChange={(value) =>
-                  setDepartmentFilter(
-                    value === allDepartmentsOption ? "" : value,
-                  )
-                }
-                options={[allDepartmentsOption, ...departmentOptions]}
-                placeholder="Filter by department"
-                value={departmentFilter}
-              />
-            </Stack>
-
-            <Stack sx={{ width: { xs: "100%", md: 220 } }}>
-              <ErpSelectField
-                onChange={(value) =>
-                  setStatusFilter(value === allStatusesOption ? "" : value)
-                }
-                options={[allStatusesOption, ...statusOptions]}
-                placeholder="Filter by status"
-                value={statusFilter}
-              />
-            </Stack>
-          </Stack>
-        </AccordionDetails>
-      </Accordion>
-
       <Stack
         direction={{ xs: "column", md: "row" }}
         justifyContent="space-between"

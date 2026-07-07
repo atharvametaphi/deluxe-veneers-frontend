@@ -7,7 +7,19 @@ export type MasterFieldType =
   | "toggle"
   | "checkbox";
 
-export type MasterFieldValue = string | boolean | Date | null;
+export interface MasterUploadedFileValue {
+  file?: File;
+  mimeType?: string;
+  name: string;
+  previewUrl?: string;
+}
+
+export type MasterFieldValue =
+  | string
+  | boolean
+  | Date
+  | null
+  | MasterUploadedFileValue;
 
 export interface MasterColumn {
   key: string;

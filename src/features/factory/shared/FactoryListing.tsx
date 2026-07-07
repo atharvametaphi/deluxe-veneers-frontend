@@ -80,18 +80,28 @@ export function FactoryListing<Row extends FactoryRecord>({
         });
       }
 
-      if (definition.slug === "slicing" && activeTab !== "history") {
-        baseActions.push({
-          id: "issue-for-drying",
-          label: "Issue for Drying",
-          onSelect: () => navigate("/factory/drying"),
-        });
-      }
-
       return baseActions;
     },
-    [activeTab, definition.slug, navigate, paths],
+    [activeTab, definition.title, navigate, paths],
   );
+
+  const getRowActions = useMemo<
+    ((row: Row) => readonly EnterpriseTableAction<Row>[]) | undefined
+  >(() => {
+    if (activeTab !== "done") {
+      return undefined;
+    }
+
+    return (row) => {
+      const nextProcessAction = getFactoryNextProcessAction(row, navigate);
+
+      if (!nextProcessAction) {
+        return rowActions;
+      }
+
+      return [...rowActions, nextProcessAction];
+    };
+  }, [activeTab, navigate, rowActions]);
 
   return (
     <FactoryPageShell
@@ -153,6 +163,7 @@ export function FactoryListing<Row extends FactoryRecord>({
           columns={definition.listColumns}
           defaultRowsPerPage={10}
           rows={filteredRows}
+          {...(getRowActions ? { getRowActions } : {})}
           {...(definition.initialSort
             ? { initialSort: definition.initialSort }
             : {})}
@@ -185,3 +196,37 @@ type RowValue = RowLike[string];
 interface RowLike {
   [key: string]: unknown;
 }
+
+function getFactoryNextProcessAction<Row extends FactoryRecord>(
+  row: Row,
+  navigate: ReturnType<typeof useNavigate>,
+): EnterpriseTableAction<Row> | null {
+  const issuedFor = typeof row.issuedFor === "string" ? row.issuedFor.trim() : "";
+  const nextPath = factoryNextProcessRouteMap[issuedFor];
+
+  if (!issuedFor || !nextPath) {
+    return null;
+  }
+
+  return {
+    id: `issue-for-${issuedFor.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    label: `Issue for ${issuedFor}`,
+    onSelect: () => navigate(nextPath),
+  };
+}
+
+const factoryNextProcessRouteMap: Record<string, string> = {
+  "CNC / Fluting": "/factory/cnc-fluting",
+  Dispatch: "/dispatch",
+  Drying: "/factory/drying",
+  Embossing: "/factory/embossing",
+  "Export / OEM": "/factory/export-oem",
+  Finishing: "/factory/finishing",
+  Grouping: "/factory/grouping",
+  Inspection: "/qc/pending",
+  Marquetry: "/factory/marquetry",
+  Packing: "/packing",
+  Pressing: "/factory/pressing",
+  "Sample Sheets": "/factory/sample-sheets",
+  Splicing: "/factory/splicing",
+};
