@@ -1,11 +1,16 @@
-import { embossingDefinition, FactoryForm, FactoryListing } from "../../shared";
+import {
+  embossingDefinition,
+  FactoryForm,
+  FactoryListing,
+  FactoryProcessCreatePage,
+} from "../../shared";
 
 export function EmbossingListPage() {
   return <FactoryListing definition={embossingDefinition} />;
 }
 
 export function AddEmbossingPage() {
-  return <FactoryForm definition={embossingDefinition} mode="add" />;
+  return <FactoryProcessCreatePage definition={embossingDefinition} />;
 }
 
 export function EditEmbossingPage() {

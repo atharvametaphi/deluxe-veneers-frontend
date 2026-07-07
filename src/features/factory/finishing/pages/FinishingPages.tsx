@@ -1,11 +1,16 @@
-import { FactoryForm, FactoryListing, finishingDefinition } from "../../shared";
+import {
+  FactoryForm,
+  FactoryListing,
+  FactoryProcessCreatePage,
+  finishingDefinition,
+} from "../../shared";
 
 export function FinishingListPage() {
   return <FactoryListing definition={finishingDefinition} />;
 }
 
 export function AddFinishingPage() {
-  return <FactoryForm definition={finishingDefinition} mode="add" />;
+  return <FactoryProcessCreatePage definition={finishingDefinition} />;
 }
 
 export function EditFinishingPage() {

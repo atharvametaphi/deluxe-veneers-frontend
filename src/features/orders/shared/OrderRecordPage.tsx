@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   MasterFormFields,
@@ -12,11 +12,16 @@ import {
 } from "../../masters/shared";
 import {
   createOrderRecord,
+  getCreateOrderFormFields,
   getOrderLineItems,
   getOrdersPaths,
+  getOrderCreateVariant,
+  getOrderVariantFromType,
+  getOrderVariantLabel,
   orderFormFields,
   orderViewFields,
   type OrderDraft,
+  type OrderCreateVariant,
   type OrderLineItem,
   type OrderRecord,
   updateOrderRecord,
@@ -31,23 +36,39 @@ interface OrderRecordPageProps {
 export function OrderRecordPage({ mode }: OrderRecordPageProps) {
   const records = useOrderRecords();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
   const paths = getOrdersPaths();
   const record = useMemo(
     () => records.find((entry) => entry.id === id),
     [id, records],
   );
-  const activeFields = mode === "view" ? orderViewFields : orderFormFields;
+  const createVariant = useMemo<OrderCreateVariant>(
+    () => getOrderCreateVariant(searchParams.get("type")),
+    [searchParams],
+  );
+  const recordVariant = useMemo(
+    () => getOrderVariantFromType(record?.orderType),
+    [record?.orderType],
+  );
+  const activeVariant = mode === "add" ? createVariant : recordVariant;
+  const activeFields =
+    mode === "view"
+      ? orderViewFields
+      : activeVariant
+        ? getCreateOrderFormFields(activeVariant)
+        : orderFormFields;
+  const pageTitle = getOrderPageTitle(mode, activeVariant);
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildOrderInitialValues(activeFields, record),
+    buildOrderInitialValues(activeFields, record, activeVariant),
   );
   const [lineItems, setLineItems] = useState<OrderLineItem[]>(() =>
     record ? getOrderLineItems(record.id) : [],
   );
 
   useEffect(() => {
-    setValues(buildOrderInitialValues(activeFields, record));
-  }, [activeFields, record]);
+    setValues(buildOrderInitialValues(activeFields, record, activeVariant));
+  }, [activeFields, activeVariant, record]);
 
   useEffect(() => {
     setLineItems(record ? getOrderLineItems(record.id) : []);
@@ -72,12 +93,12 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
   }
 
   return (
-    <MasterPageShell
-      breadcrumbs={[
-        { label: "Orders", to: paths.list },
-        { label: mode === "add" ? "Add Order" : mode === "edit" ? "Edit Order" : "View Order" },
-      ]}
-      title={mode === "add" ? "Add Order" : mode === "edit" ? "Edit Order" : "View Order"}
+      <MasterPageShell
+        breadcrumbs={[
+          { label: "Orders", to: paths.list },
+          { label: pageTitle },
+        ]}
+      title={pageTitle}
     >
       <MasterSectionCard>
         <Stack
@@ -174,9 +195,15 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
 function buildOrderInitialValues(
   fields: readonly MasterFieldDefinition[],
   record?: OrderRecord,
+  variant?: OrderCreateVariant | null,
 ) {
   return fields.reduce<Record<string, MasterFieldValue>>((accumulator, field) => {
     const value = record?.[field.key as keyof OrderRecord];
+
+    if (!record && variant && field.key === "orderType") {
+      accumulator[field.key] = getOrderVariantLabel(variant);
+      return accumulator;
+    }
 
     if (field.type === "date") {
       accumulator[field.key] = value instanceof Date ? value : null;
@@ -186,6 +213,23 @@ function buildOrderInitialValues(
     accumulator[field.key] = typeof value === "string" ? value : "";
     return accumulator;
   }, {});
+}
+
+function getOrderPageTitle(
+  mode: "add" | "edit" | "view",
+  variant?: OrderCreateVariant | null,
+) {
+  const suffix = variant ? getOrderVariantLabel(variant) : "Order";
+
+  if (mode === "add") {
+    return `Create ${suffix}`;
+  }
+
+  if (mode === "edit") {
+    return `Edit ${suffix}`;
+  }
+
+  return `View ${suffix}`;
 }
 
 function buildOrderPayload(

@@ -1,7 +1,16 @@
 import { useMemo, useState } from "react";
-import { Button, InputAdornment, Stack, TextField, useTheme } from "@mui/material";
-import { Eye, Pencil, Search } from "lucide-react";
-import { Link as RouterLink, useNavigate } from "react-router";
+import {
+  Button,
+  InputAdornment,
+  Menu,
+  MenuItem,
+  Stack,
+  TextField,
+  useTheme,
+} from "@mui/material";
+import { ChevronDown, Eye, Pencil, Search } from "lucide-react";
+import type { MouseEvent } from "react";
+import { useNavigate } from "react-router";
 
 import {
   EnterpriseDataTable,
@@ -22,6 +31,9 @@ export function OrdersListingPage() {
   const paths = getOrdersPaths();
   const rows = useOrderRecords();
   const [searchValue, setSearchValue] = useState("");
+  const [createMenuAnchor, setCreateMenuAnchor] = useState<HTMLElement | null>(
+    null,
+  );
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -92,13 +104,41 @@ export function OrdersListingPage() {
         />
 
         <Button
-          component={RouterLink}
-          to={paths.add}
+          endIcon={<ChevronDown size={16} />}
+          onClick={(event: MouseEvent<HTMLElement>) =>
+            setCreateMenuAnchor(event.currentTarget)
+          }
           sx={{ alignSelf: { xs: "flex-start", md: "center" } }}
           variant="contained"
         >
-          Add Order
+          Create Order
         </Button>
+
+        <Menu
+          anchorEl={createMenuAnchor}
+          open={Boolean(createMenuAnchor)}
+          onClose={() => setCreateMenuAnchor(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+          transformOrigin={{ vertical: "top", horizontal: "left" }}
+        >
+          <MenuItem
+            onClick={() => {
+              setCreateMenuAnchor(null);
+              navigate(`${paths.add}?type=raw`);
+            }}
+          >
+            Raw Order
+          </MenuItem>
+
+          <MenuItem
+            onClick={() => {
+              setCreateMenuAnchor(null);
+              navigate(`${paths.add}?type=marquetry`);
+            }}
+          >
+            Marquetry Order
+          </MenuItem>
+        </Menu>
       </Stack>
 
       <EnterpriseDataTable

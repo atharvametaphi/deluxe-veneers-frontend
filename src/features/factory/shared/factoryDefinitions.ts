@@ -49,9 +49,8 @@ const selectField = (
 const remarkField = (): MasterFieldDefinition => ({
   key: "remark",
   label: "Remark",
-  type: "textarea",
+  type: "text",
   span: "full",
-  rows: 3,
 });
 
 const veneerLots = [

@@ -1,11 +1,16 @@
-import { cncFlutingDefinition, FactoryForm, FactoryListing } from "../../shared";
+import {
+  cncFlutingDefinition,
+  FactoryForm,
+  FactoryListing,
+  FactoryProcessCreatePage,
+} from "../../shared";
 
 export function CNCFlutingListPage() {
   return <FactoryListing definition={cncFlutingDefinition} />;
 }
 
 export function AddCNCFlutingPage() {
-  return <FactoryForm definition={cncFlutingDefinition} mode="add" />;
+  return <FactoryProcessCreatePage definition={cncFlutingDefinition} />;
 }
 
 export function EditCNCFlutingPage() {

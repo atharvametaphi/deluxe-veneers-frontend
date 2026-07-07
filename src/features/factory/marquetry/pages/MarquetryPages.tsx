@@ -1,11 +1,16 @@
-import { FactoryForm, FactoryListing, marquetryDefinition } from "../../shared";
+import {
+  FactoryForm,
+  FactoryListing,
+  FactoryProcessCreatePage,
+  marquetryDefinition,
+} from "../../shared";
 
 export function MarquetryListPage() {
   return <FactoryListing definition={marquetryDefinition} />;
 }
 
 export function AddMarquetryPage() {
-  return <FactoryForm definition={marquetryDefinition} mode="add" />;
+  return <FactoryProcessCreatePage definition={marquetryDefinition} />;
 }
 
 export function EditMarquetryPage() {

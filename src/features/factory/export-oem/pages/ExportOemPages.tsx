@@ -1,11 +1,16 @@
-import { exportOemDefinition, FactoryForm, FactoryListing } from "../../shared";
+import {
+  exportOemDefinition,
+  FactoryForm,
+  FactoryListing,
+  FactoryProcessCreatePage,
+} from "../../shared";
 
 export function ExportOemListPage() {
   return <FactoryListing definition={exportOemDefinition} />;
 }
 
 export function AddExportOemPage() {
-  return <FactoryForm definition={exportOemDefinition} mode="add" />;
+  return <FactoryProcessCreatePage definition={exportOemDefinition} />;
 }
 
 export function EditExportOemPage() {

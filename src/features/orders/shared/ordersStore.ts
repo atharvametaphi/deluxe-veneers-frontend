@@ -68,6 +68,8 @@ export interface OrderDraft {
   width?: string;
 }
 
+export type OrderCreateVariant = "raw" | "marquetry";
+
 export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] =
   [
     { key: "orderNo", label: "Order No" },
@@ -95,6 +97,8 @@ export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] 
   ];
 
 export const orderTypeOptions = [
+  "Raw Order",
+  "Marquetry Order",
   "Export / OEM",
   "Domestic Project",
   "Marquetry",
@@ -258,6 +262,23 @@ export const orderFormFields: readonly MasterFieldDefinition[] = [
   },
 ];
 
+export function getCreateOrderFormFields(
+  variant: OrderCreateVariant,
+): readonly MasterFieldDefinition[] {
+  const orderTypeLabel = getOrderVariantLabel(variant);
+
+  return orderFormFields.map((field) =>
+    field.key === "orderType"
+      ? {
+          ...field,
+          options: [orderTypeLabel],
+          placeholder: orderTypeLabel,
+          readOnly: true,
+        }
+      : field,
+  );
+}
+
 export const orderViewFields: readonly MasterFieldDefinition[] = [
   ...orderFormFields,
   {
@@ -281,6 +302,36 @@ export const orderViewFields: readonly MasterFieldDefinition[] = [
     type: "date",
   },
 ];
+
+export function getOrderVariantLabel(variant: OrderCreateVariant) {
+  return variant === "marquetry" ? "Marquetry Order" : "Raw Order";
+}
+
+export function getOrderVariantFromType(
+  orderType: string | null | undefined,
+): OrderCreateVariant | null {
+  if (!orderType) {
+    return null;
+  }
+
+  const normalizedType = orderType.trim().toLowerCase();
+
+  if (normalizedType.includes("marquetry")) {
+    return "marquetry";
+  }
+
+  if (normalizedType.includes("raw")) {
+    return "raw";
+  }
+
+  return null;
+}
+
+export function getOrderCreateVariant(
+  value: string | null | undefined,
+): OrderCreateVariant {
+  return value === "marquetry" ? "marquetry" : "raw";
+}
 
 const orderListeners = new Set<() => void>();
 const initialOrderState = createInitialOrderState();

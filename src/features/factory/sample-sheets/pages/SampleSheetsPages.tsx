@@ -1,11 +1,16 @@
-import { FactoryForm, FactoryListing, sampleSheetsDefinition } from "../../shared";
+import {
+  FactoryForm,
+  FactoryListing,
+  FactoryProcessCreatePage,
+  sampleSheetsDefinition,
+} from "../../shared";
 
 export function SampleSheetsListPage() {
   return <FactoryListing definition={sampleSheetsDefinition} />;
 }
 
 export function AddSampleSheetsPage() {
-  return <FactoryForm definition={sampleSheetsDefinition} mode="add" />;
+  return <FactoryProcessCreatePage definition={sampleSheetsDefinition} />;
 }
 
 export function EditSampleSheetsPage() {

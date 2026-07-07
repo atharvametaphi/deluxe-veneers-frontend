@@ -1,11 +1,16 @@
-import { FactoryForm, FactoryListing, groupingDefinition } from "../../shared";
+import {
+  FactoryForm,
+  FactoryListing,
+  FactoryProcessCreatePage,
+  groupingDefinition,
+} from "../../shared";
 
 export function GroupingListPage() {
   return <FactoryListing definition={groupingDefinition} />;
 }
 
 export function AddGroupingPage() {
-  return <FactoryForm definition={groupingDefinition} mode="add" />;
+  return <FactoryProcessCreatePage definition={groupingDefinition} />;
 }
 
 export function EditGroupingPage() {

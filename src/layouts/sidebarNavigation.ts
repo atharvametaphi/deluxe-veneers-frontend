@@ -313,10 +313,28 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) => matchesPath(location, "/factory/drying"),
       },
       {
+        id: "export-oem",
+        label: "Export/OEM",
+        to: "/factory/export-oem",
+        match: (location) => matchesPath(location, "/factory/export-oem"),
+      },
+      {
+        id: "marquetry",
+        label: "Marquetry",
+        to: "/factory/marquetry",
+        match: (location) => matchesPath(location, "/factory/marquetry"),
+      },
+      {
         id: "grouping",
         label: "Grouping",
         to: "/factory/grouping",
         match: (location) => matchesPath(location, "/factory/grouping"),
+      },
+      {
+        id: "sample-sheets",
+        label: "Sample Sheets",
+        to: "/factory/sample-sheets",
+        match: (location) => matchesPath(location, "/factory/sample-sheets"),
       },
       {
         id: "splicing",
@@ -338,7 +356,7 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
       },
       {
         id: "cnc-fluting",
-        label: "CNC / Fluting",
+        label: "CNC/Fluting",
         to: "/factory/cnc-fluting",
         match: (location) => matchesPath(location, "/factory/cnc-fluting"),
       },
@@ -348,24 +366,7 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         to: "/factory/embossing",
         match: (location) => matchesPath(location, "/factory/embossing"),
       },
-      {
-        id: "marquetry",
-        label: "Marquetry",
-        to: "/factory/marquetry",
-        match: (location) => matchesPath(location, "/factory/marquetry"),
-      },
-      {
-        id: "sample-sheets",
-        label: "Sample Sheets",
-        to: "/factory/sample-sheets",
-        match: (location) => matchesPath(location, "/factory/sample-sheets"),
-      },
-      {
-        id: "export-oem",
-        label: "Export / OEM",
-        to: "/factory/export-oem",
-        match: (location) => matchesPath(location, "/factory/export-oem"),
-      },
+      
     ],
   },
   {

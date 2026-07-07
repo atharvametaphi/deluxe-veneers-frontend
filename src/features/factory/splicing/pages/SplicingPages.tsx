@@ -1,11 +1,16 @@
-import { FactoryForm, FactoryListing, splicingDefinition } from "../../shared";
+import {
+  FactoryForm,
+  FactoryListing,
+  FactoryProcessCreatePage,
+  splicingDefinition,
+} from "../../shared";
 
 export function SplicingListPage() {
   return <FactoryListing definition={splicingDefinition} />;
 }
 
 export function AddSplicingPage() {
-  return <FactoryForm definition={splicingDefinition} mode="add" />;
+  return <FactoryProcessCreatePage definition={splicingDefinition} />;
 }
 
 export function EditSplicingPage() {

@@ -76,7 +76,7 @@ export function FactoryListing<Row extends FactoryRecord>({
           id: "create-process",
           label: `Create ${definition.title}`,
           icon: Plus,
-          onSelect: () => navigate(paths.add),
+          onSelect: (row) => navigate(paths.add, { state: { sourceRow: row } }),
         });
       }
 
@@ -153,8 +153,7 @@ export function FactoryListing<Row extends FactoryRecord>({
               },
             }}
           />
-
-          <FactoryToolbar addPath={paths.add} />
+          <FactoryToolbar />
         </Stack>
 
         <EnterpriseDataTable

@@ -118,7 +118,12 @@ export function WarehouseBInventoryPage() {
         baseActions.push({
           id: "issue-for-slicing",
           label: "Issue for Slicing",
-          onSelect: () => navigate("/factory/slicing/add"),
+          onSelect: (row) =>
+            navigate("/factory/slicing/add", {
+              state: {
+                sourceRow: row,
+              },
+            }),
         });
       }
 
@@ -261,7 +266,13 @@ export function WarehouseBInventoryPage() {
 
               <Button
                 variant="contained"
-                onClick={() => navigate("/factory/slicing/add")}
+                onClick={() =>
+                  navigate("/factory/slicing/add", {
+                    state: {
+                      sourceRows: selectedRows,
+                    },
+                  })
+                }
               >
                 Issue for Slicing
               </Button>

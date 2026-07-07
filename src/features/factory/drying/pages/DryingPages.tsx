@@ -1,11 +1,16 @@
-import { dryingDefinition, FactoryForm, FactoryListing } from "../../shared";
+import {
+  dryingDefinition,
+  FactoryForm,
+  FactoryListing,
+  FactoryProcessCreatePage,
+} from "../../shared";
 
 export function DryingListPage() {
   return <FactoryListing definition={dryingDefinition} />;
 }
 
 export function AddDryingPage() {
-  return <FactoryForm definition={dryingDefinition} mode="add" />;
+  return <FactoryProcessCreatePage definition={dryingDefinition} />;
 }
 
 export function EditDryingPage() {
