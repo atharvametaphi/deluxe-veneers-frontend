@@ -355,12 +355,6 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) => matchesPath(location, "/factory/pressing"),
       },
       {
-        id: "finishing",
-        label: "Finishing",
-        to: "/factory/finishing",
-        match: (location) => matchesPath(location, "/factory/finishing"),
-      },
-      {
         id: "cnc-fluting",
         label: "CNC/Fluting",
         to: "/factory/cnc-fluting",
@@ -371,6 +365,12 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         label: "Embossing",
         to: "/factory/embossing",
         match: (location) => matchesPath(location, "/factory/embossing"),
+      },
+      {
+        id: "finishing",
+        label: "Finishing",
+        to: "/factory/finishing",
+        match: (location) => matchesPath(location, "/factory/finishing"),
       },
       
     ],

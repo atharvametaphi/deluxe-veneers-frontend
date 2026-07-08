@@ -4,7 +4,11 @@ import { RouterProvider } from "react-router/dom";
 import { LoginPage, ProtectedAppShell } from "../features/auth";
 import { DashboardPage } from "../features/dashboard";
 import { DispatchPage } from "../features/dispatch";
-import { DispatchCreatePage } from "../features/dispatch/pages";
+import {
+  DispatchCreatePage,
+  DispatchEditPage,
+  DispatchViewPage,
+} from "../features/dispatch/pages";
 import { factoryRoutes } from "../features/factory";
 import { inventoryRoutes } from "../features/inventory";
 import { masterRoutes } from "../features/masters";
@@ -91,6 +95,14 @@ const router = createBrowserRouter([
       {
         path: "dispatch/add/:id",
         Component: DispatchCreatePage,
+      },
+      {
+        path: "dispatch/edit/:id",
+        Component: DispatchEditPage,
+      },
+      {
+        path: "dispatch/view/:id",
+        Component: DispatchViewPage,
       },
       {
         path: "dispatch",

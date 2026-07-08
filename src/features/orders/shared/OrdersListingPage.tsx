@@ -11,7 +11,7 @@ import {
   TextField,
   useTheme,
 } from "@mui/material";
-import { ChevronDown, Eye, Pencil, Search } from "lucide-react";
+import { ChevronDown, Eye, Pencil, Search, XCircle } from "lucide-react";
 import type { MouseEvent } from "react";
 import { useNavigate } from "react-router";
 
@@ -23,9 +23,10 @@ import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessT
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import {
+  cancelOrderRecord,
   getOrdersPaths,
-  orderListingColumns,
   getOrderVariantFromType,
+  orderListingColumns,
   type OrderRecord,
   useOrderRecords,
 } from "./ordersStore";
@@ -81,6 +82,21 @@ export function OrdersListingPage() {
     ],
     [navigate, paths],
   );
+
+  const getRowActions = (
+    row: OrderRecord,
+  ): readonly EnterpriseTableAction<OrderRecord>[] =>
+    row.status === "Cancelled"
+      ? rowActions
+      : [
+          ...rowActions,
+          {
+            id: "cancel-order",
+            label: "Cancel Order",
+            icon: XCircle,
+            onSelect: (selectedRow) => cancelOrderRecord(selectedRow.id),
+          },
+        ];
 
   const handleCloseCreateMenu = () => {
     setCreateMenuAnchor(null);
@@ -181,10 +197,10 @@ export function OrdersListingPage() {
 
       <EnterpriseDataTable
         key={activeTab}
-        actions={rowActions}
         columns={orderListingColumns}
         defaultRowsPerPage={10}
         emptyStateLabel="No orders are available."
+        getRowActions={getRowActions}
         initialSort={{ key: "updatedDate", direction: "desc" }}
         rows={filteredRows}
       />

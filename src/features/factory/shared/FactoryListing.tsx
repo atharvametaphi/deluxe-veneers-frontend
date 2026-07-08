@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { InputAdornment, Stack, TextField, useTheme } from "@mui/material";
-import { Eye, Pencil, Plus } from "lucide-react";
+import { Eye, Pencil, Plus, RotateCcw } from "lucide-react";
 import { Search } from "lucide-react";
 import { useNavigate } from "react-router";
 
@@ -32,14 +32,16 @@ export function FactoryListing<Row extends FactoryRecord>({
   const paths = getFactoryPaths(definition.slug);
   const [activeTab, setActiveTab] = useState<FactoryProcessTab>("issued");
   const [searchValue, setSearchValue] = useState("");
+  const [revertedRowIds, setRevertedRowIds] = useState<string[]>([]);
   const tabs = useMemo(
     () => getFactoryProcessTabs(definition.title),
     [definition.title],
   );
-  const tabRows = useMemo(
-    () => getFactoryRowsForTab(definition.rows, activeTab),
-    [activeTab, definition.rows],
-  );
+  const tabRows = useMemo(() => {
+    const rowsForTab = getFactoryRowsForTab(definition.rows, activeTab);
+
+    return rowsForTab.filter((row) => !revertedRowIds.includes(row.id));
+  }, [activeTab, definition.rows, revertedRowIds]);
   const filteredRows = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
@@ -78,6 +80,15 @@ export function FactoryListing<Row extends FactoryRecord>({
           icon: Plus,
           onSelect: (row) => navigate(paths.add, { state: { sourceRow: row } }),
         });
+        baseActions.push({
+          id: "revert-item",
+          label: "Revert Item",
+          icon: RotateCcw,
+          onSelect: (row) =>
+            setRevertedRowIds((current) =>
+              current.includes(row.id) ? current : [...current, row.id],
+            ),
+        });
       }
 
       return baseActions;
@@ -93,15 +104,19 @@ export function FactoryListing<Row extends FactoryRecord>({
     }
 
     return (row) => {
-      const nextProcessAction = getFactoryNextProcessAction(row, navigate);
+      const nextProcessActions = getFactoryNextProcessActions(
+        row,
+        navigate,
+        definition.slug,
+      );
 
-      if (!nextProcessAction) {
+      if (nextProcessActions.length === 0) {
         return rowActions;
       }
 
-      return [...rowActions, nextProcessAction];
+      return [...rowActions, ...nextProcessActions];
     };
-  }, [activeTab, navigate, rowActions]);
+  }, [activeTab, definition.slug, navigate, rowActions]);
 
   return (
     <FactoryPageShell
@@ -196,21 +211,39 @@ interface RowLike {
   [key: string]: unknown;
 }
 
-function getFactoryNextProcessAction<Row extends FactoryRecord>(
+function getFactoryNextProcessActions<Row extends FactoryRecord>(
   row: Row,
   navigate: ReturnType<typeof useNavigate>,
-): EnterpriseTableAction<Row> | null {
-  const issuedFor = typeof row.issuedFor === "string" ? row.issuedFor.trim() : "";
-  const nextPath = factoryNextProcessRouteMap[issuedFor];
-
-  if (!issuedFor || !nextPath) {
-    return null;
+  slug: string,
+): readonly EnterpriseTableAction<Row>[] {
+  if (slug === "pressing") {
+    return [
+      createFactoryIssueAction<Row>("CNC / Fluting", navigate),
+      createFactoryIssueAction<Row>("Embossing", navigate),
+    ];
   }
 
+  if (slug === "sample-sheets") {
+    return [createFactoryIssueAction<Row>("Finishing", navigate)];
+  }
+
+  const issuedFor = typeof row.issuedFor === "string" ? row.issuedFor.trim() : "";
+
+  if (!issuedFor || !(issuedFor in factoryNextProcessRouteMap)) {
+    return [];
+  }
+
+  return [createFactoryIssueAction<Row>(issuedFor, navigate)];
+}
+
+function createFactoryIssueAction<Row extends FactoryRecord>(
+  issuedFor: string,
+  navigate: ReturnType<typeof useNavigate>,
+): EnterpriseTableAction<Row> {
   return {
     id: `issue-for-${issuedFor.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
     label: `Issue for ${issuedFor}`,
-    onSelect: () => navigate(nextPath),
+    onSelect: () => navigate(factoryNextProcessRouteMap[issuedFor]!),
   };
 }
 

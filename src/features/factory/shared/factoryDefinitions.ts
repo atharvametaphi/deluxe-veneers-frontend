@@ -317,7 +317,7 @@ const splicingRows = createFactoryRows<FactoryRecord>(
     shift: ["Morning", "General", "Evening"][index % 3],
     workers: String(9 + index),
     workingHours: `${6.5 + (index % 2) * 0.5}`,
-    issuedFor: ["Pressing", "Marquetry", "Grouping", "Pressing", "Export / OEM", "Grouping"][index],
+    issuedFor: ["Pressing", "Marquetry", "Pressing", "Pressing", "Export / OEM", "Pressing"][index],
     remark: [
       "Matched grain sheets aligned for splicing.",
       "Decorative splice pattern queued for marquetry.",
@@ -362,7 +362,7 @@ const dryingRows = createFactoryRows<FactoryRecord>(
 const groupingRows = createFactoryRows<FactoryRecord>(
   "grouping",
   productionGroups.map((group, index) => ({
-    issuedFor: ["Splicing", "Pressing", "Marquetry", "Splicing", "Pressing", "Export / OEM"][index],
+    issuedFor: ["Splicing", "Pressing", "Marquetry", "Splicing", "Pressing", "Sample Sheets"][index],
     issuedDate: asDate(`2026-06-${String(index + 8).padStart(2, "0")}`),
     customerName: group.customerName,
     orderNo: `GR-2026-21${index + 1}`,
@@ -459,7 +459,7 @@ const cncEmbossingRows = createFactoryRows<FactoryRecord>(
 const marquetryRows = createFactoryRows<FactoryRecord>(
   "marquetry",
   productionGroups.map((group, index) => ({
-    issuedFor: ["Marquetry", "Finishing", "Marquetry", "Sample Sheets", "Export / OEM", "Finishing"][index],
+    issuedFor: ["Marquetry", "Pressing", "Marquetry", "Sample Sheets", "Export / OEM", "Pressing"][index],
     issuedDate: asDate(`2026-06-${String(index + 17).padStart(2, "0")}`),
     customerName: group.customerName,
     productName: group.productName,

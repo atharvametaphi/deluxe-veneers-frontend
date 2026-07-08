@@ -142,6 +142,7 @@ const statusOptions = [
   "In Production",
   "Packing Scheduled",
   "Ready for Dispatch",
+  "Cancelled",
 ] as const;
 
 export const orderFormFields: readonly MasterFieldDefinition[] = [
@@ -436,6 +437,23 @@ export function updateOrderRecord(
   );
 
   orderLineItemsById.set(recordId, nextLineItems);
+  emitOrdersChange();
+}
+
+export function cancelOrderRecord(recordId: string) {
+  const timestamp = new Date();
+
+  orderRecords = orderRecords.map((record) =>
+    record.id === recordId
+      ? {
+          ...record,
+          status: "Cancelled",
+          updatedBy: "Order Desk",
+          updatedDate: timestamp,
+        }
+      : record,
+  );
+
   emitOrdersChange();
 }
 

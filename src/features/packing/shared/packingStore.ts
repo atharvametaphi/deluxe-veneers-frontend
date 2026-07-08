@@ -5,6 +5,11 @@ import type { EnterpriseTableColumn, EnterpriseTableRow } from "../../../compone
 export type PackingTabValue = "done" | "issued";
 export type PackingRecordState = "dispatched" | "done" | "issued" | "reverted";
 
+export const packingOrderTypeOptions = [
+  "Raw Order",
+  "Marquetry",
+] as const;
+
 export interface PackingRecord extends EnterpriseTableRow {
   issuedFrom: string;
   orderNo: string;
@@ -121,19 +126,83 @@ export function dispatchPackingRecord(recordId: string) {
   );
 }
 
+export function revertDispatchEntry(recordId: string) {
+  const timestamp = new Date();
+
+  updatePackingRecords((records) =>
+    records.map((record) =>
+      record.id === recordId
+        ? {
+            ...record,
+            dispatchDate: null,
+            packingState: "done",
+            updatedBy: "Dispatch Coordinator",
+            updatedDate: timestamp,
+          }
+        : record,
+    ),
+  );
+}
+
 export function createPackingEntry(
-  recordId: string,
+  recordId: string | undefined,
   payload: {
     customerName?: string;
+    amount?: string;
+    issuedFrom?: string;
+    itemName?: string;
+    length?: string;
+    orderNo?: string;
     orderType?: string;
     packingDate?: Date | null;
     productCategory?: string;
     remark?: string;
+    thickness?: string;
+    width?: string;
   },
 ) {
   const timestamp = payload.packingDate instanceof Date
     ? payload.packingDate
     : new Date();
+
+  if (!recordId) {
+    const nextRecordNumber = packingRecords.length + 1;
+
+    updatePackingRecords((records) => [
+      {
+        id: `packing-${nextRecordNumber}`,
+        issuedFrom: normalizeString(payload.issuedFrom, "Manual Entry"),
+        orderNo: normalizeString(
+          payload.orderNo,
+          `ORD-PK-${String(1000 + nextRecordNumber).padStart(4, "0")}`,
+        ),
+        customerName: normalizeString(payload.customerName, "New Customer"),
+        orderType: normalizeString(payload.orderType, "Raw Order"),
+        productCategory: normalizeString(
+          payload.productCategory,
+          "Raw Veneer",
+        ),
+        itemName: normalizeString(payload.itemName, "Packing Item"),
+        length: normalizeString(payload.length, "2440 mm"),
+        width: normalizeString(payload.width, "1220 mm"),
+        thickness: normalizeString(payload.thickness, "0.60 mm"),
+        series: "DV-Prime",
+        grade: "A",
+        amount: normalizeString(payload.amount, "18,500.00"),
+        remark: normalizeString(payload.remark, ""),
+        packingDate: payload.packingDate instanceof Date ? payload.packingDate : timestamp,
+        dispatchDate: null,
+        createdBy: "Packing Supervisor",
+        updatedBy: "Packing Supervisor",
+        createdDate: timestamp,
+        updatedDate: timestamp,
+        packingState: "done",
+      },
+      ...records,
+    ]);
+
+    return;
+  }
 
   updatePackingRecords((records) =>
     records.map((record) =>
@@ -197,7 +266,7 @@ export function createDispatchEntry(
 export function getPackingPaths() {
   return {
     list: "/packing",
-    add: (id: string) => `/packing/add/${id}`,
+    add: (id?: string) => (id ? `/packing/add/${id}` : "/packing/add"),
     edit: (id: string) => `/packing/edit/${id}`,
     view: (id: string) => `/packing/view/${id}`,
   };
@@ -233,12 +302,12 @@ function createPackingRecords(): PackingRecord[] {
     "Finish",
     "Warehouse C",
   ] as const;
-  const orderTypes = ["Export / OEM", "Marquetry", "Splicing"] as const;
+  const orderTypes = [...packingOrderTypeOptions];
   const productCategories = [
-    "Decorative Veneer",
-    "Engineered Panel",
-    "Architectural Surface",
-    "Sample Collection",
+    "Raw Veneer",
+    "Veneer Blocks",
+    "Plywood",
+    "MDF",
   ] as const;
   const itemNames = [
     "Oak Veneer Panel",
