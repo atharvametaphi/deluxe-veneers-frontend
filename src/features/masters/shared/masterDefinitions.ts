@@ -162,6 +162,41 @@ const colorRows = withAuditFields(createMasterRows("color-master", [
   },
 ]));
 
+const cutRows = withAuditFields(createMasterRows("cut-master", [
+  {
+    cutName: "Quarter Cut",
+    remark: "Used for linear veneer grain selection.",
+    createdEditedBy: "Atharva Patil",
+    updatedBy: "Neha Shah",
+    createdEditedDate: asDate("2026-04-16"),
+    updatedDate: asDate("2026-05-06"),
+  },
+  {
+    cutName: "Crown Cut",
+    remark: "Preferred for broad cathedral grain patterns.",
+    createdEditedBy: "Neha Shah",
+    updatedBy: "Rohit Jain",
+    createdEditedDate: asDate("2026-04-29"),
+    updatedDate: asDate("2026-05-18"),
+  },
+  {
+    cutName: "Rift Cut",
+    remark: "Used where consistent straight grain is required.",
+    createdEditedBy: "Rohit Jain",
+    updatedBy: "Aditi Desai",
+    createdEditedDate: asDate("2026-05-12"),
+    updatedDate: asDate("2026-05-31"),
+  },
+  {
+    cutName: "Rotary Cut",
+    remark: "Bulk inward cut option for production stock.",
+    createdEditedBy: "Aditi Desai",
+    updatedBy: "Atharva Patil",
+    createdEditedDate: asDate("2026-05-25"),
+    updatedDate: asDate("2026-06-07"),
+  },
+]));
+
 const customerRows = withAuditFields(createMasterRows("customer-master", [
   {
     customerName: "Vikram Mehta",
@@ -646,6 +681,31 @@ export const colorMasterDefinition: MasterDefinition = {
     { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
   ],
   rows: colorRows,
+};
+
+export const cutMasterOptions = uniqueOptions(cutRows, "cutName");
+
+export const cutMasterDefinition: MasterDefinition = {
+  slug: "cut-master",
+  title: "Cut Master",
+  gridColumns: 3,
+  columns: [
+    { key: "srNo", label: "Sr No" },
+    { key: "cutName", label: "Cut Name" },
+    { key: "remark", label: "Remark" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
+  ],
+  filters: [
+    { key: "cutName", label: "Cut Name", options: cutMasterOptions },
+  ],
+  fields: [
+    { key: "cutName", label: "Cut Name", type: "text" },
+    { key: "remark", label: "Remark", type: "text" },
+  ],
+  rows: cutRows,
 };
 
 export const customerMasterDefinition: MasterDefinition = {

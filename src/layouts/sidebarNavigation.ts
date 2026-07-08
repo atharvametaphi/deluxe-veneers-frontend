@@ -125,13 +125,6 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
     icon: Star,
     items: [
       {
-        id: "item-category-master",
-        label: "Category",
-        to: "/masters/item-category-master",
-        match: (location) =>
-          matchesPath(location, "/masters/item-category-master"),
-      },
-      {
         id: "color-master",
         label: "Color",
         to: "/masters/color-master",
@@ -142,6 +135,12 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         label: "Currency",
         to: "/masters/currency-master",
         match: (location) => matchesPath(location, "/masters/currency-master"),
+      },
+      {
+        id: "cut-master",
+        label: "Cut",
+        to: "/masters/cut-master",
+        match: (location) => matchesPath(location, "/masters/cut-master"),
       },
       {
         id: "customer-master",
@@ -169,14 +168,21 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) => matchesPath(location, "/masters/hsn-master"),
       },
       {
-        id: "item-master",
-        label: "Item",
-        to: "/masters/item-master",
-        match: (location) => matchesPath(location, "/masters/item-master"),
+        id: "item-category-master",
+        label: "Item Category",
+        to: "/masters/item-category-master",
+        match: (location) =>
+          matchesPath(location, "/masters/item-category-master"),
+      },
+      {
+        id: "item-name-master",
+        label: "Item Name",
+        to: "/masters/item-name-master",
+        match: (location) => matchesPath(location, "/masters/item-name-master"),
       },
       {
         id: "item-sub-category-master",
-        label: "Sub Category",
+        label: "Item Sub Category",
         to: "/masters/item-sub-category-master",
         match: (location) =>
           matchesPath(location, "/masters/item-sub-category-master"),

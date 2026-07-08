@@ -52,12 +52,15 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
     [record?.orderType],
   );
   const activeVariant = mode === "add" ? createVariant : recordVariant;
-  const activeFields =
-    mode === "view"
-      ? orderViewFields
-      : activeVariant
-        ? getCreateOrderFormFields(activeVariant)
-        : orderFormFields;
+  const activeFields = useMemo(
+    () =>
+      mode === "view"
+        ? orderViewFields
+        : activeVariant
+          ? getCreateOrderFormFields(activeVariant)
+          : orderFormFields,
+    [activeVariant, mode],
+  );
   const pageTitle = getOrderPageTitle(mode, activeVariant);
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildOrderInitialValues(activeFields, record, activeVariant),

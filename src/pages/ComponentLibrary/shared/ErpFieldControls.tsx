@@ -130,7 +130,7 @@ function getInteractiveFieldStyles(
     color: isDisabled
       ? theme.palette.text.disabled
       : theme.palette.text.primary,
-    cursor: isDisabled ? "not-allowed" : "pointer",
+    cursor: isDisabled || isReadOnly ? "not-allowed" : "pointer",
     helperColor: isError ? theme.palette.error.main : theme.palette.text.secondary,
   } as const;
 }
@@ -360,7 +360,7 @@ export function ErpSelectField({
       <Box
         component="button"
         onClick={(event) => {
-          if (state !== "disabled") {
+          if (state !== "disabled" && state !== "readOnly") {
             setAnchorEl(event.currentTarget);
           }
         }}
@@ -383,11 +383,11 @@ export function ErpSelectField({
           gap: theme.spacing(1),
           "&:hover": {
             borderColor:
-              state === "disabled" || state === "error"
+              state === "disabled" || state === "readOnly" || state === "error"
                 ? styles.borderColor
                 : theme.customTokens.borders.hover,
             backgroundColor:
-              state === "disabled"
+              state === "disabled" || state === "readOnly"
                 ? styles.backgroundColor
                 : theme.customTokens.surfaces.surface,
           },
@@ -404,7 +404,11 @@ export function ErpSelectField({
         </Box>
 
         <ChevronDown
-          color={state === "disabled" ? theme.palette.text.disabled : theme.customTokens.navigation.activeText}
+          color={
+            state === "disabled" || state === "readOnly"
+              ? theme.palette.text.disabled
+              : theme.customTokens.navigation.activeText
+          }
           size={size === "dense" ? 14 : theme.customTokens.iconSizes.sm}
           style={{
             transform: open ? "rotate(180deg)" : "rotate(0deg)",
@@ -508,7 +512,7 @@ export function ErpDatePickerField({
       <Box
         component="button"
         onClick={(event) => {
-          if (state !== "disabled") {
+          if (state !== "disabled" && state !== "readOnly") {
             setMonth(startOfMonth(value ?? new Date()));
             setAnchorEl(event.currentTarget);
           }
@@ -532,7 +536,7 @@ export function ErpDatePickerField({
           gap: theme.spacing(1),
           "&:hover": {
             borderColor:
-              state === "disabled" || state === "error"
+              state === "disabled" || state === "readOnly" || state === "error"
                 ? styles.borderColor
                 : theme.customTokens.borders.hover,
           },
@@ -549,7 +553,11 @@ export function ErpDatePickerField({
         </Box>
 
         <CalendarDays
-          color={state === "disabled" ? theme.palette.text.disabled : theme.customTokens.navigation.activeText}
+          color={
+            state === "disabled" || state === "readOnly"
+              ? theme.palette.text.disabled
+              : theme.customTokens.navigation.activeText
+          }
           size={size === "dense" ? 14 : theme.customTokens.iconSizes.sm}
         />
       </Box>

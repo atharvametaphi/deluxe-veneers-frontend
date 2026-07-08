@@ -75,7 +75,7 @@ export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] 
     { key: "orderNo", label: "Order No" },
     { key: "orderDate", label: "Order Date" },
     { key: "customerName", label: "Customer Name" },
-    { key: "orderType", label: "Order Type" },
+    // { key: "orderType", label: "Order Type" },
     { key: "productCategory", label: "Product Category" },
     { key: "itemName", label: "Item Name" },
     { key: "subCategory", label: "Sub Category" },
@@ -87,7 +87,7 @@ export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] 
     { key: "quantitySheets", label: "Quantity Sheets" },
     { key: "totalSqm", label: "Total SQM" },
     { key: "amount", label: "Amount" },
-    { key: "deliveryDate", label: "Delivery Date" },
+    // { key: "deliveryDate", label: "Delivery Date" },
     { key: "salesCoordinator", label: "Sales Coordinator" },
     { key: "createdBy", label: "Created By" },
     { key: "updatedBy", label: "Updated By" },
@@ -163,13 +163,13 @@ export const orderFormFields: readonly MasterFieldDefinition[] = [
     type: "text",
     placeholder: "Enter Customer Name",
   },
-  {
-    key: "orderType",
-    label: "Order Type",
-    type: "select",
-    options: [...orderTypeOptions],
-    placeholder: "Select Order Type",
-  },
+  // {
+  //   key: "orderType",
+  //   // label: "Order Type",
+  //   type: "select",
+  //   options: [...orderTypeOptions],
+  //   placeholder: "Select Order Type",
+  // },
   {
     key: "productCategory",
     label: "Product Category",
@@ -240,12 +240,12 @@ export const orderFormFields: readonly MasterFieldDefinition[] = [
     type: "text",
     placeholder: "Enter Amount",
   },
-  {
-    key: "deliveryDate",
-    label: "Delivery Date",
-    type: "date",
-    placeholder: "Select Delivery Date",
-  },
+  // {
+  //   key: "deliveryDate",
+  //   label: "Delivery Date",
+  //   type: "date",
+  //   placeholder: "Select Delivery Date",
+  // },
   {
     key: "salesCoordinator",
     label: "Sales Coordinator",
@@ -382,7 +382,7 @@ export function createOrderRecord(order: Partial<OrderDraft>) {
       thickness: normalizeString(order.thickness, "0.60 mm"),
       quantitySheets: normalizeString(order.quantitySheets, "24"),
       totalSqm: normalizeString(order.totalSqm, "78.400"),
-      amount: normalizeCurrency(order.amount, 185000 + recordCount * 2500),
+      amount: normalizeOrderCurrency(order.amount, 185000 + recordCount * 2500),
       deliveryDate:
         order.deliveryDate instanceof Date
           ? order.deliveryDate
@@ -469,7 +469,7 @@ function sanitizeOrderDraft(updates: Partial<OrderDraft>): Partial<OrderRecord> 
 
   return {
     ...recordUpdates,
-    amount: normalizeCurrency(updates.amount),
+    amount: normalizeOrderCurrency(updates.amount),
   };
 }
 
@@ -492,7 +492,7 @@ function normalizeLineItems(
     thickness: normalizeString(item.thickness, "0.60 mm"),
     quantitySheets: normalizeString(item.quantitySheets, "24"),
     totalSqm: normalizeString(item.totalSqm, "78.400"),
-    amount: normalizeCurrency(item.amount, 185000),
+    amount: normalizeOrderCurrency(item.amount, 185000),
   }));
 }
 
@@ -541,8 +541,8 @@ function applyOrderLineItemSummary(
         : firstItem.totalSqm,
     amount:
       totalAmount > 0
-        ? normalizeCurrency(String(totalAmount), totalAmount)
-        : firstItem.amount,
+        ? normalizeOrderCurrency(String(totalAmount), totalAmount)
+        : normalizeOrderCurrency(firstItem.amount),
   };
 }
 
@@ -550,21 +550,29 @@ function normalizeString(value: string | undefined, fallback: string) {
   return value && value.trim().length > 0 ? value.trim() : fallback;
 }
 
-function normalizeCurrency(value: string | undefined, fallback = 185000) {
+function formatCurrencyAmount(value: number) {
+  return value.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function normalizeOrderCurrency(value: string | undefined, fallback = 185000) {
   if (!value || value.trim().length === 0) {
-    return `â‚¹ ${fallback.toLocaleString("en-IN")}.00`;
+    return formatCurrencyAmount(fallback);
   }
 
   const numericCandidate = Number(value.replace(/[^0-9.]/g, ""));
 
   if (Number.isNaN(numericCandidate)) {
-    return value;
+    return formatCurrencyAmount(fallback);
   }
 
-  return `â‚¹ ${numericCandidate.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatCurrencyAmount(numericCandidate);
+}
+
+function normalizeCurrency(value: string | undefined, fallback = 185000) {
+  return normalizeOrderCurrency(value, fallback);
 }
 
 function parseNumberValue(value: string | undefined) {
@@ -631,7 +639,7 @@ function createInitialOrderState() {
       thickness,
       quantitySheets: String(quantitySheets),
       totalSqm: totalSqm.toFixed(3),
-      amount: `â‚¹ ${amount.toLocaleString("en-IN")}.00`,
+      amount: formatCurrencyAmount(amount),
     };
     const record: OrderRecord = {
       id: recordId,
@@ -649,7 +657,7 @@ function createInitialOrderState() {
       thickness,
       quantitySheets: String(quantitySheets),
       totalSqm: totalSqm.toFixed(3),
-      amount: `â‚¹ ${amount.toLocaleString("en-IN")}.00`,
+      amount: formatCurrencyAmount(amount),
       deliveryDate,
       salesCoordinator,
       createdBy: salesCoordinator,

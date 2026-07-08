@@ -17,6 +17,7 @@ import {
 import type { Theme } from "@mui/material/styles";
 import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 
+import { cutMasterOptions } from "../../masters/shared/masterDefinitions";
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 
@@ -110,6 +111,14 @@ const warehouseAAddStockTableConfigs: Record<
       minWidth: 170,
       options: veneerItemOptions,
       placeholder: "Select Item Name",
+      type: "select",
+    },
+    {
+      key: "cut",
+      label: "Cut",
+      minWidth: 150,
+      options: cutMasterOptions,
+      placeholder: "Select Cut",
       type: "select",
     },
     {

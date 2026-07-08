@@ -13,6 +13,12 @@ import {
   ViewCurrencyMasterPage,
 } from "./currency-master";
 import {
+  AddCutMasterPage,
+  CutMasterListPage,
+  EditCutMasterPage,
+  ViewCutMasterPage,
+} from "./cut-master";
+import {
   AddDepartmentMasterPage,
   DepartmentMasterListPage,
   EditDepartmentMasterPage,
@@ -83,6 +89,11 @@ export const masterRoutes: RouteObject[] = [
   { path: "masters/currency-master/add", Component: AddCurrencyMasterPage },
   { path: "masters/currency-master/edit/:id", Component: EditCurrencyMasterPage },
   { path: "masters/currency-master/view/:id", Component: ViewCurrencyMasterPage },
+
+  { path: "masters/cut-master", Component: CutMasterListPage },
+  { path: "masters/cut-master/add", Component: AddCutMasterPage },
+  { path: "masters/cut-master/edit/:id", Component: EditCutMasterPage },
+  { path: "masters/cut-master/view/:id", Component: ViewCutMasterPage },
 
   { path: "masters/department-master", Component: DepartmentMasterListPage },
   { path: "masters/department-master/add", Component: AddDepartmentMasterPage },

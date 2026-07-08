@@ -187,6 +187,7 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
     items: [
       { key: "colorMaster", label: "Color Master" },
       { key: "currencyMaster", label: "Currency Master" },
+      { key: "cutMaster", label: "Cut Master" },
       { key: "customerMaster", label: "Customer Master" },
       { key: "departmentMaster", label: "Department Master" },
       { key: "gstMaster", label: "GST Master" },
