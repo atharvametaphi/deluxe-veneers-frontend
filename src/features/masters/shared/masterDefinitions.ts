@@ -781,6 +781,7 @@ export const colorMasterDefinition: MasterDefinition = {
 };
 
 export const cutMasterOptions = uniqueOptions(cutRows, "cutName");
+export const gstMasterOptions = uniqueOptions(gstRows, "gstPercentage");
 
 export const cutMasterDefinition: MasterDefinition = {
   slug: "cut-master",

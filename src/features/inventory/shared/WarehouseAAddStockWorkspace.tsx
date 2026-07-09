@@ -11,7 +11,11 @@ import {
 } from "@mui/material";
 
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
-import { ErpDatePickerField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
+import { gstMasterOptions } from "../../masters/shared/masterDefinitions";
+import {
+  ErpDatePickerField,
+  ErpSelectField,
+} from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import {
   WarehouseAAddStockLineItems,
@@ -28,6 +32,7 @@ type InvoiceDetailValues = {
   invoiceValue: string;
   remark: string;
   sgstPercentage: string;
+  totalItemAmount: string;
 };
 
 const workspaceTabs = [
@@ -43,6 +48,7 @@ const defaultInvoiceDetailValues: InvoiceDetailValues = {
   invoiceValue: "",
   remark: "",
   sgstPercentage: "",
+  totalItemAmount: "",
 };
 
 export function WarehouseAAddStockWorkspace({
@@ -61,6 +67,10 @@ export function WarehouseAAddStockWorkspace({
     () => formatAmount(lineItemsAmountTotal),
     [lineItemsAmountTotal],
   );
+  const effectiveTotalItemAmount =
+    invoiceDetailValues.totalItemAmount.trim().length > 0
+      ? invoiceDetailValues.totalItemAmount
+      : formattedLineItemsAmount;
 
   const handleInvoiceFieldChange = (
     key: keyof InvoiceDetailValues,
@@ -72,24 +82,29 @@ export function WarehouseAAddStockWorkspace({
     }));
   };
 
+  const handleGstPercentageChange = (value: string) => {
+    const gstPercentage = parseNumber(value);
+    const halfGstPercentage = gstPercentage / 2;
+
+    setInvoiceDetailValues((current) => ({
+      ...current,
+      cgstPercentage: value ? formatPercentage(halfGstPercentage) : "",
+      gstPercentage: value,
+      gstValue: "",
+      invoiceValue: "",
+      sgstPercentage: value ? formatPercentage(halfGstPercentage) : "",
+    }));
+  };
+
   const handleCalculateInvoice = () => {
-    const totalItemAmount = lineItemsAmountTotal;
+    const totalItemAmount = parseNumber(effectiveTotalItemAmount);
     const gstPercentage = parseNumber(invoiceDetailValues.gstPercentage);
-    const sgstPercentage = parseNumber(invoiceDetailValues.sgstPercentage);
-    const cgstPercentage = parseNumber(invoiceDetailValues.cgstPercentage);
-    const effectiveGstPercentage =
-      gstPercentage > 0 ? gstPercentage : sgstPercentage + cgstPercentage;
+    const effectiveGstPercentage = gstPercentage > 0 ? gstPercentage : 0;
     const gstValue = totalItemAmount * (effectiveGstPercentage / 100);
     const invoiceValue = totalItemAmount + gstValue;
 
     setInvoiceDetailValues((current) => ({
       ...current,
-      gstPercentage:
-        current.gstPercentage.trim().length > 0
-          ? current.gstPercentage
-          : effectiveGstPercentage > 0
-            ? formatPlainNumber(effectiveGstPercentage)
-            : "",
       gstValue: formatAmount(gstValue),
       invoiceValue: formatAmount(invoiceValue),
     }));
@@ -145,7 +160,28 @@ export function WarehouseAAddStockWorkspace({
           <InvoiceField label="Total Item Amount">
             <TextField
               fullWidth
-              value={formattedLineItemsAmount}
+              placeholder="Enter Total Item Amount"
+              value={effectiveTotalItemAmount}
+              onChange={(event) =>
+                handleInvoiceFieldChange("totalItemAmount", event.target.value)
+              }
+              sx={getCompactFieldSx(theme)}
+            />
+          </InvoiceField>
+
+          <InvoiceField label="GST Percentage*">
+            <ErpSelectField
+              onChange={handleGstPercentageChange}
+              options={gstMasterOptions}
+              placeholder="Select GST Percentage"
+              value={invoiceDetailValues.gstPercentage}
+            />
+          </InvoiceField>
+
+          <InvoiceField label="SGST Percentage*">
+            <TextField
+              fullWidth
+              value={invoiceDetailValues.sgstPercentage}
               sx={getCompactFieldSx(theme, "readOnly")}
               slotProps={{
                 input: {
@@ -155,39 +191,16 @@ export function WarehouseAAddStockWorkspace({
             />
           </InvoiceField>
 
-          <InvoiceField label="GST Percentage*">
-            <TextField
-              fullWidth
-              placeholder="Enter GST Percentage"
-              value={invoiceDetailValues.gstPercentage}
-              onChange={(event) =>
-                handleInvoiceFieldChange("gstPercentage", event.target.value)
-              }
-              sx={getCompactFieldSx(theme)}
-            />
-          </InvoiceField>
-
-          <InvoiceField label="SGST Percentage*">
-            <TextField
-              fullWidth
-              placeholder="Enter SGST Percentage"
-              value={invoiceDetailValues.sgstPercentage}
-              onChange={(event) =>
-                handleInvoiceFieldChange("sgstPercentage", event.target.value)
-              }
-              sx={getCompactFieldSx(theme)}
-            />
-          </InvoiceField>
-
           <InvoiceField label="CGST Percentage*">
             <TextField
               fullWidth
-              placeholder="Enter CGST Percentage"
               value={invoiceDetailValues.cgstPercentage}
-              onChange={(event) =>
-                handleInvoiceFieldChange("cgstPercentage", event.target.value)
-              }
-              sx={getCompactFieldSx(theme)}
+              sx={getCompactFieldSx(theme, "readOnly")}
+              slotProps={{
+                input: {
+                  readOnly: true,
+                },
+              }}
             />
           </InvoiceField>
 
@@ -217,9 +230,10 @@ export function WarehouseAAddStockWorkspace({
                         disableElevation
                         onClick={handleCalculateInvoice}
                         sx={{
-                          minWidth: theme.spacing(10),
-                          px: theme.spacing(1.25),
-                          py: theme.spacing(0.5),
+                          minWidth: theme.spacing(8),
+                          my: theme.spacing(0.375),
+                          px: theme.spacing(1),
+                          py: theme.spacing(0.375),
                         }}
                         variant="contained"
                       >
@@ -268,7 +282,7 @@ function InvoiceField({
 }
 
 function parseNumber(value: string) {
-  const numericValue = Number(value.replace(/,/g, "").trim());
+  const numericValue = Number(value.replace(/,/g, "").replace(/%/g, "").trim());
   return Number.isFinite(numericValue) ? numericValue : 0;
 }
 
@@ -279,6 +293,10 @@ function formatAmount(value: number) {
   }).format(value);
 }
 
-function formatPlainNumber(value: number) {
-  return Number.isInteger(value) ? String(value) : String(value.toFixed(2));
+function formatPercentage(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "";
+  }
+
+  return `${Number.isInteger(value) ? String(value) : value.toFixed(2)}%`;
 }
