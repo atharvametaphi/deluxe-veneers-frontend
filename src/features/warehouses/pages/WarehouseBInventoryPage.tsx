@@ -40,6 +40,10 @@ import {
   type InventoryProcessTab,
 } from "../../inventory/shared/inventoryUtils";
 import type { InventoryDefinition, InventoryRecord } from "../../inventory/shared/types";
+import {
+  warehouseRawVeneerTabConfigs,
+  type WarehouseARawVeneerTab,
+} from "../shared/warehouseTableData";
 
 type WarehouseBInventorySlug =
   | "mdf"
@@ -53,6 +57,14 @@ const warehouseBProcessTabs = [
 ] as const satisfies readonly {
   label: string;
   value: InventoryProcessTab;
+}[];
+
+const rawVeneerTabs = [
+  { label: "Purchase", value: "purchase" },
+  { label: "Production", value: "production" },
+] as const satisfies readonly {
+  label: string;
+  value: WarehouseARawVeneerTab;
 }[];
 
 const inventoryDefinitions = {
@@ -71,10 +83,18 @@ export function WarehouseBInventoryPage() {
 
   const activeInventory = getActiveInventoryTab(searchParams.get("inventory"));
   const activeProcessTab = getInventoryProcessTab(searchParams.get("tab"));
+  const activeRawVeneerTab = getActiveRawVeneerTab(searchParams.get("rawTab"));
   const activeDefinition = inventoryDefinitions[activeInventory];
-  const activeRows = activeDefinition.rows as readonly InventoryRecord[];
-  const activeColumns =
-    activeDefinition.listColumns as readonly EnterpriseTableColumn<InventoryRecord>[];
+  const activeRawVeneerConfig =
+    activeInventory === "raw-veneer"
+      ? warehouseRawVeneerTabConfigs[activeRawVeneerTab]
+      : null;
+  const activeRows = (
+    activeRawVeneerConfig?.rows ?? activeDefinition.rows
+  ) as readonly InventoryRecord[];
+  const activeColumns = (
+    activeRawVeneerConfig?.columns ?? activeDefinition.listColumns
+  ) as readonly EnterpriseTableColumn<InventoryRecord>[];
   const paths = getInventoryPaths(activeDefinition.slug, activeProcessTab);
 
   const tabRows = useMemo(
@@ -103,7 +123,7 @@ export function WarehouseBInventoryPage() {
           id: "view",
           label: "View",
           icon: Eye,
-          onSelect: (row) => navigate(paths.view(row.id)),
+          onSelect: (row) => navigate(paths.view(getWarehouseBRecordId(row))),
         },
       ];
 
@@ -148,6 +168,9 @@ export function WarehouseBInventoryPage() {
           label: activeDefinition.title,
           to: getWarehouseBInventoryPath(activeDefinition.slug),
         },
+        ...(activeInventory === "raw-veneer"
+          ? [{ label: activeRawVeneerConfig?.title ?? "Purchase" }]
+          : []),
         { label: activeProcessTab === "history" ? "History" : "Inventory" },
       ]}
       processTabs={
@@ -156,13 +179,36 @@ export function WarehouseBInventoryPage() {
             gap: currentTheme.spacing(0),
           })}
         >
+          {activeInventory === "raw-veneer" ? (
+            <ModuleProcessTabs
+              onChange={(value) => {
+                setSearchParams(
+                  {
+                    inventory: activeInventory,
+                    rawTab: value,
+                    ...(activeProcessTab === "history" ? { tab: "history" } : {}),
+                  },
+                  { replace: true },
+                );
+              }}
+              tabs={rawVeneerTabs}
+              value={activeRawVeneerTab}
+            />
+          ) : null}
+
           <ModuleProcessTabs
             onChange={(value) => {
               setSearchParams(
-                {
-                  inventory: activeInventory,
-                  tab: value,
-                },
+                activeInventory === "raw-veneer"
+                  ? {
+                      inventory: activeInventory,
+                      rawTab: activeRawVeneerTab,
+                      ...(value === "history" ? { tab: value } : {}),
+                    }
+                  : {
+                      inventory: activeInventory,
+                      ...(value === "history" ? { tab: value } : {}),
+                    },
                 { replace: true },
               );
             }}
@@ -226,7 +272,7 @@ export function WarehouseBInventoryPage() {
         </Stack>
 
         <EnterpriseDataTable
-          key={`${activeInventory}-${activeProcessTab}`}
+          key={`${activeInventory}-${activeRawVeneerTab}-${activeProcessTab}`}
           actions={rowActions}
           columns={activeColumns}
           defaultRowsPerPage={10}
@@ -288,6 +334,18 @@ function getActiveInventoryTab(value: string | null): WarehouseBInventorySlug {
   return value && value in inventoryDefinitions
     ? (value as WarehouseBInventorySlug)
     : "veneer-blocks";
+}
+
+function getActiveRawVeneerTab(value: string | null): WarehouseARawVeneerTab {
+  return value === "production" ? "production" : "purchase";
+}
+
+function getWarehouseBRecordId(row: InventoryRecord) {
+  const inventoryRecordId = row["inventoryRecordId"];
+
+  return typeof inventoryRecordId === "string" && inventoryRecordId.length > 0
+    ? inventoryRecordId
+    : row.id;
 }
 
 function formatInventorySearchValue(value: EnterpriseTableCellValue) {

@@ -17,7 +17,10 @@ import {
 import type { Theme } from "@mui/material/styles";
 import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 
-import { cutMasterOptions } from "../../masters/shared/masterDefinitions";
+import {
+  cutMasterOptions,
+  itemSubCategoryMasterOptions,
+} from "../../masters/shared/masterDefinitions";
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 
@@ -42,13 +45,6 @@ type DynamicLineItem = {
   id: string;
   values: Record<string, string>;
 };
-
-const veneerSubCategoryOptions = [
-  "Quarter Cut",
-  "Crown Cut",
-  "Natural",
-  "Rift Cut",
-] as const;
 
 const veneerItemOptions = [
   "Oak Veneer",
@@ -101,7 +97,7 @@ const warehouseAAddStockTableConfigs: Record<
       key: "itemSubCategory",
       label: "Item Sub Category",
       minWidth: 170,
-      options: veneerSubCategoryOptions,
+      options: itemSubCategoryMasterOptions,
       placeholder: "Select Item Sub Category",
       type: "select",
     },
@@ -204,7 +200,7 @@ const warehouseAAddStockTableConfigs: Record<
       key: "itemSubCategory",
       label: "Item Sub Category",
       minWidth: 170,
-      options: veneerSubCategoryOptions,
+      options: itemSubCategoryMasterOptions,
       placeholder: "Select Item Sub Category",
       type: "select",
     },
@@ -292,7 +288,7 @@ const warehouseAAddStockTableConfigs: Record<
       key: "itemSubCategory",
       label: "Item Sub Category",
       minWidth: 170,
-      options: veneerSubCategoryOptions,
+      options: itemSubCategoryMasterOptions,
       placeholder: "Select Item Sub Category",
       type: "select",
     },
@@ -387,7 +383,7 @@ const warehouseAAddStockTableConfigs: Record<
       key: "itemSubCategory",
       label: "Item Sub Category",
       minWidth: 170,
-      options: veneerSubCategoryOptions,
+      options: itemSubCategoryMasterOptions,
       placeholder: "Select Item Sub Category",
       type: "select",
     },

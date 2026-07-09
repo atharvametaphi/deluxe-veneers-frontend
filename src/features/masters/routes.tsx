@@ -97,14 +97,8 @@ export const masterRoutes: RouteObject[] = [
 
   { path: "masters/department-master", Component: DepartmentMasterListPage },
   { path: "masters/department-master/add", Component: AddDepartmentMasterPage },
-  {
-    path: "masters/department-master/edit/:id",
-    Component: EditDepartmentMasterPage,
-  },
-  {
-    path: "masters/department-master/view/:id",
-    Component: ViewDepartmentMasterPage,
-  },
+  { path: "masters/department-master/edit/:id", Component: EditDepartmentMasterPage},
+  { path: "masters/department-master/view/:id", Component: ViewDepartmentMasterPage,},
 
   { path: "masters/customer-master", Component: CustomerMasterListPage },
   { path: "masters/customer-master/add", Component: AddCustomerMasterPage },
@@ -122,43 +116,20 @@ export const masterRoutes: RouteObject[] = [
   { path: "masters/hsn-master/view/:id", Component: ViewHSNMasterPage },
 
   { path: "masters/item-master", Component: ItemMasterListPage },
+  { path: "masters/item-name-master", Component: ItemMasterListPage },
   { path: "masters/item-master/add", Component: AddItemMasterPage },
   { path: "masters/item-master/edit/:id", Component: EditItemMasterPage },
   { path: "masters/item-master/view/:id", Component: ViewItemMasterPage },
 
-  {
-    path: "masters/item-category-master",
-    Component: ItemCategoryMasterListPage,
-  },
-  {
-    path: "masters/item-category-master/add",
-    Component: AddItemCategoryMasterPage,
-  },
-  {
-    path: "masters/item-category-master/edit/:id",
-    Component: EditItemCategoryMasterPage,
-  },
-  {
-    path: "masters/item-category-master/view/:id",
-    Component: ViewItemCategoryMasterPage,
-  },
+  { path: "masters/item-category-master", Component: ItemCategoryMasterListPage,},
+  { path: "masters/item-category-master/add", Component: AddItemCategoryMasterPage,},
+  { path: "masters/item-category-master/edit/:id", Component: EditItemCategoryMasterPage,},
+  { path: "masters/item-category-master/view/:id", Component: ViewItemCategoryMasterPage,},
 
-  {
-    path: "masters/item-sub-category-master",
-    Component: ItemSubCategoryMasterListPage,
-  },
-  {
-    path: "masters/item-sub-category-master/add",
-    Component: AddItemSubCategoryMasterPage,
-  },
-  {
-    path: "masters/item-sub-category-master/edit/:id",
-    Component: EditItemSubCategoryMasterPage,
-  },
-  {
-    path: "masters/item-sub-category-master/view/:id",
-    Component: ViewItemSubCategoryMasterPage,
-  },
+  { path: "masters/item-sub-category-master", Component: ItemSubCategoryMasterListPage,},
+  { path: "masters/item-sub-category-master/add", Component: AddItemSubCategoryMasterPage,},
+  { path: "masters/item-sub-category-master/edit/:id", Component: EditItemSubCategoryMasterPage,},
+  { path: "masters/item-sub-category-master/view/:id", Component: ViewItemSubCategoryMasterPage,},
 
   { path: "masters/supplier-master", Component: SupplierMasterListPage },
   { path: "masters/supplier-master/add", Component: AddSupplierMasterPage },
@@ -171,20 +142,8 @@ export const masterRoutes: RouteObject[] = [
   { path: "masters/unit-master/edit/:id", Component: EditUnitMasterPage },
   { path: "masters/unit-master/view/:id", Component: ViewUnitMasterPage },
 
-  {
-    path: "masters/warehouse-location-master",
-    Component: WarehouseLocationMasterListPage,
-  },
-  {
-    path: "masters/warehouse-location-master/add",
-    Component: AddWarehouseLocationMasterPage,
-  },
-  {
-    path: "masters/warehouse-location-master/edit/:id",
-    Component: EditWarehouseLocationMasterPage,
-  },
-  {
-    path: "masters/warehouse-location-master/view/:id",
-    Component: ViewWarehouseLocationMasterPage,
-  },
+  { path: "masters/warehouse-location-master", Component: WarehouseLocationMasterListPage,},
+  { path: "masters/warehouse-location-master/add", Component: AddWarehouseLocationMasterPage,},
+  { path: "masters/warehouse-location-master/edit/:id", Component: EditWarehouseLocationMasterPage,},
+  { path: "masters/warehouse-location-master/view/:id", Component: ViewWarehouseLocationMasterPage,},
 ];

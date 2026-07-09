@@ -177,8 +177,10 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "item-name-master",
         label: "Item Name",
-        to: "/masters/item-name-master",
-        match: (location) => matchesPath(location, "/masters/item-name-master"),
+        to: "/masters/item-master",
+        match: (location) =>
+          matchesPath(location, "/masters/item-master") ||
+          matchesPath(location, "/masters/item-name-master"),
       },
       {
         id: "item-sub-category-master",

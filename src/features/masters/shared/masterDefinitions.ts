@@ -27,7 +27,7 @@ const itemRows = withAuditFields(createMasterRows("item-master", [
     itemName: "Oak Quarter Cut Veneer",
     itemCode: "ITM-OAK-001",
     category: "Decorative Veneer",
-    subCategory: "Quarter Cut",
+    subCategory: "Natural Veneer",
     color: "Natural Oak",
     gst: "12%",
     hsn: "4408",
@@ -39,7 +39,7 @@ const itemRows = withAuditFields(createMasterRows("item-master", [
     itemName: "Walnut Crown Cut Veneer",
     itemCode: "ITM-WAL-014",
     category: "Decorative Veneer",
-    subCategory: "Crown Cut",
+    subCategory: "Dyed Veneer",
     color: "Classic Walnut",
     gst: "12%",
     hsn: "4408",
@@ -51,7 +51,7 @@ const itemRows = withAuditFields(createMasterRows("item-master", [
     itemName: "Teak Architectural Sheet",
     itemCode: "ITM-TEK-021",
     category: "Engineered Panel",
-    subCategory: "Natural",
+    subCategory: "Architectural Panel",
     color: "Golden Teak",
     gst: "18%",
     hsn: "4412",
@@ -63,13 +63,37 @@ const itemRows = withAuditFields(createMasterRows("item-master", [
     itemName: "Ash Rift Cut Panel",
     itemCode: "ITM-ASH-032",
     category: "Engineered Panel",
-    subCategory: "Rift Cut",
+    subCategory: "Structural Panel",
     color: "Soft Ash",
     gst: "18%",
     hsn: "4411",
     remark: "Ash panel aligned to rift-cut project demand.",
     createdEditedBy: "Aditi Desai",
     createdEditedDate: asDate("2026-06-03"),
+  },
+  {
+    itemName: "Calibrated Board 18mm",
+    itemCode: "ITM-PLY-044",
+    category: "Plywood",
+    subCategory: "Calibrated Board",
+    color: "Natural Oak",
+    gst: "18%",
+    hsn: "4412",
+    remark: "Calibrated plywood board for CNC-ready production.",
+    createdEditedBy: "Atharva Patil",
+    createdEditedDate: asDate("2026-06-10"),
+  },
+  {
+    itemName: "Prelam MDF Walnut",
+    itemCode: "ITM-MDF-058",
+    category: "MDF",
+    subCategory: "Prelam Board",
+    color: "Classic Walnut",
+    gst: "18%",
+    hsn: "4411",
+    remark: "Pre-laminated MDF for wardrobe and panel finish work.",
+    createdEditedBy: "Neha Shah",
+    createdEditedDate: asDate("2026-06-18"),
   },
 ]));
 
@@ -102,28 +126,40 @@ const itemCategoryRows = withAuditFields(createMasterRows("item-category-master"
 
 const itemSubCategoryRows = withAuditFields(createMasterRows("item-sub-category-master", [
   {
-    itemSubCategory: "Quarter Cut",
+    itemSubCategory: "Natural Veneer",
     category: "Decorative Veneer",
     createdEditedBy: "Atharva Patil",
     createdEditedDate: asDate("2026-04-20"),
   },
   {
-    itemSubCategory: "Crown Cut",
+    itemSubCategory: "Dyed Veneer",
     category: "Decorative Veneer",
     createdEditedBy: "Neha Shah",
     createdEditedDate: asDate("2026-05-08"),
   },
   {
-    itemSubCategory: "Rift Cut",
+    itemSubCategory: "Architectural Panel",
     category: "Engineered Panel",
     createdEditedBy: "Rohit Jain",
     createdEditedDate: asDate("2026-05-19"),
   },
   {
-    itemSubCategory: "Natural",
+    itemSubCategory: "Structural Panel",
     category: "Engineered Panel",
     createdEditedBy: "Aditi Desai",
     createdEditedDate: asDate("2026-06-02"),
+  },
+  {
+    itemSubCategory: "Calibrated Board",
+    category: "Plywood",
+    createdEditedBy: "Atharva Patil",
+    createdEditedDate: asDate("2026-06-11"),
+  },
+  {
+    itemSubCategory: "Prelam Board",
+    category: "MDF",
+    createdEditedBy: "Neha Shah",
+    createdEditedDate: asDate("2026-06-18"),
   },
 ]));
 
@@ -579,6 +615,16 @@ const uniqueOptions = (rows: ReadonlyArray<MasterRecord>, key: string) =>
     new Set(rows.map((row) => String(row[key] ?? "")).filter(Boolean)),
   );
 
+export const itemSubCategoryMasterOptions = uniqueOptions(
+  itemSubCategoryRows,
+  "itemSubCategory",
+);
+
+export const itemCategoryMasterOptions = uniqueOptions(
+  itemCategoryRows,
+  "categoryName",
+);
+
 export const itemMasterDefinition: MasterDefinition = {
   slug: "item-master",
   title: "Item Master",
@@ -596,14 +642,14 @@ export const itemMasterDefinition: MasterDefinition = {
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
-    { key: "category", label: "Category", options: uniqueOptions(itemRows, "category") },
-    { key: "subCategory", label: "Sub Category", options: uniqueOptions(itemRows, "subCategory") },
+    { key: "category", label: "Category", options: itemCategoryMasterOptions },
+    { key: "subCategory", label: "Sub Category", options: itemSubCategoryMasterOptions },
   ],
   fields: [
     { key: "itemName", label: "Item Name", type: "text" },
     { key: "itemCode", label: "Item Code", type: "text" },
-    { key: "category", label: "Category", type: "select", options: uniqueOptions(itemRows, "category") },
-    { key: "subCategory", label: "Sub Category", type: "select", options: uniqueOptions(itemRows, "subCategory") },
+    { key: "category", label: "Category", type: "select", options: itemCategoryMasterOptions },
+    { key: "subCategory", label: "Sub Category", type: "select", options: itemSubCategoryMasterOptions },
     { key: "color", label: "Color", type: "select", options: uniqueOptions(colorRows, "colorName") },
     { key: "gst", label: "GST", type: "select", options: uniqueOptions(gstRows, "gstPercentage") },
     { key: "hsn", label: "HSN", type: "select", options: uniqueOptions(hsnRows, "hsnCode") },
