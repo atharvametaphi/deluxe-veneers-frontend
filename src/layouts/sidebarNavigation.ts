@@ -23,6 +23,7 @@ const inventorySlugs = [
   "raw-veneer",
   "plywood",
   "mdf",
+  "consumables",
 ] as const;
 
 const matchesPath = (location: SidebarMatchLocation, routePath: string) =>
@@ -129,6 +130,13 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
         label: "Color",
         to: "/masters/color-master",
         match: (location) => matchesPath(location, "/masters/color-master"),
+      },
+      {
+        id: "consumables-master",
+        label: "Consumables",
+        to: "/masters/consumables-master",
+        match: (location) =>
+          matchesPath(location, "/masters/consumables-master"),
       },
       {
         id: "currency-master",

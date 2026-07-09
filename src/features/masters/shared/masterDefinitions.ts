@@ -610,6 +610,57 @@ const currencyRows = withAuditFields(createMasterRows("currency-master", [
   },
 ]));
 
+const consumablesRows = withAuditFields(createMasterRows("consumables-master", [
+  {
+    consumableName: "Fevicol SH Resin",
+    category: "Adhesive",
+    unitName: "Kilogram",
+    gst: "18%",
+    hsn: "3506",
+    remark: "Primary resin used for veneer bonding and panel lamination.",
+    createdEditedBy: "Atharva Patil",
+    updatedBy: "Neha Shah",
+    createdEditedDate: asDate("2026-05-08"),
+    updatedDate: asDate("2026-06-02"),
+  },
+  {
+    consumableName: "Melamine Glue Hardener",
+    category: "Chemical",
+    unitName: "Litre",
+    gst: "18%",
+    hsn: "3815",
+    remark: "Used with hot press adhesive mixes for structural bonding.",
+    createdEditedBy: "Neha Shah",
+    updatedBy: "Rohit Jain",
+    createdEditedDate: asDate("2026-05-16"),
+    updatedDate: asDate("2026-06-09"),
+  },
+  {
+    consumableName: "Edge Protector Roll",
+    category: "Packaging",
+    unitName: "Roll",
+    gst: "12%",
+    hsn: "3923",
+    remark: "Protective packing material for finished veneer bundles.",
+    createdEditedBy: "Rohit Jain",
+    updatedBy: "Aditi Desai",
+    createdEditedDate: asDate("2026-05-28"),
+    updatedDate: asDate("2026-06-14"),
+  },
+  {
+    consumableName: "Sanding Belt 120 Grit",
+    category: "Hardware",
+    unitName: "Piece",
+    gst: "18%",
+    hsn: "6805",
+    remark: "Standard sanding consumable for finishing and calibration runs.",
+    createdEditedBy: "Aditi Desai",
+    updatedBy: "Atharva Patil",
+    createdEditedDate: asDate("2026-06-05"),
+    updatedDate: asDate("2026-06-18"),
+  },
+]));
+
 const uniqueOptions = (rows: ReadonlyArray<MasterRecord>, key: string) =>
   Array.from(
     new Set(rows.map((row) => String(row[key] ?? "")).filter(Boolean)),
@@ -988,4 +1039,81 @@ export const currencyMasterDefinition: MasterDefinition = {
     { key: "remark", label: "Remark", type: "text" },
   ],
   rows: currencyRows,
+};
+
+export const unitMasterOptions = uniqueOptions(unitRows, "unitName");
+
+export const consumableCategoryOptions = uniqueOptions(
+  consumablesRows,
+  "category",
+);
+
+export const consumableMasterOptions = uniqueOptions(
+  consumablesRows,
+  "consumableName",
+);
+
+export const consumablesMasterDefinition: MasterDefinition = {
+  slug: "consumables-master",
+  title: "Consumables Master",
+  gridColumns: 4,
+  columns: [
+    { key: "srNo", label: "Sr No" },
+    { key: "consumableName", label: "Consumable Name" },
+    { key: "category", label: "Category" },
+    { key: "unitName", label: "Unit Name" },
+    { key: "gst", label: "GST" },
+    { key: "hsn", label: "HSN" },
+    { key: "remark", label: "Remark" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
+  ],
+  filters: [
+    {
+      key: "category",
+      label: "Category",
+      options: consumableCategoryOptions,
+    },
+    {
+      key: "unitName",
+      label: "Unit Name",
+      options: unitMasterOptions,
+    },
+    {
+      key: "gst",
+      label: "GST",
+      options: uniqueOptions(consumablesRows, "gst"),
+    },
+  ],
+  fields: [
+    { key: "consumableName", label: "Consumable Name", type: "text" },
+    {
+      key: "category",
+      label: "Category",
+      type: "select",
+      options: consumableCategoryOptions,
+    },
+    {
+      key: "unitName",
+      label: "Unit Name",
+      type: "select",
+      options: unitMasterOptions,
+    },
+    {
+      key: "gst",
+      label: "GST",
+      type: "select",
+      options: uniqueOptions(gstRows, "gstPercentage"),
+    },
+    {
+      key: "hsn",
+      label: "HSN",
+      type: "select",
+      options: uniqueOptions(hsnRows, "hsnCode"),
+    },
+    { key: "remark", label: "Remark", type: "text" },
+  ],
+  rows: consumablesRows,
 };

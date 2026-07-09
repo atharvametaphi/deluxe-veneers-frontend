@@ -29,7 +29,7 @@ import { getInventoryPaths } from "../../inventory/shared";
 import {
   warehouseAInventoryConfigs,
   type WarehouseInventoryRow,
-  type WarehouseInventorySlug,
+  type WarehouseAInventorySlug,
 } from "../shared/warehouseTableData";
 
 const warehouseATabs = [
@@ -37,9 +37,10 @@ const warehouseATabs = [
   { label: "Raw Veneer", value: "raw-veneer" },
   { label: "Plywood", value: "plywood" },
   { label: "MDF", value: "mdf" },
+  { label: "Consumables", value: "consumables" },
 ] as const satisfies readonly {
   label: string;
-  value: WarehouseInventorySlug;
+  value: WarehouseAInventorySlug;
 }[];
 
 export function WarehouseAInventoryPage() {
@@ -67,8 +68,8 @@ export function WarehouseAInventoryPage() {
 
   const rowActions = useMemo<
     ReadonlyArray<EnterpriseTableAction<WarehouseInventoryRow>>
-  >(
-    () => [
+  >(() => {
+    const actions: EnterpriseTableAction<WarehouseInventoryRow>[] = [
       {
         id: "view",
         label: "View",
@@ -91,16 +92,20 @@ export function WarehouseAInventoryPage() {
             ),
           ),
       },
-      {
+    ];
+
+    if (activeInventory !== "consumables") {
+      actions.push({
         id: "issue-for-qc",
         label: "Issue for QC",
         icon: BadgeCheck,
         onSelect: (row) =>
           navigate(`/qc/pending?inventory=${row.inventorySlug}`),
-      },
-    ],
-    [navigate],
-  );
+      });
+    }
+
+    return actions;
+  }, [activeInventory, navigate]);
 
   return (
     <MasterPageShell
@@ -194,9 +199,9 @@ export function WarehouseAInventoryPage() {
 
 function getActiveWarehouseAInventory(
   value: string | null,
-): WarehouseInventorySlug {
+): WarehouseAInventorySlug {
   return value && value in warehouseAInventoryConfigs
-    ? (value as WarehouseInventorySlug)
+    ? (value as WarehouseAInventorySlug)
     : "veneer-blocks";
 }
 

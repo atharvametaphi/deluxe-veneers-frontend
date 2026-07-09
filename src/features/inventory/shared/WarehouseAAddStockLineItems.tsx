@@ -18,17 +18,21 @@ import type { Theme } from "@mui/material/styles";
 import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 
 import {
+  consumableCategoryOptions,
+  consumableMasterOptions,
   cutMasterOptions,
   itemSubCategoryMasterOptions,
+  unitMasterOptions,
 } from "../../masters/shared/masterDefinitions";
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 
-type WarehouseAAddStockSlug =
+export type WarehouseAAddStockSlug =
   | "veneer-blocks"
   | "raw-veneer"
   | "plywood"
-  | "mdf";
+  | "mdf"
+  | "consumables";
 
 type DynamicFieldType = "text" | "select";
 
@@ -458,6 +462,60 @@ const warehouseAAddStockTableConfigs: Record<
       type: "text",
     },
   ],
+  consumables: [
+    {
+      key: "supplierItemName",
+      label: "Supplier Item Name",
+      minWidth: 190,
+      placeholder: "Enter Supplier Item Name",
+      type: "text",
+    },
+    {
+      key: "subCategory",
+      label: "Consumable Category",
+      minWidth: 180,
+      options: consumableCategoryOptions,
+      placeholder: "Select Consumable Category",
+      type: "select",
+    },
+    {
+      key: "itemName",
+      label: "Consumable Name",
+      minWidth: 180,
+      options: consumableMasterOptions,
+      placeholder: "Select Consumable Name",
+      type: "select",
+    },
+    {
+      key: "unitName",
+      label: "Unit Name",
+      minWidth: 150,
+      options: unitMasterOptions,
+      placeholder: "Select Unit Name",
+      type: "select",
+    },
+    {
+      key: "quantity",
+      label: "Quantity",
+      minWidth: 120,
+      placeholder: "Enter Quantity",
+      type: "text",
+    },
+    {
+      key: "amount",
+      label: "Amount",
+      minWidth: 130,
+      placeholder: "Enter Amount",
+      type: "text",
+    },
+    {
+      key: "remark",
+      label: "Remark",
+      minWidth: 180,
+      placeholder: "Enter Remark",
+      type: "text",
+    },
+  ],
 };
 
 export function isWarehouseAAddStockSlug(
@@ -467,8 +525,10 @@ export function isWarehouseAAddStockSlug(
 }
 
 export function WarehouseAAddStockLineItems({
+  onAmountTotalChange,
   slug,
 }: {
+  onAmountTotalChange?: (amount: number) => void;
   slug: WarehouseAAddStockSlug;
 }) {
   const theme = useTheme();
@@ -490,6 +550,15 @@ export function WarehouseAAddStockLineItems({
     setEditingValues(createEmptyValues(columnConfig));
     setLineItems([]);
   }, [columnConfig]);
+
+  useEffect(() => {
+    onAmountTotalChange?.(
+      lineItems.reduce(
+        (total, row) => total + parseAmountValue(row.values.amount ?? ""),
+        0,
+      ),
+    );
+  }, [lineItems, onAmountTotalChange]);
 
   const tableMinWidth = useMemo(
     () =>
@@ -743,6 +812,11 @@ function createEmptyValues(columns: readonly DynamicFieldConfig[]) {
 
 function allValuesEmpty(values: Record<string, string>) {
   return Object.values(values).every((value) => value.trim().length === 0);
+}
+
+function parseAmountValue(value: string) {
+  const numericValue = Number(value.replace(/,/g, "").trim());
+  return Number.isFinite(numericValue) ? numericValue : 0;
 }
 
 function getHeaderCellSx(theme: Theme, minWidth: number) {

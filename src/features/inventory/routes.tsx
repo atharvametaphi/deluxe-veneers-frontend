@@ -1,6 +1,12 @@
 import type { RouteObject } from "react-router";
 
 import {
+  AddConsumablesPage,
+  ConsumablesListPage,
+  EditConsumablesPage,
+  ViewConsumablesPage,
+} from "./consumables";
+import {
   AddMDFPage,
   EditMDFPage,
   MDFListPage,
@@ -26,6 +32,11 @@ import {
 } from "./veneer-blocks";
 
 export const inventoryRoutes: RouteObject[] = [
+  { path: "inventory/consumables", Component: ConsumablesListPage },
+  { path: "inventory/consumables/add", Component: AddConsumablesPage },
+  { path: "inventory/consumables/edit/:id", Component: EditConsumablesPage },
+  { path: "inventory/consumables/view/:id", Component: ViewConsumablesPage },
+
   { path: "inventory/raw-veneer", Component: RawVeneerListPage },
   { path: "inventory/raw-veneer/add", Component: AddRawVeneerPage },
   { path: "inventory/raw-veneer/edit/:id", Component: EditRawVeneerPage },

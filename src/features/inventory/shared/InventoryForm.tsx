@@ -11,8 +11,8 @@ import {
 import { InventoryPageShell } from "./InventoryPageShell";
 import {
   isWarehouseAAddStockSlug,
-  WarehouseAAddStockLineItems,
 } from "./WarehouseAAddStockLineItems";
+import { WarehouseAAddStockWorkspace } from "./WarehouseAAddStockWorkspace";
 import {
   buildInventoryInitialValues,
   getInventoryPageSubtitle,
@@ -153,7 +153,7 @@ export function InventoryForm<Row extends InventoryRecord>({
           />
 
           {warehouseAAddStockSlug ? (
-            <WarehouseAAddStockLineItems slug={warehouseAAddStockSlug} />
+            <WarehouseAAddStockWorkspace slug={warehouseAAddStockSlug} />
           ) : null}
 
           <Box

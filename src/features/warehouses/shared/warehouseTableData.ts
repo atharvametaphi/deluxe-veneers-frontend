@@ -1,5 +1,6 @@
 import type { EnterpriseTableColumn } from "../../../components/data-display/EnterpriseDataTable";
 import {
+  consumablesDefinition,
   mdfDefinition,
   plywoodDefinition,
   rawVeneerDefinition,
@@ -12,12 +13,13 @@ export type WarehouseInventorySlug =
   | "veneer-blocks"
   | "plywood"
   | "mdf";
+export type WarehouseAInventorySlug = WarehouseInventorySlug | "consumables";
 export type WarehouseARawVeneerTab = "purchase" | "production";
 
 export type WarehouseInventoryRow = {
   id: string;
   inventoryRecordId: string;
-  inventorySlug: WarehouseInventorySlug;
+  inventorySlug: WarehouseAInventorySlug;
   inwardSrNo: string;
   inwardType: string;
   inwardDate: Date;
@@ -28,6 +30,7 @@ export type WarehouseInventoryRow = {
   supplierCode: string;
   itemName: string;
   subCategory: string;
+  unitName: string;
   color: string;
   palletNo: string;
   length: string;
@@ -196,6 +199,19 @@ const warehouseAMdfColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow
     { key: "remark", label: "Remark" },
   ];
 
+const warehouseAConsumablesColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
+  [
+    { key: "inwardSrNo", label: "Inward Sr No" },
+    { key: "inwardType", label: "Inward Type" },
+    { key: "inwardDate", label: "Inward Date" },
+    { key: "subCategory", label: "Category" },
+    { key: "totalUnits", label: "Quantity" },
+    { key: "availableUnits", label: "Available Quantity" },
+    { key: "currency", label: "Currency" },
+    { key: "amount", label: "Amount" },
+    { key: "remark", label: "Remark" },
+  ];
+
 const processNames = [
   "Slicing Ready",
   "Drying Ready",
@@ -263,6 +279,7 @@ function normalizeRawVeneerRow(
     supplierCode: String(row.supplierCode ?? ""),
     itemName: String(row.itemName ?? ""),
     subCategory: String(row.subCategory ?? ""),
+    unitName: "",
     color: String(row.timberColor ?? ""),
     palletNo: String(row.palletNo ?? ""),
     length: String(row.length ?? ""),
@@ -328,6 +345,7 @@ function normalizeStockRow(
     supplierCode: "",
     itemName: String(row.itemName ?? ""),
     subCategory: String(row.subCategory ?? ""),
+    unitName: "",
     color: String(row.color ?? ""),
     palletNo: String(row.palletNo ?? ""),
     length: String(row.length ?? ""),
@@ -436,6 +454,60 @@ function mapWarehouseMdfRow(
   };
 }
 
+function mapWarehouseConsumableRow(
+  row: Record<string, unknown>,
+  index: number,
+): WarehouseInventoryRow {
+  return {
+    id: `warehouse-a-consumables-${String(row.id ?? "")}-${index + 1}`,
+    inventoryRecordId: String(row.id ?? ""),
+    inventorySlug: "consumables",
+    inwardSrNo: String(row.inwardSrNo ?? ""),
+    inwardType: String(row.inwardType ?? ""),
+    inwardDate: row.inwardDate instanceof Date ? row.inwardDate : new Date(),
+    invoiceNo: String(row.invoiceNo ?? ""),
+    referenceSrNo: String(row.itemSrNo ?? ""),
+    supplierName: String(row.supplierName ?? ""),
+    supplierItemName: String(row.supplierItemName ?? ""),
+    supplierCode: "",
+    itemName: String(row.itemName ?? ""),
+    subCategory: String(row.subCategory ?? ""),
+    unitName: String(row.unitName ?? ""),
+    color: "",
+    palletNo: "",
+    length: "",
+    width: "",
+    thickness: "",
+    totalUnits: String(row.quantity ?? ""),
+    availableUnits: String(row.availableQuantity ?? ""),
+    totalSqm: "",
+    availableSqm: "",
+    currency: String(row.currency ?? ""),
+    amount: String(row.amount ?? ""),
+    remark: String(row.remark ?? ""),
+    status: "",
+    veneerSrNo: "",
+    itemSrNo: String(row.itemSrNo ?? ""),
+    mdfSrNo: "",
+    timberCode: "",
+    logCode: "",
+    bundleNumber: "",
+    palletNumber: "",
+    noOfLeaves: "",
+    processName: "",
+    processColor: "",
+    cutName: "",
+    seriesName: "",
+    grade: "",
+    expenseAmount: "",
+    totalNoOfSheets: "",
+    avSheets: "",
+    avSqm: "",
+    plywoodType: "",
+    mdfType: "",
+  };
+}
+
 const rawRows = rawVeneerDefinition.rows.map((row) =>
   normalizeRawVeneerRow(row as Record<string, unknown>, "raw-veneer"),
 );
@@ -495,12 +567,16 @@ const warehouseAPlywoodRows = plywoodDefinition.rows.map((row, index) =>
 const warehouseAMdfRows = mdfDefinition.rows.map((row, index) =>
   mapWarehouseMdfRow(row as Record<string, unknown>, index),
 );
+const warehouseAConsumablesRows = consumablesDefinition.rows.map((row, index) =>
+  mapWarehouseConsumableRow(row as Record<string, unknown>, index),
+);
 
 const warehouseARows: readonly WarehouseInventoryRow[] = [
   ...warehouseAVeneerBlockRows.slice(0, 4),
   ...warehouseARawPurchaseRows.slice(0, 4),
   ...warehouseAPlywoodRows.slice(0, 4),
   ...warehouseAMdfRows.slice(0, 4),
+  ...warehouseAConsumablesRows.slice(0, 4),
 ];
 
 const warehouseBRows: readonly WarehouseInventoryRow[] = [
@@ -521,7 +597,7 @@ const warehouseCRows: readonly WarehouseInventoryRow[] = [
 ];
 
 export const warehouseAInventoryConfigs: Record<
-  WarehouseInventorySlug,
+  WarehouseAInventorySlug,
   WarehouseAInventoryConfig
 > = {
   "veneer-blocks": {
@@ -543,6 +619,11 @@ export const warehouseAInventoryConfigs: Record<
     title: "MDF",
     columns: warehouseAMdfColumns,
     rows: warehouseAMdfRows,
+  },
+  consumables: {
+    title: "Consumables",
+    columns: warehouseAConsumablesColumns,
+    rows: warehouseAConsumablesRows,
   },
 };
 

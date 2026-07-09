@@ -7,6 +7,12 @@ import {
   ViewColorMasterPage,
 } from "./color-master";
 import {
+  AddConsumablesMasterPage,
+  ConsumablesMasterListPage,
+  EditConsumablesMasterPage,
+  ViewConsumablesMasterPage,
+} from "./consumables-master";
+import {
   AddCurrencyMasterPage,
   CurrencyMasterListPage,
   EditCurrencyMasterPage,
@@ -84,6 +90,11 @@ export const masterRoutes: RouteObject[] = [
   { path: "masters/color-master/add", Component: AddColorMasterPage },
   { path: "masters/color-master/edit/:id", Component: EditColorMasterPage },
   { path: "masters/color-master/view/:id", Component: ViewColorMasterPage },
+
+  { path: "masters/consumables-master", Component: ConsumablesMasterListPage },
+  { path: "masters/consumables-master/add", Component: AddConsumablesMasterPage },
+  { path: "masters/consumables-master/edit/:id", Component: EditConsumablesMasterPage },
+  { path: "masters/consumables-master/view/:id", Component: ViewConsumablesMasterPage },
 
   { path: "masters/currency-master", Component: CurrencyMasterListPage },
   { path: "masters/currency-master/add", Component: AddCurrencyMasterPage },
