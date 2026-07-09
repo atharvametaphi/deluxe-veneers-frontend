@@ -10,12 +10,14 @@ interface MasterPageShellProps extends PropsWithChildren {
   breadcrumbs: ErpBreadcrumbItem[];
   title: string;
   actions?: ReactNode;
+  contentGap?: number;
 }
 
 export function MasterPageShell({
   actions,
   breadcrumbs,
   children,
+  contentGap = 3,
   title,
 }: MasterPageShellProps) {
   return (
@@ -29,7 +31,7 @@ export function MasterPageShell({
     >
       <Stack
         sx={(theme) => ({
-          gap: theme.spacing(3),
+          gap: theme.spacing(contentGap),
         })}
       >
         <Stack

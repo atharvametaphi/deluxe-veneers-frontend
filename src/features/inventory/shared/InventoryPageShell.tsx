@@ -24,11 +24,12 @@ export function InventoryPageShell({
     <MasterPageShell
       actions={actions}
       breadcrumbs={breadcrumbs}
+      contentGap={processTabs ? 0 : 3}
       title={title}
     >
       <Stack
         sx={(theme) => ({
-          gap: theme.spacing(3),
+          gap: processTabs && !subtitle ? theme.spacing(2) : theme.spacing(3),
         })}
       >
         {subtitle ? (

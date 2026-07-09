@@ -111,8 +111,6 @@ export function MasterTable({
     pageStartIndex,
     pageStartIndex + rowsPerPage,
   );
-  const startRecord = sortedRows.length === 0 ? 0 : pageStartIndex + 1;
-  const endRecord = pageStartIndex + currentPageRows.length;
 
   useEffect(() => {
     if (page !== safePage) {
@@ -388,7 +386,6 @@ export function MasterTable({
         <Box
           sx={(theme) => ({
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
             gap: theme.spacing(2),
             flexWrap: "wrap",
@@ -397,44 +394,16 @@ export function MasterTable({
             borderTop: `1px solid ${theme.customTokens.borders.default}`,
           })}
         >
-          <Typography variant="body2" color="text.secondary">
-            Showing {startRecord}-{endRecord} of {sortedRows.length} records
-          </Typography>
-
           <Box
             sx={(theme) => ({
               display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
               gap: theme.spacing(1.25),
               flexWrap: "wrap",
+              width: "100%",
             })}
           >
-            <Typography variant="body2" color="text.secondary">
-              Rows per page
-            </Typography>
-
-            <Select
-              size="small"
-              value={String(rowsPerPage)}
-              onChange={(event) => {
-                setRowsPerPage(Number(event.target.value));
-                setPage(1);
-              }}
-              sx={(theme) => ({
-                minWidth: 88,
-                borderRadius: `${theme.customTokens.radius.md}px`,
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: theme.customTokens.borders.default,
-                },
-              })}
-            >
-              {[10, 25, 50, 75, 100, 200].map((option) => (
-                <MenuItem key={option} value={String(option)}>
-                  {option}
-                </MenuItem>
-              ))}
-            </Select>
-
             <Stack direction="row" spacing={1} useFlexGap>
               <Button
                 size="small"
@@ -477,10 +446,37 @@ export function MasterTable({
               sx={(theme) => ({
                 display: "flex",
                 alignItems: "center",
-                gap: theme.spacing(1),
+                gap: theme.spacing(1.25),
                 flexWrap: "wrap",
+                justifyContent: "flex-end",
               })}
             >
+              <Typography variant="body2" color="text.secondary">
+                Rows per page
+              </Typography>
+
+              <Select
+                size="small"
+                value={String(rowsPerPage)}
+                onChange={(event) => {
+                  setRowsPerPage(Number(event.target.value));
+                  setPage(1);
+                }}
+                sx={(theme) => ({
+                  minWidth: 88,
+                  borderRadius: `${theme.customTokens.radius.md}px`,
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.customTokens.borders.default,
+                  },
+                })}
+              >
+                {[10, 25, 50, 75, 100, 200].map((option) => (
+                  <MenuItem key={option} value={String(option)}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
+
               <Typography variant="body2" color="text.secondary">
                 Go To Page
               </Typography>

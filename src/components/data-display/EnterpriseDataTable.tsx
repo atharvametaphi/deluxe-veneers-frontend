@@ -86,6 +86,7 @@ interface EnterpriseDataTableProps<Row extends EnterpriseTableRow> {
   renderActionCell?: (row: Row) => ReactNode;
   rows: readonly Row[];
   rowsPerPageOptions?: readonly number[];
+  selectionResetKey?: string | number;
   selectable?: boolean;
 }
 
@@ -103,6 +104,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   renderActionCell,
   rows,
   rowsPerPageOptions = [10, 25, 50, 75, 100, 200],
+  selectionResetKey,
   selectable = false,
 }: EnterpriseDataTableProps<Row>) {
   const theme = useTheme();
@@ -177,8 +179,6 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     pageStartIndex,
     pageStartIndex + rowsPerPage,
   );
-  const startRecord = sortedRows.length === 0 ? 0 : pageStartIndex + 1;
-  const endRecord = pageStartIndex + currentPageRows.length;
   const currentPageIds = currentPageRows.map((row) => row.id);
   const allCurrentPageSelected =
     selectable &&
@@ -208,7 +208,13 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     onSelectionChange?.(selectedRows);
   }, [onSelectionChange, selectedRows]);
 
-  const totalActiveFilters = Object.keys(filters).length;
+  useEffect(() => {
+    if (!selectable) {
+      return;
+    }
+
+    setSelectedRowIds([]);
+  }, [selectable, selectionResetKey]);
 
   const handleHorizontalWheel = (event: WheelEvent<HTMLDivElement>) => {
     if (!event.shiftKey || Math.abs(event.deltaY) < Math.abs(event.deltaX)) {
@@ -556,7 +562,6 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
         <Box
           sx={{
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
             gap: theme.spacing(2),
             flexWrap: "wrap",
@@ -570,78 +575,13 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
             sx={{
               display: "flex",
               alignItems: "center",
-              gap: theme.spacing(1.5),
-              flexWrap: "wrap",
-            }}
-          >
-            <Typography variant="body2" color="text.secondary">
-              Showing {startRecord}-{endRecord} of {sortedRows.length} records
-            </Typography>
-
-            {selectable ? (
-              <Typography variant="body2" color="text.secondary">
-                {selectedRows.length} rows selected
-              </Typography>
-            ) : null}
-
-            {selectable ? (
-              <Button
-                size="small"
-                variant="text"
-                onClick={() => setSelectedRowIds([])}
-                sx={{
-                  minWidth: "auto",
-                  color: theme.customTokens.navigation.activeText,
-                  px: 0,
-                  "&:hover": {
-                    backgroundColor: "transparent",
-                    color: theme.customTokens.brand.secondary,
-                  },
-                }}
-              >
-                Clear Selection
-              </Button>
-            ) : null}
-
-            <Typography variant="body2" color="text.secondary">
-              {totalActiveFilters} active filters
-            </Typography>
-          </Box>
-
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
+              justifyContent: "space-between",
               gap: theme.spacing(1.25),
               flexWrap: "wrap",
+              flex: "1 1 640px",
+              minWidth: 0,
             }}
           >
-            <Typography variant="body2" color="text.secondary">
-              Rows per page
-            </Typography>
-
-            <Select
-              size="small"
-              value={String(rowsPerPage)}
-              onChange={(event) => {
-                setRowsPerPage(Number(event.target.value));
-                setPage(1);
-              }}
-              sx={{
-                minWidth: 88,
-                borderRadius: `${theme.customTokens.radius.md}px`,
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: theme.customTokens.borders.default,
-                },
-              }}
-            >
-              {rowsPerPageOptions.map((option) => (
-                <MenuItem key={option} value={String(option)}>
-                  {option}
-                </MenuItem>
-              ))}
-            </Select>
-
             <Stack direction="row" spacing={1} useFlexGap>
               <Button
                 size="small"
@@ -704,10 +644,37 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: theme.spacing(1),
+                gap: theme.spacing(1.25),
                 flexWrap: "wrap",
+                justifyContent: "flex-end",
               }}
             >
+              <Typography variant="body2" color="text.secondary">
+                Rows per page
+              </Typography>
+
+              <Select
+                size="small"
+                value={String(rowsPerPage)}
+                onChange={(event) => {
+                  setRowsPerPage(Number(event.target.value));
+                  setPage(1);
+                }}
+                sx={{
+                  minWidth: 88,
+                  borderRadius: `${theme.customTokens.radius.md}px`,
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.customTokens.borders.default,
+                  },
+                }}
+              >
+                {rowsPerPageOptions.map((option) => (
+                  <MenuItem key={option} value={String(option)}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Select>
+
               <Typography variant="body2" color="text.secondary">
                 Go To Page
               </Typography>

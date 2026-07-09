@@ -53,7 +53,7 @@ import {
   EditItemMasterPage,
   ItemMasterListPage,
   ViewItemMasterPage,
-} from "./item-master";
+} from "./item-name-master";
 import {
   AddItemSubCategoryMasterPage,
   EditItemSubCategoryMasterPage,
@@ -135,7 +135,6 @@ export const masterRoutes: RouteObject[] = [
   { path: "masters/supplier-master/add", Component: AddSupplierMasterPage },
   { path: "masters/supplier-master/edit/:id", Component: EditSupplierMasterPage },
   { path: "masters/supplier-master/view/:id", Component: ViewSupplierMasterPage },
-  { path: "supplier-master", Component: SupplierMasterListPage },
 
   { path: "masters/unit-master", Component: UnitMasterListPage },
   { path: "masters/unit-master/add", Component: AddUnitMasterPage },

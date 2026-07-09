@@ -80,6 +80,7 @@ export function WarehouseBInventoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState("");
   const [selectedRows, setSelectedRows] = useState<InventoryRecord[]>([]);
+  const [selectionResetKey, setSelectionResetKey] = useState(0);
 
   const activeInventory = getActiveInventoryTab(searchParams.get("inventory"));
   const activeProcessTab = getInventoryProcessTab(searchParams.get("tab"));
@@ -156,6 +157,11 @@ export function WarehouseBInventoryPage() {
     activeInventory === "veneer-blocks" &&
     activeProcessTab === "issued" &&
     selectedRows.length > 1;
+
+  const handleCancelBulkSelection = () => {
+    setSelectedRows([]);
+    setSelectionResetKey((current) => current + 1);
+  };
 
   return (
     <InventoryPageShell
@@ -271,27 +277,10 @@ export function WarehouseBInventoryPage() {
           </Stack>
         </Stack>
 
-        <EnterpriseDataTable
-          key={`${activeInventory}-${activeRawVeneerTab}-${activeProcessTab}`}
-          actions={rowActions}
-          columns={activeColumns}
-          defaultRowsPerPage={10}
-          emptyStateLabel={`No ${activeDefinition.title.toLowerCase()} records are available for this tab.`}
-          onSelectionChange={setSelectedRows}
-          rows={filteredRows}
-          selectable={activeProcessTab !== "history"}
-          {...(activeDefinition.initialSort
-            ? { initialSort: activeDefinition.initialSort }
-            : {})}
-        />
-
         {showBulkIssueForSlicing ? (
           <Box
             sx={{
-              position: "sticky",
-              bottom: theme.spacing(2),
-              alignSelf: "center",
-              width: "min(100%, 680px)",
+              width: "100%",
               border: `1px solid ${theme.customTokens.borders.default}`,
               borderRadius: `${theme.customTokens.radius.md}px`,
               backgroundColor: theme.customTokens.surfaces.surface,
@@ -310,21 +299,49 @@ export function WarehouseBInventoryPage() {
                 {selectedRows.length} veneer block records selected
               </Typography>
 
-              <Button
-                variant="contained"
-                onClick={() =>
-                  navigate("/factory/slicing/add", {
-                    state: {
-                      sourceRows: selectedRows,
-                    },
-                  })
-                }
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.25}
+                sx={{ width: { xs: "100%", sm: "auto" } }}
               >
-                Issue for Slicing
-              </Button>
+                <Button
+                  variant="outlined"
+                  onClick={handleCancelBulkSelection}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  variant="contained"
+                  onClick={() =>
+                    navigate("/factory/slicing/add", {
+                      state: {
+                        sourceRows: selectedRows,
+                      },
+                    })
+                  }
+                >
+                  Issue for Slicing
+                </Button>
+              </Stack>
             </Stack>
           </Box>
         ) : null}
+
+        <EnterpriseDataTable
+          key={`${activeInventory}-${activeRawVeneerTab}-${activeProcessTab}`}
+          actions={rowActions}
+          columns={activeColumns}
+          defaultRowsPerPage={10}
+          emptyStateLabel={`No ${activeDefinition.title.toLowerCase()} records are available for this tab.`}
+          onSelectionChange={setSelectedRows}
+          rows={filteredRows}
+          selectionResetKey={selectionResetKey}
+          selectable={activeProcessTab !== "history"}
+          {...(activeDefinition.initialSort
+            ? { initialSort: activeDefinition.initialSort }
+            : {})}
+        />
       </Stack>
     </InventoryPageShell>
   );

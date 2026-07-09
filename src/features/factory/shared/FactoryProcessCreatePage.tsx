@@ -672,9 +672,43 @@ function renderEditableField({
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      onWheel={(event) => {
+        if (!isWheelAdjustableMeasurementField(column.key)) {
+          return;
+        }
+
+        event.preventDefault();
+        onChange(getNextMeasurementValue(value, event.deltaY));
+      }}
       sx={getCompactFieldSx(theme)}
     />
   );
+}
+
+function isWheelAdjustableMeasurementField(key: string) {
+  return key === "length" || key === "width" || key === "thickness";
+}
+
+function getNextMeasurementValue(value: string, deltaY: number) {
+  const numericValue = Number.parseFloat(value);
+  const currentValue = Number.isFinite(numericValue) ? numericValue : 0;
+  const decimalPlaces = getDecimalPlaces(value);
+  const step = decimalPlaces > 0 ? 1 / 10 ** decimalPlaces : 1;
+  const nextValue = Math.max(
+    0,
+    currentValue + (deltaY < 0 ? step : -step),
+  );
+
+  if (decimalPlaces > 0) {
+    return nextValue.toFixed(decimalPlaces);
+  }
+
+  return String(Math.round(nextValue));
+}
+
+function getDecimalPlaces(value: string) {
+  const decimalPart = value.split(".")[1];
+  return decimalPart ? decimalPart.length : 0;
 }
 
 function renderReadOnlyCell(value: string, theme: Theme) {
