@@ -1,23 +1,34 @@
 import {
+  Avatar,
   Box,
   Collapse,
   Divider,
   Drawer,
   IconButton,
+  ListItemIcon,
   List,
   ListItemButton,
-  ListItemIcon,
   ListItemText,
+  Menu,
+  MenuItem,
   Stack,
   Tooltip,
+  Typography,
   useTheme,
 } from "@mui/material";
-import { ChevronDown, ChevronLeft } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Link as RouterLink, useLocation } from "react-router";
+import { ChevronDown, ChevronLeft, LogOut, User } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router";
 
 import deluxeWordmark from "../assets/deluxe-veneers.png";
 import deluxeFavicon from "../assets/favicon.png";
+import {
+  AUTH_USER_UPDATED_EVENT,
+  getCurrentUser,
+  getUserDisplayName,
+  getUserInitials,
+  signOut,
+} from "../features/auth";
 import {
   sidebarNavigation,
   type SidebarNavigationEntry,
@@ -45,11 +56,23 @@ export function Sidebar({
   onToggleCollapse,
 }: SidebarProps) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const location = useLocation();
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
+  const userDisplayName = useMemo(
+    () => getUserDisplayName(currentUser),
+    [currentUser],
+  );
+  const userInitials = useMemo(
+    () => getUserInitials(userDisplayName),
+    [userDisplayName],
+  );
   const sidebarLocation: SidebarMatchLocation = {
     pathname: location.pathname,
     search: location.search,
   };
+  const [accountMenuAnchorEl, setAccountMenuAnchorEl] =
+    useState<HTMLElement | null>(null);
 
   const activeGroupId =
     sidebarNavigation.find(
@@ -78,9 +101,21 @@ export function Sidebar({
     }
   }, [activeGroupId]);
 
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      setCurrentUser(getCurrentUser());
+    };
+
+    window.addEventListener(AUTH_USER_UPDATED_EVENT, handleUserUpdate);
+    return () => {
+      window.removeEventListener(AUTH_USER_UPDATED_EVENT, handleUserUpdate);
+    };
+  }, []);
+
   const drawerWidth = collapsed
     ? theme.customTokens.layout.sidebarCollapsedWidth
     : theme.customTokens.layout.sidebarExpandedWidth;
+  const isProfileRoute = location.pathname === "/profile";
 
   const sharedDrawerStyles = {
     width: isDesktop ? 0 : `${drawerWidth}px`,
@@ -111,6 +146,27 @@ export function Sidebar({
         strokeWidth={entry.filledIcon ? 1.8 : 2}
       />
     );
+  };
+
+  const handleAccountMenuClose = () => {
+    setAccountMenuAnchorEl(null);
+  };
+
+  const handleOpenProfile = () => {
+    handleAccountMenuClose();
+    if (!isDesktop) {
+      onClose();
+    }
+    navigate("/profile");
+  };
+
+  const handleLogout = () => {
+    handleAccountMenuClose();
+    signOut();
+    if (!isDesktop) {
+      onClose();
+    }
+    navigate("/", { replace: true });
   };
 
   return (
@@ -495,7 +551,190 @@ export function Sidebar({
             })}
           </List>
         </Stack>
+
+        <Divider sx={{ borderColor: "divider" }} />
+
+        <Box
+          sx={{
+            pt: 1,
+          }}
+        >
+          <Tooltip
+            disableHoverListener={!collapsed}
+            placement="right"
+            title={collapsed ? userDisplayName : ""}
+          >
+            <Box
+              component="button"
+              onClick={(event) => setAccountMenuAnchorEl(event.currentTarget)}
+              sx={{
+                appearance: "none",
+                width: "100%",
+                border: 0,
+                p: collapsed ? 0 : 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: collapsed ? "center" : "flex-start",
+                gap: collapsed ? 0 : 1.25,
+                borderRadius: `${theme.customTokens.radius.lg}px`,
+                backgroundColor: isProfileRoute
+                  ? theme.customTokens.navigation.activeBackground
+                  : "transparent",
+                color: theme.customTokens.navigation.inactiveText,
+                cursor: "pointer",
+                transition: theme.transitions.create("background-color", {
+                  duration: theme.transitions.duration.shorter,
+                }),
+                "&:hover": {
+                  backgroundColor: theme.customTokens.navigation.hoverBackground,
+                },
+              }}
+              type="button"
+            >
+              <Avatar
+                sx={{
+                  width: collapsed ? 40 : 42,
+                  height: collapsed ? 40 : 42,
+                  bgcolor: theme.customTokens.brand.primary,
+                  color: theme.customTokens.text.inverse,
+                  fontSize: theme.typography.body2.fontSize,
+                  fontWeight: 700,
+                }}
+              >
+                {userInitials}
+              </Avatar>
+
+              {!collapsed ? (
+                <Stack
+                  sx={{
+                    minWidth: 0,
+                    alignItems: "flex-start",
+                    gap: 0.125,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    color="text.primary"
+                    sx={{
+                      maxWidth: "100%",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {userDisplayName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {currentUser.accountRole}
+                  </Typography>
+                </Stack>
+              ) : null}
+            </Box>
+          </Tooltip>
+        </Box>
       </Stack>
+
+      <Menu
+        anchorEl={accountMenuAnchorEl}
+        open={Boolean(accountMenuAnchorEl)}
+        onClose={handleAccountMenuClose}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "right" }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: theme.spacing(-1),
+              minWidth: 240,
+              border: `1px solid ${theme.customTokens.borders.default}`,
+              borderRadius: `${theme.customTokens.radius.lg}px`,
+              backgroundColor: theme.customTokens.surfaces.surface,
+              boxShadow: theme.customTokens.elevation.sm,
+              overflow: "hidden",
+            },
+          },
+        }}
+      >
+        <Box
+          sx={{
+            px: 2,
+            py: 1.5,
+          }}
+        >
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            <Avatar
+              sx={{
+                width: 40,
+                height: 40,
+                bgcolor: theme.customTokens.brand.primary,
+                color: theme.customTokens.text.inverse,
+                fontSize: theme.typography.body2.fontSize,
+                fontWeight: 700,
+              }}
+              >
+                {userInitials}
+              </Avatar>
+
+              <Stack sx={{ minWidth: 0 }}>
+              <Typography
+                variant="subtitle2"
+                color="text.primary"
+                sx={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {userDisplayName}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {currentUser.accountRole}
+              </Typography>
+            </Stack>
+          </Stack>
+        </Box>
+
+        <Divider sx={{ borderColor: "divider" }} />
+
+        <MenuItem
+          onClick={handleOpenProfile}
+          sx={{
+            minHeight: 42,
+            gap: 1.25,
+          }}
+        >
+          <ListItemIcon
+            sx={{
+              minWidth: 28,
+              color: theme.customTokens.navigation.inactiveText,
+            }}
+          >
+            <User size={16} />
+          </ListItemIcon>
+          <Typography variant="body2" color="text.primary">
+            Profile
+          </Typography>
+        </MenuItem>
+
+        <MenuItem
+          onClick={handleLogout}
+          sx={{
+            minHeight: 42,
+            gap: 1.25,
+          }}
+        >
+          <ListItemIcon
+            sx={{
+              minWidth: 28,
+              color: theme.customTokens.navigation.inactiveText,
+            }}
+          >
+            <LogOut size={16} />
+          </ListItemIcon>
+          <Typography variant="body2" color="text.primary">
+            Logout
+          </Typography>
+        </MenuItem>
+      </Menu>
     </Drawer>
   );
 }

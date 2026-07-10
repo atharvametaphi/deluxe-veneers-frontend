@@ -14,6 +14,7 @@ import { inventoryRoutes } from "../features/inventory";
 import { masterRoutes } from "../features/masters";
 import { ordersRoutes } from "../features/orders";
 import { packingRoutes } from "../features/packing";
+import { ProfilePage } from "../features/profile";
 import { QcModulePage } from "../features/qc";
 import { rolesPermissionsRoutes } from "../features/roles-permissions";
 import { userManagementRoutes } from "../features/user-management";
@@ -33,6 +34,10 @@ const router = createBrowserRouter([
       {
         path: "dashboard",
         Component: DashboardPage,
+      },
+      {
+        path: "profile",
+        Component: ProfilePage,
       },
       ...userManagementRoutes,
       ...rolesPermissionsRoutes,
