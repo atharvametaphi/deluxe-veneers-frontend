@@ -6,7 +6,7 @@ export function MDFListPage() {
   return (
     <Navigate
       replace
-      to="/warehouse-b?inventory=mdf"
+      to="/warehouse-b?section=inventory&inventory=mdf"
     />
   );
 }

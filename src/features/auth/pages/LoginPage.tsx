@@ -4,6 +4,10 @@ import {
   Box,
   Button,
   Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
   Paper,
   Stack,
@@ -15,7 +19,9 @@ import { Navigate, useNavigate } from "react-router";
 
 import deluxeLogo from "../../../assets/deluxe-veneers.png";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
-import { isAuthenticated, signIn } from "../authSession";
+import { isAuthenticated, resetDemoPassword, signIn } from "../authSession";
+
+type ForgotPasswordStep = "email" | "otp";
 
 export function LoginPage() {
   const theme = useTheme();
@@ -25,6 +31,18 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [loginNotice, setLoginNotice] = useState("");
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] =
+    useState<ForgotPasswordStep>("email");
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [forgotPasswordOtp, setForgotPasswordOtp] = useState("");
+  const [forgotPasswordNewPassword, setForgotPasswordNewPassword] = useState("");
+  const [forgotPasswordConfirmPassword, setForgotPasswordConfirmPassword] =
+    useState("");
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState("");
+  const [forgotPasswordError, setForgotPasswordError] = useState("");
 
   if (authenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -38,8 +56,107 @@ export function LoginPage() {
       return;
     }
 
+    setLoginNotice("");
     setErrorMessage("Invalid email or password.");
   };
+
+  const resetForgotPasswordState = () => {
+    setForgotPasswordStep("email");
+    setForgotPasswordEmail(email);
+    setForgotPasswordOtp("");
+    setForgotPasswordNewPassword("");
+    setForgotPasswordConfirmPassword("");
+    setForgotPasswordMessage("");
+    setForgotPasswordError("");
+    setResetPasswordOpen(false);
+  };
+
+  const handleOpenForgotPassword = () => {
+    resetForgotPasswordState();
+    setForgotPasswordOpen(true);
+  };
+
+  const handleCloseForgotPassword = () => {
+    setForgotPasswordOpen(false);
+    setForgotPasswordMessage("");
+    setForgotPasswordError("");
+  };
+
+  const handleCloseResetPassword = () => {
+    setResetPasswordOpen(false);
+    setForgotPasswordNewPassword("");
+    setForgotPasswordConfirmPassword("");
+    setForgotPasswordMessage("");
+    setForgotPasswordError("");
+  };
+
+  const handleForgotPasswordAction = () => {
+    setForgotPasswordError("");
+
+    if (forgotPasswordStep === "email") {
+      if (!forgotPasswordEmail.trim()) {
+        setForgotPasswordError("Enter email address.");
+        return;
+      }
+
+      if (forgotPasswordEmail.trim().toLowerCase() !== "admin@deluxeveneers.com") {
+        setForgotPasswordError("Email address not found.");
+        return;
+      }
+
+      setForgotPasswordStep("otp");
+      setForgotPasswordMessage("OTP sent. Enter the OTP to continue.");
+      return;
+    }
+
+    if (forgotPasswordStep === "otp") {
+      if (!forgotPasswordOtp.trim()) {
+        setForgotPasswordError("Enter OTP.");
+        return;
+      }
+
+      if (forgotPasswordOtp.trim().length < 4) {
+        setForgotPasswordError("Enter a valid OTP.");
+        return;
+      }
+
+      setForgotPasswordOpen(false);
+      setResetPasswordOpen(true);
+      setForgotPasswordMessage("Email verified. Set your new password.");
+    }
+  };
+
+  const handleResetPasswordAction = () => {
+    setForgotPasswordError("");
+
+    if (!forgotPasswordNewPassword.trim()) {
+      setForgotPasswordError("Enter new password.");
+      return;
+    }
+
+    if (forgotPasswordNewPassword.trim().length < 4) {
+      setForgotPasswordError("Password must be at least 4 characters.");
+      return;
+    }
+
+    if (forgotPasswordNewPassword !== forgotPasswordConfirmPassword) {
+      setForgotPasswordError("Passwords do not match.");
+      return;
+    }
+
+    resetDemoPassword(forgotPasswordNewPassword);
+    setEmail(forgotPasswordEmail.trim().toLowerCase());
+    setPassword("");
+    setErrorMessage("");
+    setLoginNotice("Password reset successful. Sign in with the new password.");
+    handleCloseResetPassword();
+    resetForgotPasswordState();
+  };
+
+  const forgotPasswordPrimaryLabel =
+    forgotPasswordStep === "email"
+      ? "Verify Email"
+      : "Verify";
 
   return (
     <Box
@@ -196,6 +313,17 @@ export function LoginPage() {
                 </Alert>
               ) : null}
 
+              {loginNotice ? (
+                <Alert
+                  severity="success"
+                  sx={{
+                    borderRadius: `${theme.customTokens.radius.md}px`,
+                  }}
+                >
+                  {loginNotice}
+                </Alert>
+              ) : null}
+
               <Button
                 type="submit"
                 variant="contained"
@@ -214,6 +342,7 @@ export function LoginPage() {
 
               <Button
                 type="button"
+                onClick={handleOpenForgotPassword}
                 variant="text"
                 sx={{
                   width: "fit-content",
@@ -231,6 +360,240 @@ export function LoginPage() {
           </Box>
         </Box>
       </Paper>
+
+      <Dialog
+        fullWidth
+        maxWidth="xs"
+        open={forgotPasswordOpen}
+        onClose={handleCloseForgotPassword}
+        slotProps={{
+          paper: {
+            sx: {
+              border: `1px solid ${theme.customTokens.borders.default}`,
+              borderRadius: `${theme.customTokens.radius.lg}px`,
+              boxShadow: theme.customTokens.elevation.sm,
+            },
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            pb: 1,
+          }}
+        >
+          Forgot Password
+        </DialogTitle>
+
+        <DialogContent
+          sx={{
+            pt: 1,
+          }}
+        >
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              Verify your email and OTP before setting a new password.
+            </Typography>
+
+            <TextField
+              label="Email Address"
+              placeholder="Enter email address"
+              value={forgotPasswordEmail}
+              onChange={(event) => {
+                setForgotPasswordEmail(event.target.value);
+                if (forgotPasswordError) {
+                  setForgotPasswordError("");
+                }
+              }}
+              sx={getCompactFieldSx(
+                theme,
+                forgotPasswordError && forgotPasswordStep === "email"
+                  ? "error"
+                  : forgotPasswordStep === "email"
+                    ? "default"
+                    : "readOnly",
+              )}
+              slotProps={{
+                input: {
+                  readOnly: forgotPasswordStep !== "email",
+                },
+              }}
+            />
+
+            {forgotPasswordStep !== "email" ? (
+              <TextField
+                label="OTP"
+                placeholder="Enter OTP"
+                value={forgotPasswordOtp}
+                onChange={(event) => {
+                  setForgotPasswordOtp(event.target.value);
+                  if (forgotPasswordError) {
+                    setForgotPasswordError("");
+                  }
+                }}
+                sx={getCompactFieldSx(
+                  theme,
+                  forgotPasswordError && forgotPasswordStep === "otp"
+                    ? "error"
+                    : forgotPasswordStep === "otp"
+                      ? "default"
+                      : "readOnly",
+                )}
+                slotProps={{
+                  input: {
+                    readOnly: false,
+                  },
+                }}
+              />
+            ) : null}
+
+            {forgotPasswordMessage ? (
+              <Alert
+                severity="success"
+                sx={{
+                  borderRadius: `${theme.customTokens.radius.md}px`,
+                }}
+              >
+                {forgotPasswordMessage}
+              </Alert>
+            ) : null}
+
+            {forgotPasswordError ? (
+              <Alert
+                severity="error"
+                sx={{
+                  borderRadius: `${theme.customTokens.radius.md}px`,
+                }}
+              >
+                {forgotPasswordError}
+              </Alert>
+            ) : null}
+          </Stack>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 3,
+            pt: 1,
+          }}
+        >
+          <Button variant="outlined" onClick={handleCloseForgotPassword}>
+            Cancel
+          </Button>
+
+          <Button variant="contained" onClick={handleForgotPasswordAction}>
+            {forgotPasswordPrimaryLabel}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        fullWidth
+        maxWidth="xs"
+        open={resetPasswordOpen}
+        onClose={handleCloseResetPassword}
+        slotProps={{
+          paper: {
+            sx: {
+              border: `1px solid ${theme.customTokens.borders.default}`,
+              borderRadius: `${theme.customTokens.radius.lg}px`,
+              boxShadow: theme.customTokens.elevation.sm,
+            },
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            pb: 1,
+          }}
+        >
+          Reset Password
+        </DialogTitle>
+
+        <DialogContent
+          sx={{
+            pt: 1,
+          }}
+        >
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              Set a new password for {forgotPasswordEmail || "your account"}.
+            </Typography>
+
+            <TextField
+              label="New Password"
+              placeholder="Enter new password"
+              type="password"
+              value={forgotPasswordNewPassword}
+              onChange={(event) => {
+                setForgotPasswordNewPassword(event.target.value);
+                if (forgotPasswordError) {
+                  setForgotPasswordError("");
+                }
+              }}
+              sx={getCompactFieldSx(
+                theme,
+                forgotPasswordError ? "error" : "default",
+              )}
+            />
+
+            <TextField
+              label="Confirm New Password"
+              placeholder="Confirm new password"
+              type="password"
+              value={forgotPasswordConfirmPassword}
+              onChange={(event) => {
+                setForgotPasswordConfirmPassword(event.target.value);
+                if (forgotPasswordError) {
+                  setForgotPasswordError("");
+                }
+              }}
+              sx={getCompactFieldSx(
+                theme,
+                forgotPasswordError ? "error" : "default",
+              )}
+            />
+
+            {forgotPasswordMessage ? (
+              <Alert
+                severity="success"
+                sx={{
+                  borderRadius: `${theme.customTokens.radius.md}px`,
+                }}
+              >
+                {forgotPasswordMessage}
+              </Alert>
+            ) : null}
+
+            {forgotPasswordError ? (
+              <Alert
+                severity="error"
+                sx={{
+                  borderRadius: `${theme.customTokens.radius.md}px`,
+                }}
+              >
+                {forgotPasswordError}
+              </Alert>
+            ) : null}
+          </Stack>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 3,
+            pt: 1,
+          }}
+        >
+          <Button variant="outlined" onClick={handleCloseResetPassword}>
+            Cancel
+          </Button>
+
+          <Button variant="contained" onClick={handleResetPasswordAction}>
+            Reset Password
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

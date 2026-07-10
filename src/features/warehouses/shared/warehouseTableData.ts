@@ -14,6 +14,10 @@ export type WarehouseInventorySlug =
   | "plywood"
   | "mdf";
 export type WarehouseAInventorySlug = WarehouseInventorySlug | "consumables";
+export type WarehouseCInventorySlug = Exclude<
+  WarehouseInventorySlug,
+  "veneer-blocks"
+>;
 export type WarehouseARawVeneerTab = "purchase" | "production";
 
 export type WarehouseInventoryRow = {
@@ -644,14 +648,9 @@ export const warehouseRawVeneerTabConfigs: Record<
 };
 
 export const warehouseCInventoryConfigs: Record<
-  WarehouseInventorySlug,
+  WarehouseCInventorySlug,
   WarehouseInventoryTabConfig
 > = {
-  "veneer-blocks": {
-    title: "Veneer Blocks",
-    columns: warehouseBaseColumns,
-    rows: veneerBlockRows.slice(4, 7),
-  },
   "raw-veneer": {
     title: "Raw Veneer",
     columns: warehouseBaseColumns,

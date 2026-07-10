@@ -1,5 +1,6 @@
 const AUTH_STORAGE_KEY = "deluxe-veneers-erp-authenticated";
 const AUTH_USER_STORAGE_KEY = "deluxe-veneers-erp-user";
+const AUTH_PASSWORD_STORAGE_KEY = "deluxe-veneers-erp-password";
 export const AUTH_USER_UPDATED_EVENT = "deluxe-veneers-auth-user-updated";
 
 export interface AuthenticatedUserProfile {
@@ -71,7 +72,7 @@ export function isAuthenticated() {
 export function signIn(email: string, password: string) {
   const isValid =
     email.trim().toLowerCase() === demoCredentials.email &&
-    password === demoCredentials.password;
+    password === getCurrentPassword();
 
   if (!isValid || typeof window === "undefined") {
     return false;
@@ -89,6 +90,14 @@ export function signOut() {
 
   window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
   window.sessionStorage.removeItem(AUTH_USER_STORAGE_KEY);
+}
+
+export function resetDemoPassword(password: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(AUTH_PASSWORD_STORAGE_KEY, password);
 }
 
 export function getCurrentUser() {
@@ -153,4 +162,15 @@ function persistCurrentUser(profile: AuthenticatedUserProfile) {
     JSON.stringify(serializedProfile),
   );
   window.dispatchEvent(new CustomEvent(AUTH_USER_UPDATED_EVENT));
+}
+
+function getCurrentPassword() {
+  if (typeof window === "undefined") {
+    return demoCredentials.password;
+  }
+
+  return (
+    window.localStorage.getItem(AUTH_PASSWORD_STORAGE_KEY) ??
+    demoCredentials.password
+  );
 }

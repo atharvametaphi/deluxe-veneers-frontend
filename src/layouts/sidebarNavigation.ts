@@ -39,6 +39,28 @@ const matchesSearchParam = (
   expectedValue: string,
 ) => getSearchParam(location, key) === expectedValue;
 
+const matchesSection = (
+  location: SidebarMatchLocation,
+  routePath: string,
+  section: string,
+) =>
+  matchesPath(location, routePath) &&
+  getSearchParam(location, "section") === section;
+
+const matchesSectionOrDefault = (
+  location: SidebarMatchLocation,
+  routePath: string,
+  section: string,
+) => {
+  if (!matchesPath(location, routePath)) {
+    return false;
+  }
+
+  const activeSection = getSearchParam(location, "section");
+
+  return !activeSection || activeSection === section;
+};
+
 const matchesInventoryRecordRoute = (
   location: SidebarMatchLocation,
   slug: (typeof inventorySlugs)[number],
@@ -98,7 +120,14 @@ export type SidebarNavigationEntry =
   | SidebarNavigationLink
   | SidebarNavigationGroup;
 
-export const sidebarNavigation: SidebarNavigationEntry[] = [
+export interface DynamicWarehouseSidebarItem {
+  id: string;
+  label: string;
+  slug: string;
+  warehouseType: string;
+}
+
+const staticSidebarNavigation: SidebarNavigationEntry[] = [
   {
     id: "dashboard",
     label: "Dashboard",
@@ -233,47 +262,31 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
     id: "warehouse-b",
     label: "Warehouse B",
     icon: Warehouse,
-    additionalMatches: [
-      (location) =>
-        matchesPath(location, "/warehouse-b") &&
-        !new URLSearchParams(location.search).get("inventory"),
-    ],
     items: [
       {
-        id: "warehouse-b-veneer-blocks",
-        label: "Veneer Blocks",
-        to: "/warehouse-b?inventory=veneer-blocks",
+        id: "warehouse-b-inventory",
+        label: "Inventory",
+        to: "/warehouse-b?section=inventory&inventory=veneer-blocks",
         match: (location) =>
-          (matchesPath(location, "/warehouse-b") &&
-            matchesSearchParam(location, "inventory", "veneer-blocks")) ||
-          matchesInventoryRecordRoute(location, "veneer-blocks", "warehouse-b"),
+          matchesSectionOrDefault(location, "/warehouse-b", "inventory") ||
+          inventorySlugs
+            .filter((slug) => slug !== "consumables")
+            .some((slug) =>
+              matchesInventoryRecordRoute(location, slug, "warehouse-b"),
+            ),
       },
       {
-        id: "warehouse-b-raw-veneer",
-        label: "Raw Veneer",
-        to: "/warehouse-b?inventory=raw-veneer",
-        match: (location) =>
-          (matchesPath(location, "/warehouse-b") &&
-            matchesSearchParam(location, "inventory", "raw-veneer")) ||
-          matchesInventoryRecordRoute(location, "raw-veneer", "warehouse-b"),
+        id: "warehouse-b-factory",
+        label: "Factory",
+        to: "/warehouse-b?section=factory&factory=slicing",
+        match: (location) => matchesSection(location, "/warehouse-b", "factory"),
       },
       {
-        id: "warehouse-b-plywood",
-        label: "Plywood",
-        to: "/warehouse-b?inventory=plywood",
+        id: "warehouse-b-inspection",
+        label: "Inspection",
+        to: "/warehouse-b?section=inspection",
         match: (location) =>
-          (matchesPath(location, "/warehouse-b") &&
-            matchesSearchParam(location, "inventory", "plywood")) ||
-          matchesInventoryRecordRoute(location, "plywood", "warehouse-b"),
-      },
-      {
-        id: "warehouse-b-mdf",
-        label: "MDF",
-        to: "/warehouse-b?inventory=mdf",
-        match: (location) =>
-          (matchesPath(location, "/warehouse-b") &&
-            matchesSearchParam(location, "inventory", "mdf")) ||
-          matchesInventoryRecordRoute(location, "mdf", "warehouse-b"),
+          matchesSection(location, "/warehouse-b", "inspection"),
       },
     ],
   },
@@ -281,10 +294,22 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
     id: "warehouse-c",
     label: "Warehouse C",
     icon: Warehouse,
-    to: "/warehouse-c",
-    match: (location) =>
-      matchesPath(location, "/warehouse-c") ||
-      matchesAnyWarehouseInventoryRecordRoute(location, "warehouse-c"),
+    items: [
+      {
+        id: "warehouse-c-inventory",
+        label: "Inventory",
+        to: "/warehouse-c?section=inventory&inventory=raw-veneer",
+        match: (location) =>
+          matchesSectionOrDefault(location, "/warehouse-c", "inventory") ||
+          matchesAnyWarehouseInventoryRecordRoute(location, "warehouse-c"),
+      },
+      {
+        id: "warehouse-c-factory",
+        label: "Factory",
+        to: "/warehouse-c?section=factory&factory=export-oem",
+        match: (location) => matchesSection(location, "/warehouse-c", "factory"),
+      },
+    ],
   },
   {
     id: "qc",
@@ -422,3 +447,107 @@ export const sidebarNavigation: SidebarNavigationEntry[] = [
     ],
   },
 ];
+
+export function getSidebarNavigation(
+  dynamicWarehouses: readonly DynamicWarehouseSidebarItem[] = [],
+): SidebarNavigationEntry[] {
+  const dynamicWarehouseEntries: SidebarNavigationEntry[] =
+    dynamicWarehouses.map((warehouse) => {
+      if (warehouse.warehouseType === "Storage") {
+        return {
+          id: `dynamic-warehouse-${warehouse.slug}`,
+          label: warehouse.label,
+          icon: Warehouse,
+          items: [
+            {
+              id: `dynamic-warehouse-${warehouse.slug}-inventory`,
+              label: "Inventory",
+              to: `/warehouses/${warehouse.slug}?section=inventory&inventory=veneer-blocks`,
+              match: (location) =>
+                matchesPath(location, `/warehouses/${warehouse.slug}`) &&
+                (!getSearchParam(location, "section") ||
+                  getSearchParam(location, "section") === "inventory"),
+            },
+            {
+              id: `dynamic-warehouse-${warehouse.slug}-factory`,
+              label: "Factory",
+              to: `/warehouses/${warehouse.slug}?section=factory&factory=slicing`,
+              match: (location) =>
+                matchesSection(location, `/warehouses/${warehouse.slug}`, "factory"),
+            },
+            {
+              id: `dynamic-warehouse-${warehouse.slug}-inspection`,
+              label: "Inspection",
+              to: `/warehouses/${warehouse.slug}?section=inspection`,
+              match: (location) =>
+                matchesSection(
+                  location,
+                  `/warehouses/${warehouse.slug}`,
+                  "inspection",
+                ),
+            },
+          ],
+        } satisfies SidebarNavigationGroup;
+      }
+
+      if (warehouse.warehouseType === "Production") {
+        return {
+          id: `dynamic-warehouse-${warehouse.slug}`,
+          label: warehouse.label,
+          icon: Warehouse,
+          items: [
+            {
+              id: `dynamic-warehouse-${warehouse.slug}-inventory`,
+              label: "Inventory",
+              to: `/warehouses/${warehouse.slug}?section=inventory&inventory=raw-veneer`,
+              match: (location) =>
+                matchesPath(location, `/warehouses/${warehouse.slug}`) &&
+                (!getSearchParam(location, "section") ||
+                  getSearchParam(location, "section") === "inventory"),
+            },
+            {
+              id: `dynamic-warehouse-${warehouse.slug}-factory`,
+              label: "Factory",
+              to: `/warehouses/${warehouse.slug}?section=factory&factory=export-oem`,
+              match: (location) =>
+                matchesSection(location, `/warehouses/${warehouse.slug}`, "factory"),
+            },
+          ],
+        } satisfies SidebarNavigationGroup;
+      }
+
+      if (warehouse.warehouseType === "Inward") {
+        return {
+          id: `dynamic-warehouse-${warehouse.slug}`,
+          label: warehouse.label,
+          icon: Warehouse,
+          to: `/warehouses/${warehouse.slug}?inventory=veneer-blocks`,
+          match: (location) =>
+            matchesPath(location, `/warehouses/${warehouse.slug}`),
+        } satisfies SidebarNavigationLink;
+      }
+
+      return {
+        id: `dynamic-warehouse-${warehouse.slug}`,
+        label: warehouse.label,
+        icon: Warehouse,
+        to: `/warehouses/${warehouse.slug}`,
+        match: (location) =>
+          matchesPath(location, `/warehouses/${warehouse.slug}`),
+      } satisfies SidebarNavigationLink;
+    });
+
+  const qcIndex = staticSidebarNavigation.findIndex((entry) => entry.id === "qc");
+
+  if (qcIndex === -1 || dynamicWarehouseEntries.length === 0) {
+    return [...staticSidebarNavigation];
+  }
+
+  return [
+    ...staticSidebarNavigation.slice(0, qcIndex),
+    ...dynamicWarehouseEntries,
+    ...staticSidebarNavigation.slice(qcIndex),
+  ];
+}
+
+export const sidebarNavigation = getSidebarNavigation();

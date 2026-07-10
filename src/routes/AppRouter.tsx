@@ -18,7 +18,7 @@ import { ProfilePage } from "../features/profile";
 import { QcModulePage } from "../features/qc";
 import { rolesPermissionsRoutes } from "../features/roles-permissions";
 import { userManagementRoutes } from "../features/user-management";
-import { WarehousesPage } from "../features/warehouses";
+import { DynamicWarehousePage, WarehousesPage } from "../features/warehouses";
 import { FeaturePlaceholderPage } from "../features/shared/FeaturePlaceholderPage";
 import { ComponentLibraryPage } from "../pages/ComponentLibraryPage";
 
@@ -64,6 +64,10 @@ const router = createBrowserRouter([
         element: <WarehousesPage warehouseId="warehouse-c" />,
       },
       {
+        path: "warehouses/:warehouseSlug",
+        Component: DynamicWarehousePage,
+      },
+      {
         path: "qc",
         element: <Navigate replace to="/qc/pending?inventory=veneer-blocks" />,
       },
@@ -81,7 +85,7 @@ const router = createBrowserRouter([
         element: (
           <Navigate
             replace
-            to="/warehouse-b?inventory=veneer-blocks"
+            to="/warehouse-b?section=inventory&inventory=veneer-blocks"
           />
         ),
       },

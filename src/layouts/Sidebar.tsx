@@ -30,7 +30,11 @@ import {
   signOut,
 } from "../features/auth";
 import {
-  sidebarNavigation,
+  getDynamicSidebarWarehouses,
+  LOCAL_WAREHOUSES_UPDATED_EVENT,
+} from "../features/warehouses/shared/localWarehouseStore";
+import {
+  getSidebarNavigation,
   type SidebarNavigationEntry,
   type SidebarNavigationGroup,
   type SidebarMatchLocation,
@@ -59,6 +63,9 @@ export function Sidebar({
   const navigate = useNavigate();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
+  const [dynamicWarehouses, setDynamicWarehouses] = useState(() =>
+    getDynamicSidebarWarehouses(),
+  );
   const userDisplayName = useMemo(
     () => getUserDisplayName(currentUser),
     [currentUser],
@@ -71,11 +78,15 @@ export function Sidebar({
     pathname: location.pathname,
     search: location.search,
   };
+  const navigationEntries = useMemo(
+    () => getSidebarNavigation(dynamicWarehouses),
+    [dynamicWarehouses],
+  );
   const [accountMenuAnchorEl, setAccountMenuAnchorEl] =
     useState<HTMLElement | null>(null);
 
   const activeGroupId =
-    sidebarNavigation.find(
+    navigationEntries.find(
       (entry) =>
         isExpandableGroup(entry) &&
         (
@@ -86,7 +97,7 @@ export function Sidebar({
 
   const initialOpenGroupId =
     activeGroupId ??
-    sidebarNavigation.find(
+    navigationEntries.find(
       (entry) => isExpandableGroup(entry) && entry.defaultOpen,
     )?.id ??
     null;
@@ -109,6 +120,26 @@ export function Sidebar({
     window.addEventListener(AUTH_USER_UPDATED_EVENT, handleUserUpdate);
     return () => {
       window.removeEventListener(AUTH_USER_UPDATED_EVENT, handleUserUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleWarehousesUpdate = () => {
+      setDynamicWarehouses(getDynamicSidebarWarehouses());
+    };
+
+    window.addEventListener(
+      LOCAL_WAREHOUSES_UPDATED_EVENT,
+      handleWarehousesUpdate,
+    );
+    window.addEventListener("storage", handleWarehousesUpdate);
+
+    return () => {
+      window.removeEventListener(
+        LOCAL_WAREHOUSES_UPDATED_EVENT,
+        handleWarehousesUpdate,
+      );
+      window.removeEventListener("storage", handleWarehousesUpdate);
     };
   }, []);
 
@@ -184,6 +215,7 @@ export function Sidebar({
           px: collapsed ? 1 : 2,
           py: 2,
           gap: 1,
+          overflow: "hidden",
         }}
       >
         <Stack
@@ -285,6 +317,7 @@ export function Sidebar({
           sx={{
             flexGrow: 1,
             minHeight: 0,
+            overflow: "hidden",
           }}
         >
           <List
@@ -292,11 +325,24 @@ export function Sidebar({
             sx={{
               display: "flex",
               flexDirection: "column",
+              flexGrow: 1,
               gap: 1,
               alignItems: collapsed ? "center" : "stretch",
+              minHeight: 0,
+              overflowY: "auto",
+              overflowX: "hidden",
+              pb: 1,
+              scrollbarWidth: "thin",
+              "&::-webkit-scrollbar": {
+                width: 6,
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: theme.customTokens.borders.default,
+                borderRadius: `${theme.customTokens.radius.pill}px`,
+              },
             }}
           >
-            {sidebarNavigation.map((entry) => {
+            {navigationEntries.map((entry) => {
               const hasChildren = isExpandableGroup(entry);
               const isActive = hasChildren
                 ? entry.items.some((item) => item.match(sidebarLocation))
@@ -527,7 +573,7 @@ export function Sidebar({
                                   lineHeight: 1,
                                 }}
                               >
-                                •
+                                {"\u2022"}
                               </Box>
 
                               <ListItemText
@@ -552,11 +598,17 @@ export function Sidebar({
           </List>
         </Stack>
 
-        <Divider sx={{ borderColor: "divider" }} />
+        <Divider
+          sx={{
+            borderColor: "divider",
+            flexShrink: 0,
+          }}
+        />
 
         <Box
           sx={{
             pt: 1,
+            flexShrink: 0,
           }}
         >
           <Tooltip

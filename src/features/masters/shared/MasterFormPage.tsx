@@ -16,11 +16,18 @@ import {
 interface MasterFormPageProps {
   definition: MasterDefinition;
   mode: "add" | "edit" | "view";
+  onSave?: (context: {
+    definition: MasterDefinition;
+    mode: "add" | "edit";
+    row?: MasterRecord;
+    values: Record<string, MasterFieldValue>;
+  }) => void;
 }
 
 export function MasterFormPage({
   definition,
   mode,
+  onSave,
 }: MasterFormPageProps) {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
@@ -57,6 +64,29 @@ export function MasterFormPage({
       </MasterPageShell>
     );
   }
+
+  const handleSave = () => {
+    if (mode === "view") {
+      return;
+    }
+
+    const saveContext = row
+      ? {
+          definition,
+          mode,
+          row,
+          values,
+        }
+      : {
+          definition,
+          mode,
+          values,
+        };
+
+    onSave?.(saveContext);
+
+    navigate(paths.list);
+  };
 
   return (
     <MasterPageShell
@@ -127,7 +157,7 @@ export function MasterFormPage({
                 <Button
                   variant="contained"
                   startIcon={<Save size={16} />}
-                  onClick={() => navigate(paths.list)}
+                  onClick={handleSave}
                 >
                   Save
                 </Button>

@@ -122,7 +122,7 @@ export function getWarehouseAInventoryPath(slug: string) {
 }
 
 export function getWarehouseBInventoryPath(slug: string): string {
-  return `/warehouse-b?inventory=${slug}`;
+  return `/warehouse-b?section=inventory&inventory=${slug}`;
 }
 
 export function getWarehouseInventoryListPath(
@@ -134,6 +134,10 @@ export function getWarehouseInventoryListPath(
     return getInventoryWarehouseBListPath(slug, tab);
   }
 
+  if (warehouse === "warehouse-c") {
+    return `${getWarehouseRootPath(warehouse)}?section=inventory&inventory=${slug}`;
+  }
+
   return `${getWarehouseRootPath(warehouse)}?inventory=${slug}`;
 }
 
@@ -142,8 +146,8 @@ export function getInventoryWarehouseBListPath(
   tab: InventoryProcessTab,
 ): string {
   return tab === "issued"
-    ? `/warehouse-b?inventory=${slug}`
-    : `/warehouse-b?inventory=${slug}&tab=${tab}`;
+    ? `/warehouse-b?section=inventory&inventory=${slug}`
+    : `/warehouse-b?section=inventory&inventory=${slug}&tab=${tab}`;
 }
 
 function getInventoryRecordQuery(

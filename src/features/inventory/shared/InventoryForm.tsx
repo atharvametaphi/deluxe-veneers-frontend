@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { ChevronLeft, Save } from "lucide-react";
+import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
@@ -15,7 +15,6 @@ import {
 import { WarehouseAAddStockWorkspace } from "./WarehouseAAddStockWorkspace";
 import {
   buildInventoryInitialValues,
-  getInventoryPageSubtitle,
   getInventoryPageTitle,
   getInventoryProcessTab,
   getInventoryPaths,
@@ -67,7 +66,12 @@ export function InventoryForm<Row extends InventoryRecord>({
       ? undefined
       : definition.rows.find((record) => record.id === params.id);
 
-  const fields = mode === "view" ? definition.viewFields : definition.formFields;
+  const fields =
+    mode === "add"
+      ? definition.formFields
+      : mode === "edit"
+        ? definition.editFields ?? definition.viewFields
+        : definition.viewFields;
 
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildInventoryInitialValues(fields, row),
@@ -101,7 +105,7 @@ export function InventoryForm<Row extends InventoryRecord>({
     );
   }
 
-  const primaryLabel = mode === "add" ? "Save" : "Update";
+  const primaryLabel = "Save";
   const warehouseInventoryBreadcrumbs = getInventoryBreadcrumbs({
     currentLabel: mode === "add" ? "Add" : mode === "edit" ? "Edit" : "View",
     definitionTitle: definition.title,
@@ -118,16 +122,11 @@ export function InventoryForm<Row extends InventoryRecord>({
     isWarehouseAAddStockSlug(definition.slug)
       ? definition.slug
       : null;
-  const pageSubtitle =
-    warehouseAAddStockSlug === null
-      ? getInventoryPageSubtitle(definition, mode)
-      : null;
 
   return (
     <InventoryPageShell
       breadcrumbs={warehouseInventoryBreadcrumbs}
       title={getInventoryPageTitle(definition, mode)}
-      {...(pageSubtitle ? { subtitle: pageSubtitle } : {})}
     >
       <MasterSectionCard>
         <Box
@@ -173,6 +172,16 @@ export function InventoryForm<Row extends InventoryRecord>({
                 >
                   Back
                 </Button>
+
+                {row ? (
+                  <Button
+                    variant="contained"
+                    startIcon={<Pencil size={16} />}
+                    onClick={() => navigate(paths.edit(row.id))}
+                  >
+                    Edit
+                  </Button>
+                ) : null}
               </>
             ) : (
               <>

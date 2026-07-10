@@ -6,7 +6,7 @@ export function VeneerBlocksListPage() {
   return (
     <Navigate
       replace
-      to="/warehouse-b?inventory=veneer-blocks"
+      to="/warehouse-b?section=inventory&inventory=veneer-blocks"
     />
   );
 }

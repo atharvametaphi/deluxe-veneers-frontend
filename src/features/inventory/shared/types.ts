@@ -12,6 +12,7 @@ export type InventoryRecord = EnterpriseTableRow;
 export interface InventoryDefinition<
   Row extends InventoryRecord = InventoryRecord,
 > {
+  editFields?: readonly MasterFieldDefinition[];
   formFields: readonly MasterFieldDefinition[];
   initialSort?: EnterpriseTableSortConfig<Row>;
   listColumns: readonly EnterpriseTableColumn<Row>[];

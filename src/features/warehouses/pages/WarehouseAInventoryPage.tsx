@@ -44,6 +44,16 @@ const warehouseATabs = [
 }[];
 
 export function WarehouseAInventoryPage() {
+  return <WarehouseAInventoryModulePage />;
+}
+
+interface WarehouseAInventoryModulePageProps {
+  warehouseName?: string;
+}
+
+export function WarehouseAInventoryModulePage({
+  warehouseName = "Warehouse A",
+}: WarehouseAInventoryModulePageProps = {}) {
   const theme = useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -110,10 +120,10 @@ export function WarehouseAInventoryPage() {
   return (
     <MasterPageShell
       breadcrumbs={[
-        { label: "Warehouse A" },
+        { label: warehouseName },
         { label: activeConfig.title },
       ]}
-      title="Warehouse A"
+      title={warehouseName}
     >
       <Stack
         sx={(theme) => ({

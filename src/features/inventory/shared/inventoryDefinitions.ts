@@ -226,6 +226,53 @@ function createInventoryFormFields(
   ];
 }
 
+const inventoryEditSelectKeys = new Set([
+  "approvalStatus",
+  "color",
+  "currency",
+  "inwardType",
+  "itemName",
+  "itemSrNo",
+  "plywoodType",
+  "subCategory",
+  "supplierCode",
+  "supplierItemName",
+  "supplierName",
+  "timberColor",
+  "unitName",
+  "veneerSrNo",
+]);
+
+function createInventoryEditFields(
+  columns: readonly { key: string; label: string }[],
+  rows: readonly InventoryRecord[],
+): ReadonlyArray<MasterFieldDefinition> {
+  return columns.map<MasterFieldDefinition>((column) => {
+    if (column.key === "inwardDate") {
+      return {
+        key: column.key,
+        label: column.label,
+        type: "date",
+      };
+    }
+
+    if (inventoryEditSelectKeys.has(column.key)) {
+      return {
+        key: column.key,
+        label: column.label,
+        type: "select",
+        options: uniqueInventoryOptions(rows, column.key),
+      };
+    }
+
+    return {
+      key: column.key,
+      label: column.label,
+      type: "text",
+    };
+  });
+}
+
 const rawVeneerRows = createInventoryRows<RawVeneerRecord>("raw-veneer", [
   {
     inwardSrNo: "INW-RV-2026-0001",
@@ -1537,6 +1584,7 @@ export const rawVeneerDefinition: InventoryDefinition<RawVeneerRecord> = {
   slug: "raw-veneer",
   title: "Raw Veneer",
   listColumns: rawVeneerColumns,
+  editFields: createInventoryEditFields(rawVeneerColumns, rawVeneerRows),
   formFields: createInventoryFormFields(rawVeneerRows),
   viewFields: createInventoryViewFields(rawVeneerColumns),
   rows: rawVeneerRows,
@@ -1547,6 +1595,7 @@ export const veneerBlocksDefinition: InventoryDefinition<StockRecord> = {
   slug: "veneer-blocks",
   title: "Veneer Blocks",
   listColumns: stockColumns,
+  editFields: createInventoryEditFields(stockColumns, veneerBlocksRows),
   formFields: createInventoryFormFields(veneerBlocksRows),
   viewFields: createInventoryViewFields(stockColumns),
   rows: veneerBlocksRows,
@@ -1557,6 +1606,7 @@ export const plywoodDefinition: InventoryDefinition<StockRecord> = {
   slug: "plywood",
   title: "Plywood",
   listColumns: stockColumns,
+  editFields: createInventoryEditFields(stockColumns, plywoodRows),
   formFields: createInventoryFormFields(plywoodRows),
   viewFields: createInventoryViewFields(stockColumns),
   rows: plywoodRows,
@@ -1567,6 +1617,7 @@ export const mdfDefinition: InventoryDefinition<StockRecord> = {
   slug: "mdf",
   title: "MDF",
   listColumns: stockColumns,
+  editFields: createInventoryEditFields(stockColumns, mdfRows),
   formFields: createInventoryFormFields(mdfRows),
   viewFields: createInventoryViewFields(stockColumns),
   rows: mdfRows,
@@ -1577,6 +1628,7 @@ export const consumablesDefinition: InventoryDefinition<ConsumableRecord> = {
   slug: "consumables",
   title: "Consumables",
   listColumns: consumableColumns,
+  editFields: createInventoryEditFields(consumableColumns, consumablesRows),
   formFields: createInventoryFormFields(consumablesRows),
   viewFields: createInventoryViewFields(consumableColumns),
   rows: consumablesRows,

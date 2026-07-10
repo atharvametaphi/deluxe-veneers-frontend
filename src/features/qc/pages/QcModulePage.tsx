@@ -48,7 +48,10 @@ export function QcModulePage({ stage }: QcModulePageProps) {
               id: "move-to-warehouse-b",
               label: "Move to Warehouse B",
               icon: Warehouse,
-              onSelect: () => navigate(`/warehouse-b?inventory=${activeInventory}`),
+              onSelect: () =>
+                navigate(
+                  `/warehouse-b?section=inventory&inventory=${activeInventory}`,
+                ),
             },
           ],
     [activeInventory, navigate, stage],

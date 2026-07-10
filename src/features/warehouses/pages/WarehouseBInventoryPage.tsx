@@ -1,19 +1,24 @@
 import { useMemo, useState } from "react";
 import {
-  Box,
-  Button,
-  InputAdornment,
-  Typography,
-  Stack,
-  TextField,
-  useTheme,
-} from "@mui/material";
-import {
+  BadgeCheck,
   Download,
   Eye,
   FileOutput,
+  Pencil,
+  Plus,
+  RotateCcw,
   Search,
 } from "lucide-react";
+import {
+  Box,
+  Button,
+  InputAdornment,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { useNavigate, useSearchParams } from "react-router";
 
 import {
@@ -25,6 +30,15 @@ import {
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import {
+  dryingDefinition,
+  getFactoryPaths,
+  getFactoryProcessTabs,
+  getFactoryRowsForTab,
+  slicingDefinition,
+  type FactoryProcessTab,
+  type FactoryRecord,
+} from "../../factory/shared";
+import {
   InventoryPageShell,
   mdfDefinition,
   plywoodDefinition,
@@ -32,39 +46,57 @@ import {
   veneerBlocksDefinition,
 } from "../../inventory/shared";
 import {
+  getInventoryPaths,
+  getInventoryProcessTab,
+  getInventoryRowsForTab,
   getWarehouseBInventoryPath,
   getWarehouseBRootPath,
-  getInventoryProcessTab,
-  getInventoryPaths,
-  getInventoryRowsForTab,
   type InventoryProcessTab,
 } from "../../inventory/shared/inventoryUtils";
-import type { InventoryDefinition, InventoryRecord } from "../../inventory/shared/types";
+import type {
+  InventoryDefinition,
+  InventoryRecord,
+} from "../../inventory/shared/types";
+import { qcTableConfigs } from "../../qc/shared/qcTableData";
 import {
   warehouseRawVeneerTabConfigs,
   type WarehouseARawVeneerTab,
 } from "../shared/warehouseTableData";
+import type { WarehouseInventoryRow } from "../shared/warehouseTableData";
 
+type WarehouseBSection = "factory" | "inspection" | "inventory";
 type WarehouseBInventorySlug =
   | "mdf"
   | "plywood"
   | "raw-veneer"
   | "veneer-blocks";
+type WarehouseBFactorySlug = "drying" | "slicing";
+type WarehouseBInspectionSlug = "veneer-blocks";
+
+const warehouseBInventoryTabs = [
+  { label: "Veneer Blocks", value: "veneer-blocks" },
+  { label: "Raw Veneer", value: "raw-veneer" },
+  { label: "Plywood", value: "plywood" },
+  { label: "MDF", value: "mdf" },
+] as const satisfies readonly {
+  label: string;
+  value: WarehouseBInventorySlug;
+}[];
 
 const warehouseBProcessTabs = [
-  { label: "Inventory", value: "issued" },
+  { label: "Stock", value: "issued" },
   { label: "History", value: "history" },
 ] as const satisfies readonly {
   label: string;
   value: InventoryProcessTab;
 }[];
 
-const rawVeneerTabs = [
-  { label: "Purchase", value: "purchase" },
-  { label: "Production", value: "production" },
+const warehouseBFactoryTabs = [
+  { label: "Slicing", value: "slicing" },
+  { label: "Drying", value: "drying" },
 ] as const satisfies readonly {
   label: string;
-  value: WarehouseARawVeneerTab;
+  value: WarehouseBFactorySlug;
 }[];
 
 const inventoryDefinitions = {
@@ -74,7 +106,26 @@ const inventoryDefinitions = {
   mdf: mdfDefinition,
 } satisfies Record<WarehouseBInventorySlug, InventoryDefinition<any>>;
 
+const warehouseBFactoryDefinitions = {
+  slicing: slicingDefinition,
+  drying: dryingDefinition,
+} as const;
+
+const warehouseBInspectionConfig = qcTableConfigs.pending["veneer-blocks"];
+
 export function WarehouseBInventoryPage() {
+  return <WarehouseBInventoryModulePage />;
+}
+
+interface WarehouseBInventoryModulePageProps {
+  warehouseName?: string;
+  warehouseRootPath?: string;
+}
+
+export function WarehouseBInventoryModulePage({
+  warehouseName = "Warehouse B",
+  warehouseRootPath = getWarehouseBRootPath(),
+}: WarehouseBInventoryModulePageProps = {}) {
   const theme = useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -82,9 +133,14 @@ export function WarehouseBInventoryPage() {
   const [selectedRows, setSelectedRows] = useState<InventoryRecord[]>([]);
   const [selectionResetKey, setSelectionResetKey] = useState(0);
 
+  const activeSection = getActiveWarehouseBSection(searchParams.get("section"));
   const activeInventory = getActiveInventoryTab(searchParams.get("inventory"));
   const activeProcessTab = getInventoryProcessTab(searchParams.get("tab"));
   const activeRawVeneerTab = getActiveRawVeneerTab(searchParams.get("rawTab"));
+  const activeFactory = getActiveWarehouseBFactory(searchParams.get("factory"));
+  const activeFactoryProcessTab = getActiveFactoryProcessTab(
+    searchParams.get("factoryTab"),
+  );
   const activeDefinition = inventoryDefinitions[activeInventory];
   const activeRawVeneerConfig =
     activeInventory === "raw-veneer"
@@ -96,64 +152,199 @@ export function WarehouseBInventoryPage() {
   const activeColumns = (
     activeRawVeneerConfig?.columns ?? activeDefinition.listColumns
   ) as readonly EnterpriseTableColumn<InventoryRecord>[];
-  const paths = getInventoryPaths(activeDefinition.slug, activeProcessTab);
+  const inventoryPaths = getInventoryPaths(
+    activeDefinition.slug,
+    activeProcessTab,
+  );
 
-  const tabRows = useMemo(
+  const activeFactoryDefinition = warehouseBFactoryDefinitions[activeFactory];
+  const factoryProcessTabs = useMemo(
+    () => getFactoryProcessTabs(activeFactoryDefinition.title),
+    [activeFactoryDefinition.title],
+  );
+  const [revertedFactoryRowIds, setRevertedFactoryRowIds] = useState<string[]>(
+    [],
+  );
+  const factoryRows = useMemo(
+    () => getFactoryRowsForTab(activeFactoryDefinition.rows, activeFactoryProcessTab),
+    [activeFactoryDefinition.rows, activeFactoryProcessTab],
+  );
+  const inventoryTabRows = useMemo(
     () => getInventoryRowsForTab(activeRows, activeProcessTab),
     [activeProcessTab, activeRows],
   );
 
-  const filteredRows = useMemo(() => {
+  const filteredInventoryRows = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
     if (!normalizedSearch) {
-      return tabRows;
+      return inventoryTabRows;
     }
 
-    return tabRows.filter((row) =>
+    return inventoryTabRows.filter((row) =>
       Object.values(row).some((value) =>
-        formatInventorySearchValue(value).includes(normalizedSearch),
+        formatSearchValue(value).includes(normalizedSearch),
       ),
     );
-  }, [searchValue, tabRows]);
+  }, [inventoryTabRows, searchValue]);
 
-  const rowActions = useMemo<ReadonlyArray<EnterpriseTableAction<any>>>(
-    () => {
-      const baseActions: EnterpriseTableAction<any>[] = [
-        {
-          id: "view",
-          label: "View",
-          icon: Eye,
-          onSelect: (row) => navigate(paths.view(getWarehouseBRecordId(row))),
-        },
-      ];
+  const filteredFactoryRows = useMemo(() => {
+    const normalizedSearch = searchValue.trim().toLowerCase();
 
-      if (activeProcessTab === "history") {
-        return baseActions;
-      }
+    if (!normalizedSearch) {
+      return factoryRows.filter((row) => !revertedFactoryRowIds.includes(row.id));
+    }
 
-      if (
-        activeInventory === "veneer-blocks" &&
-        activeProcessTab === "issued"
-      ) {
-        baseActions.push({
-          id: "issue-for-slicing",
-          label: "Issue for Slicing",
-          onSelect: (row) =>
-            navigate("/factory/slicing/add", {
-              state: {
-                sourceRow: row,
-              },
-            }),
-        });
-      }
+    return factoryRows
+      .filter((row) => !revertedFactoryRowIds.includes(row.id))
+      .filter((row) =>
+        Object.values(row).some((value) =>
+          formatSearchValue(value).includes(normalizedSearch),
+        ),
+      );
+  }, [factoryRows, revertedFactoryRowIds, searchValue]);
 
+  const filteredInspectionRows = useMemo(() => {
+    const normalizedSearch = searchValue.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return warehouseBInspectionConfig.rows;
+    }
+
+    return warehouseBInspectionConfig.rows.filter((row) =>
+      Object.values(row).some((value) =>
+        formatSearchValue(value).includes(normalizedSearch),
+      ),
+    );
+  }, [searchValue]);
+
+  const inventoryRowActions = useMemo<
+    ReadonlyArray<EnterpriseTableAction<InventoryRecord>>
+  >(() => {
+    const baseActions: EnterpriseTableAction<InventoryRecord>[] = [
+      {
+        id: "view",
+        label: "View",
+        icon: Eye,
+        onSelect: (row) =>
+          navigate(inventoryPaths.view(getWarehouseBRecordId(row))),
+      },
+    ];
+
+    if (activeProcessTab === "history") {
       return baseActions;
-    },
-    [activeInventory, activeProcessTab, navigate, paths],
+    }
+
+    if (
+      activeInventory === "veneer-blocks" &&
+      activeProcessTab === "issued"
+    ) {
+      baseActions.push({
+        id: "issue-for-slicing",
+        label: "Issue for Slicing",
+        onSelect: (row) =>
+          navigate("/factory/slicing/add", {
+            state: {
+              sourceRow: row,
+            },
+          }),
+      });
+    }
+
+    return baseActions;
+  }, [activeInventory, activeProcessTab, inventoryPaths, navigate]);
+
+  const factoryPaths = getFactoryPaths(activeFactoryDefinition.slug);
+  const factoryRowActions = useMemo<
+    ReadonlyArray<EnterpriseTableAction<FactoryRecord>>
+  >(() => {
+    const baseActions: EnterpriseTableAction<FactoryRecord>[] = [
+      {
+        id: "view",
+        label: "View",
+        icon: Eye,
+        onSelect: (row) => navigate(factoryPaths.view(row.id)),
+      },
+      {
+        id: "edit",
+        label: "Edit",
+        icon: Pencil,
+        onSelect: (row) => navigate(factoryPaths.edit(row.id)),
+      },
+    ];
+
+    if (activeFactoryProcessTab === "issued") {
+      baseActions.unshift({
+        id: "create-process",
+        label: `Create ${activeFactoryDefinition.title}`,
+        icon: Plus,
+        onSelect: (row) =>
+          navigate(factoryPaths.add, {
+            state: { sourceRow: row },
+          }),
+      });
+      baseActions.push({
+        id: "revert-item",
+        label: "Revert Item",
+        icon: RotateCcw,
+        onSelect: (row) =>
+          setRevertedFactoryRowIds((current) =>
+            current.includes(row.id) ? current : [...current, row.id],
+          ),
+      });
+    }
+
+    return baseActions;
+  }, [
+    activeFactoryDefinition.title,
+    activeFactoryProcessTab,
+    factoryPaths,
+    navigate,
+  ]);
+
+  const getFactoryRowActions = useMemo<
+    ((row: FactoryRecord) => readonly EnterpriseTableAction<FactoryRecord>[]) | undefined
+  >(() => {
+    if (activeFactoryProcessTab !== "done") {
+      return undefined;
+    }
+
+    return (row) => {
+      const nextProcessActions = getWarehouseFactoryNextProcessActions(
+        row,
+        navigate,
+        activeFactoryDefinition.slug,
+      );
+
+      if (nextProcessActions.length === 0) {
+        return factoryRowActions;
+      }
+
+      return [...factoryRowActions, ...nextProcessActions];
+    };
+  }, [
+    activeFactoryDefinition.slug,
+    activeFactoryProcessTab,
+    factoryRowActions,
+    navigate,
+  ]);
+
+  const inspectionRowActions = useMemo<
+    ReadonlyArray<EnterpriseTableAction<WarehouseInventoryRow>>
+  >(
+    () => [
+      {
+        id: "mark-as-qc-done",
+        label: "Mark as QC Done",
+        icon: BadgeCheck,
+        onSelect: () => navigate("/qc/done?inventory=veneer-blocks"),
+      },
+    ],
+    [navigate],
   );
 
   const showBulkIssueForSlicing =
+    activeSection === "inventory" &&
     activeInventory === "veneer-blocks" &&
     activeProcessTab === "issued" &&
     selectedRows.length > 1;
@@ -165,65 +356,27 @@ export function WarehouseBInventoryPage() {
 
   return (
     <InventoryPageShell
-      breadcrumbs={[
-        {
-          label: "Warehouse B",
-          to: getWarehouseBRootPath(),
-        },
-        {
-          label: activeDefinition.title,
-          to: getWarehouseBInventoryPath(activeDefinition.slug),
-        },
-        ...(activeInventory === "raw-veneer"
-          ? [{ label: activeRawVeneerConfig?.title ?? "Purchase" }]
-          : []),
-        { label: activeProcessTab === "history" ? "History" : "Inventory" },
-      ]}
-      processTabs={
-        <Stack
-          sx={(currentTheme) => ({
-            gap: currentTheme.spacing(0),
-          })}
-        >
-          {activeInventory === "raw-veneer" ? (
-            <ModuleProcessTabs
-              onChange={(value) => {
-                setSearchParams(
-                  {
-                    inventory: activeInventory,
-                    rawTab: value,
-                    ...(activeProcessTab === "history" ? { tab: "history" } : {}),
-                  },
-                  { replace: true },
-                );
-              }}
-              tabs={rawVeneerTabs}
-              value={activeRawVeneerTab}
-            />
-          ) : null}
-
-          <ModuleProcessTabs
-            onChange={(value) => {
-              setSearchParams(
-                activeInventory === "raw-veneer"
-                  ? {
-                      inventory: activeInventory,
-                      rawTab: activeRawVeneerTab,
-                      ...(value === "history" ? { tab: value } : {}),
-                    }
-                  : {
-                      inventory: activeInventory,
-                      ...(value === "history" ? { tab: value } : {}),
-                    },
-                { replace: true },
-              );
-            }}
-            tabs={warehouseBProcessTabs}
-            value={activeProcessTab}
-          />
-        </Stack>
-      }
-      title="Warehouse B"
+      breadcrumbs={getWarehouseBBreadcrumbs({
+        activeDefinitionSlug: activeDefinition.slug,
+        activeDefinitionTitle: activeDefinition.title,
+        activeFactoryTitle: activeFactoryDefinition.title,
+        activeProcessTab,
+        activeRawVeneerTitle: activeRawVeneerConfig?.title,
+        activeSection,
+        warehouseName,
+        warehouseRootPath,
+      })}
+      processTabs={renderWarehouseBSectionTabs({
+        activeFactory,
+        activeInventory,
+        activeFactoryProcessTab,
+        activeProcessTab,
+        factoryProcessTabs,
+        activeRawVeneerTab,
+        activeSection,
+        setSearchParams,
+      })}
+      title={warehouseName}
     >
       <Stack
         sx={(currentTheme) => ({
@@ -261,20 +414,51 @@ export function WarehouseBInventoryPage() {
             }}
           />
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.25}
-            useFlexGap
-            sx={{ alignItems: { xs: "stretch", lg: "center" } }}
-          >
-            <Button variant="outlined" startIcon={<FileOutput size={16} />}>
-              Export
-            </Button>
+          {activeSection === "inventory" ? (
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.25}
+              useFlexGap
+              sx={{ alignItems: { xs: "stretch", lg: "center" } }}
+            >
+              {activeInventory === "raw-veneer" ? (
+                <TextField
+                  select
+                  value={activeRawVeneerTab}
+                  onChange={(event) => {
+                    setSearchParams(
+                      {
+                        section: "inventory",
+                        inventory: activeInventory,
+                        rawTab: event.target.value,
+                        ...(activeProcessTab === "history"
+                          ? { tab: "history" }
+                          : {}),
+                      },
+                      { replace: true },
+                    );
+                  }}
+                  sx={[
+                    getCompactFieldSx(theme),
+                    {
+                      width: { xs: "100%", sm: 160 },
+                    },
+                  ]}
+                >
+                  <MenuItem value="purchase">Purchase</MenuItem>
+                  <MenuItem value="production">Production</MenuItem>
+                </TextField>
+              ) : null}
 
-            <Button variant="outlined" startIcon={<Download size={16} />}>
-              Download
-            </Button>
-          </Stack>
+              <Button variant="outlined" startIcon={<FileOutput size={16} />}>
+                Export
+              </Button>
+
+              <Button variant="outlined" startIcon={<Download size={16} />}>
+                Download
+              </Button>
+            </Stack>
+          ) : null}
         </Stack>
 
         {showBulkIssueForSlicing ? (
@@ -304,10 +488,7 @@ export function WarehouseBInventoryPage() {
                 spacing={1.25}
                 sx={{ width: { xs: "100%", sm: "auto" } }}
               >
-                <Button
-                  variant="outlined"
-                  onClick={handleCancelBulkSelection}
-                >
+                <Button variant="outlined" onClick={handleCancelBulkSelection}>
                   Cancel
                 </Button>
 
@@ -328,23 +509,229 @@ export function WarehouseBInventoryPage() {
           </Box>
         ) : null}
 
-        <EnterpriseDataTable
-          key={`${activeInventory}-${activeRawVeneerTab}-${activeProcessTab}`}
-          actions={rowActions}
-          columns={activeColumns}
-          defaultRowsPerPage={10}
-          emptyStateLabel={`No ${activeDefinition.title.toLowerCase()} records are available for this tab.`}
-          onSelectionChange={setSelectedRows}
-          rows={filteredRows}
-          selectionResetKey={selectionResetKey}
-          selectable={activeProcessTab !== "history"}
-          {...(activeDefinition.initialSort
-            ? { initialSort: activeDefinition.initialSort }
-            : {})}
-        />
+        {activeSection === "inventory" ? (
+          <EnterpriseDataTable
+            key={`${activeInventory}-${activeRawVeneerTab}-${activeProcessTab}`}
+            actions={inventoryRowActions}
+            columns={activeColumns}
+            defaultRowsPerPage={10}
+            emptyStateLabel={`No ${activeDefinition.title.toLowerCase()} records are available for this tab.`}
+            onSelectionChange={setSelectedRows}
+            rows={filteredInventoryRows}
+            selectionResetKey={selectionResetKey}
+            selectable={activeProcessTab !== "history"}
+            {...(activeDefinition.initialSort
+              ? { initialSort: activeDefinition.initialSort }
+              : {})}
+          />
+        ) : null}
+
+        {activeSection === "factory" ? (
+          <EnterpriseDataTable
+            key={`${activeFactory}-${activeFactoryProcessTab}`}
+            actions={factoryRowActions}
+            columns={activeFactoryDefinition.listColumns}
+            defaultRowsPerPage={10}
+            rows={filteredFactoryRows}
+            {...(getFactoryRowActions
+              ? { getRowActions: getFactoryRowActions }
+              : {})}
+            {...(activeFactoryDefinition.initialSort
+              ? { initialSort: activeFactoryDefinition.initialSort }
+              : {})}
+          />
+        ) : null}
+
+        {activeSection === "inspection" ? (
+          <EnterpriseDataTable
+            key="warehouse-b-inspection-veneer-blocks"
+            actions={inspectionRowActions}
+            columns={warehouseBInspectionConfig.columns}
+            defaultRowsPerPage={10}
+            initialSort={{ key: "inwardDate", direction: "desc" }}
+            rows={filteredInspectionRows}
+          />
+        ) : null}
       </Stack>
     </InventoryPageShell>
   );
+}
+
+function renderWarehouseBSectionTabs({
+  activeFactory,
+  activeInventory,
+  activeFactoryProcessTab,
+  activeProcessTab,
+  factoryProcessTabs,
+  activeRawVeneerTab,
+  activeSection,
+  setSearchParams,
+}: {
+  activeFactory: WarehouseBFactorySlug;
+  activeInventory: WarehouseBInventorySlug;
+  activeFactoryProcessTab: FactoryProcessTab;
+  activeProcessTab: InventoryProcessTab;
+  factoryProcessTabs: ReturnType<typeof getFactoryProcessTabs>;
+  activeRawVeneerTab: WarehouseARawVeneerTab;
+  activeSection: WarehouseBSection;
+  setSearchParams: ReturnType<typeof useSearchParams>[1];
+}) {
+  if (activeSection === "factory") {
+    return (
+      <Stack
+        sx={(theme) => ({
+          gap: theme.spacing(0),
+        })}
+      >
+        <ModuleProcessTabs
+          onChange={(value) => {
+            setSearchParams(
+              {
+                section: "factory",
+                factory: value,
+                ...(activeFactoryProcessTab === "issued"
+                  ? {}
+                  : { factoryTab: activeFactoryProcessTab }),
+              },
+              { replace: true },
+            );
+          }}
+          tabs={warehouseBFactoryTabs}
+          value={activeFactory}
+        />
+
+        <ModuleProcessTabs
+          onChange={(value) => {
+            setSearchParams(
+              {
+                section: "factory",
+                factory: activeFactory,
+                ...(value === "issued" ? {} : { factoryTab: value }),
+              },
+              { replace: true },
+            );
+          }}
+          tabs={factoryProcessTabs}
+          value={activeFactoryProcessTab}
+        />
+      </Stack>
+    );
+  }
+
+  if (activeSection === "inspection") {
+    return null;
+  }
+
+  return (
+    <Stack
+      sx={(theme) => ({
+        gap: theme.spacing(0),
+      })}
+    >
+      <ModuleProcessTabs
+        onChange={(value) => {
+          setSearchParams(
+            value === "raw-veneer"
+              ? {
+                  section: "inventory",
+                  inventory: value,
+                  rawTab: activeRawVeneerTab,
+                  ...(activeProcessTab === "history" ? { tab: "history" } : {}),
+                }
+              : {
+                  section: "inventory",
+                  inventory: value,
+                  ...(activeProcessTab === "history" ? { tab: "history" } : {}),
+                },
+            { replace: true },
+          );
+        }}
+        tabs={warehouseBInventoryTabs}
+        value={activeInventory}
+      />
+
+      <ModuleProcessTabs
+        onChange={(value) => {
+          setSearchParams(
+            activeInventory === "raw-veneer"
+              ? {
+                  section: "inventory",
+                  inventory: activeInventory,
+                  rawTab: activeRawVeneerTab,
+                  ...(value === "history" ? { tab: value } : {}),
+                }
+              : {
+                  section: "inventory",
+                  inventory: activeInventory,
+                  ...(value === "history" ? { tab: value } : {}),
+                },
+            { replace: true },
+          );
+        }}
+        tabs={warehouseBProcessTabs}
+        value={activeProcessTab}
+      />
+    </Stack>
+  );
+}
+
+function getWarehouseBBreadcrumbs({
+  activeDefinitionSlug,
+  activeDefinitionTitle,
+  activeFactoryTitle,
+  activeProcessTab,
+  activeRawVeneerTitle,
+  activeSection,
+  warehouseName,
+  warehouseRootPath,
+}: {
+  activeDefinitionSlug: string;
+  activeDefinitionTitle: string;
+  activeFactoryTitle: string;
+  activeProcessTab: InventoryProcessTab;
+  activeRawVeneerTitle: string | undefined;
+  activeSection: WarehouseBSection;
+  warehouseName: string;
+  warehouseRootPath: string;
+}) {
+  if (activeSection === "factory") {
+    return [
+      {
+        label: warehouseName,
+        to: warehouseRootPath,
+      },
+      { label: "Factory" },
+      { label: activeFactoryTitle },
+    ];
+  }
+
+  if (activeSection === "inspection") {
+    return [
+      {
+        label: warehouseName,
+        to: warehouseRootPath,
+      },
+      { label: "Inspection" },
+    ];
+  }
+
+  return [
+    {
+      label: warehouseName,
+      to: warehouseRootPath,
+    },
+    { label: "Inventory" },
+    {
+      label: activeDefinitionTitle,
+      to: `${warehouseRootPath}?section=inventory&inventory=${activeDefinitionSlug}`,
+    },
+    ...(activeRawVeneerTitle ? [{ label: activeRawVeneerTitle }] : []),
+    { label: activeProcessTab === "history" ? "History" : "Stock" },
+  ];
+}
+
+function getActiveWarehouseBSection(value: string | null): WarehouseBSection {
+  return value === "factory" || value === "inspection" ? value : "inventory";
 }
 
 function getActiveInventoryTab(value: string | null): WarehouseBInventorySlug {
@@ -357,15 +744,35 @@ function getActiveRawVeneerTab(value: string | null): WarehouseARawVeneerTab {
   return value === "production" ? "production" : "purchase";
 }
 
+function getActiveWarehouseBFactory(
+  value: string | null,
+): WarehouseBFactorySlug {
+  return value === "drying" ? "drying" : "slicing";
+}
+
+function getActiveFactoryProcessTab(value: string | null): FactoryProcessTab {
+  if (
+    value === "done" ||
+    value === "history" ||
+    value === "rejected"
+  ) {
+    return value;
+  }
+
+  return "issued";
+}
+
 function getWarehouseBRecordId(row: InventoryRecord) {
   const inventoryRecordId = row["inventoryRecordId"];
 
-  return typeof inventoryRecordId === "string" && inventoryRecordId.length > 0
-    ? inventoryRecordId
-    : row.id;
+  if (typeof inventoryRecordId === "string" && inventoryRecordId.length > 0) {
+    return inventoryRecordId.replace(/-production$/, "");
+  }
+
+  return row.id;
 }
 
-function formatInventorySearchValue(value: EnterpriseTableCellValue) {
+function formatSearchValue(value: EnterpriseTableCellValue) {
   if (value instanceof Date) {
     return new Intl.DateTimeFormat("en-GB", {
       day: "2-digit",
@@ -382,3 +789,56 @@ function formatInventorySearchValue(value: EnterpriseTableCellValue) {
 
   return String(value).toLowerCase();
 }
+
+function getWarehouseFactoryNextProcessActions(
+  row: FactoryRecord,
+  navigate: ReturnType<typeof useNavigate>,
+  slug: string,
+): readonly EnterpriseTableAction<FactoryRecord>[] {
+  if (slug === "pressing") {
+    return [
+      createWarehouseFactoryIssueAction("CNC / Fluting", navigate),
+      createWarehouseFactoryIssueAction("Embossing", navigate),
+    ];
+  }
+
+  if (slug === "sample-sheets") {
+    return [createWarehouseFactoryIssueAction("Finishing", navigate)];
+  }
+
+  const issuedFor =
+    typeof row.issuedFor === "string" ? row.issuedFor.trim() : "";
+
+  if (!issuedFor || !(issuedFor in warehouseFactoryNextProcessRouteMap)) {
+    return [];
+  }
+
+  return [createWarehouseFactoryIssueAction(issuedFor, navigate)];
+}
+
+function createWarehouseFactoryIssueAction(
+  issuedFor: string,
+  navigate: ReturnType<typeof useNavigate>,
+): EnterpriseTableAction<FactoryRecord> {
+  return {
+    id: `issue-for-${issuedFor.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    label: `Issue for ${issuedFor}`,
+    onSelect: () => navigate(warehouseFactoryNextProcessRouteMap[issuedFor]!),
+  };
+}
+
+const warehouseFactoryNextProcessRouteMap: Record<string, string> = {
+  "CNC / Fluting": "/factory/cnc-fluting",
+  Dispatch: "/dispatch",
+  Drying: "/factory/drying",
+  Embossing: "/factory/embossing",
+  "Export / OEM": "/factory/export-oem",
+  Finishing: "/factory/finishing",
+  Grouping: "/factory/grouping",
+  Inspection: "/qc/pending",
+  Marquetry: "/factory/marquetry",
+  Packing: "/packing",
+  Pressing: "/factory/pressing",
+  "Sample Sheets": "/factory/sample-sheets",
+  Splicing: "/factory/splicing",
+};

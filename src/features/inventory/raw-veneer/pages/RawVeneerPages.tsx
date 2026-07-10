@@ -6,7 +6,7 @@ export function RawVeneerListPage() {
   return (
     <Navigate
       replace
-      to="/warehouse-b?inventory=raw-veneer"
+      to="/warehouse-b?section=inventory&inventory=raw-veneer"
     />
   );
 }

@@ -6,7 +6,7 @@ export function PlywoodListPage() {
   return (
     <Navigate
       replace
-      to="/warehouse-b?inventory=plywood"
+      to="/warehouse-b?section=inventory&inventory=plywood"
     />
   );
 }
