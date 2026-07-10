@@ -306,7 +306,7 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "warehouse-c-factory",
         label: "Factory",
-        to: "/warehouse-c?section=factory&factory=export-oem",
+        to: "/warehouse-c?section=factory&factory=marquetry",
         match: (location) => matchesSection(location, "/warehouse-c", "factory"),
       },
     ],
@@ -508,7 +508,7 @@ export function getSidebarNavigation(
             {
               id: `dynamic-warehouse-${warehouse.slug}-factory`,
               label: "Factory",
-              to: `/warehouses/${warehouse.slug}?section=factory&factory=export-oem`,
+              to: `/warehouses/${warehouse.slug}?section=factory&factory=marquetry`,
               match: (location) =>
                 matchesSection(location, `/warehouses/${warehouse.slug}`, "factory"),
             },

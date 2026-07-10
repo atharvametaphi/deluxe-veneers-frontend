@@ -137,6 +137,7 @@ export function InventoryForm<Row extends InventoryRecord>({
           })}
         >
           <MasterFormFields
+            key={`${definition.slug}-${mode}-${row?.id ?? "new"}`}
             definition={{
               gridColumns: 4,
               fields,

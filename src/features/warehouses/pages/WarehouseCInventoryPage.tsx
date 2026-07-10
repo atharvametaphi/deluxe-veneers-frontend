@@ -11,7 +11,6 @@ import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessT
 import {
   cncFlutingDefinition,
   embossingDefinition,
-  exportOemDefinition,
   finishingDefinition,
   getFactoryPaths,
   getFactoryProcessTabs,
@@ -36,7 +35,6 @@ type WarehouseCSection = "factory" | "inventory";
 type WarehouseCFactorySlug =
   | "cnc-fluting"
   | "embossing"
-  | "export-oem"
   | "finishing"
   | "grouping"
   | "marquetry"
@@ -54,7 +52,6 @@ const warehouseCInventoryTabs = [
 }[];
 
 const warehouseCFactoryTabs = [
-  { label: "Export/OEM", value: "export-oem" },
   { label: "Marquetry", value: "marquetry" },
   { label: "Grouping", value: "grouping" },
   { label: "Sample Sheets", value: "sample-sheets" },
@@ -69,7 +66,6 @@ const warehouseCFactoryTabs = [
 }[];
 
 const warehouseCFactoryDefinitions = {
-  "export-oem": exportOemDefinition,
   marquetry: marquetryDefinition,
   grouping: groupingDefinition,
   "sample-sheets": sampleSheetsDefinition,
@@ -342,7 +338,7 @@ function getActiveWarehouseCInventory(
 function getActiveWarehouseCFactory(value: string | null): WarehouseCFactorySlug {
   return value && value in warehouseCFactoryDefinitions
     ? (value as WarehouseCFactorySlug)
-    : "export-oem";
+    : "marquetry";
 }
 
 function getActiveWarehouseCFactoryProcessTab(
