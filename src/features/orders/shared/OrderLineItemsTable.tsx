@@ -17,11 +17,10 @@ import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
+import { itemSubCategoryMasterOptions } from "../../masters/shared/masterDefinitions";
 import {
   gradeOptions,
-  productCategoryOptions,
   seriesOptions,
-  subCategoryOptions,
   type OrderLineItem,
 } from "./ordersStore";
 
@@ -34,15 +33,10 @@ type OrderLineItemColumn = {
   type: "select" | "text";
 };
 
+const serialColumnWidth = 56;
+const actionsColumnWidth = 120;
+
 const orderLineItemColumns: readonly OrderLineItemColumn[] = [
-  {
-    key: "productCategory",
-    label: "Product Category",
-    minWidth: 180,
-    options: productCategoryOptions,
-    placeholder: "Select Product Category",
-    type: "select",
-  },
   {
     key: "itemName",
     label: "Item Name",
@@ -54,7 +48,7 @@ const orderLineItemColumns: readonly OrderLineItemColumn[] = [
     key: "subCategory",
     label: "Sub Category",
     minWidth: 165,
-    options: subCategoryOptions,
+    options: itemSubCategoryMasterOptions,
     placeholder: "Select Sub Category",
     type: "select",
   },
@@ -97,16 +91,30 @@ const orderLineItemColumns: readonly OrderLineItemColumn[] = [
   },
   {
     key: "quantitySheets",
-    label: "Quantity Sheets",
+    label: "Number of Sheets",
     minWidth: 145,
-    placeholder: "Enter Quantity Sheets",
+    placeholder: "Enter Number of Sheets",
+    type: "text",
+  },
+  {
+    key: "sqm",
+    label: "SQM",
+    minWidth: 130,
+    placeholder: "Enter SQM",
     type: "text",
   },
   {
     key: "totalSqm",
-    label: "Total SQM",
+    label: "SQF",
     minWidth: 130,
-    placeholder: "Enter Total SQM",
+    placeholder: "Enter SQF",
+    type: "text",
+  },
+  {
+    key: "ratePerSqf",
+    label: "Rate per SQF",
+    minWidth: 140,
+    placeholder: "Enter Rate per SQF",
     type: "text",
   },
   {
@@ -149,8 +157,8 @@ export function OrderLineItemsTable({
     () =>
       orderLineItemColumns.reduce(
         (total, column) => total + column.minWidth,
-        84,
-      ) + 132,
+        serialColumnWidth,
+      ) + actionsColumnWidth,
     [],
   );
 
@@ -221,7 +229,7 @@ export function OrderLineItemsTable({
               <Table size="small" sx={{ minWidth: tableMinWidth, tableLayout: "auto" }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={(theme) => getHeaderCellSx(theme, 84)}>
+                    <TableCell sx={(theme) => getHeaderCellSx(theme, serialColumnWidth, "center")}>
                       Sr No
                     </TableCell>
                     {orderLineItemColumns.map((column) => (
@@ -236,7 +244,7 @@ export function OrderLineItemsTable({
                 </TableHead>
                 <TableBody>
                   <TableRow>
-                    <TableCell sx={(theme) => getBodyCellSx(theme)}>
+                    <TableCell sx={(theme) => getBodyCellSx(theme, "center")}>
                       <Typography variant="body2" color="text.primary">
                         1
                       </Typography>
@@ -292,7 +300,7 @@ export function OrderLineItemsTable({
             >
               <TableHead>
                 <TableRow>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 84)}>
+                  <TableCell sx={(theme) => getHeaderCellSx(theme, serialColumnWidth, "center")}>
                     Sr No
                   </TableCell>
                   {orderLineItemColumns.map((column) => (
@@ -304,7 +312,7 @@ export function OrderLineItemsTable({
                     </TableCell>
                   ))}
                   {!readOnly ? (
-                    <TableCell sx={(theme) => getHeaderCellSx(theme, 120)}>
+                    <TableCell sx={(theme) => getHeaderCellSx(theme, actionsColumnWidth, "center")}>
                       Actions
                     </TableCell>
                   ) : null}
@@ -316,7 +324,7 @@ export function OrderLineItemsTable({
 
                   return (
                     <TableRow key={row.id}>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
+                      <TableCell sx={(theme) => getBodyCellSx(theme, "center")}>
                         <Typography variant="body2" color="text.primary">
                           {index + 1}
                         </Typography>
@@ -413,7 +421,9 @@ function mapValuesToLineItem(values: Record<string, string>): Omit<OrderLineItem
     width: values.width ?? "",
     thickness: values.thickness ?? "",
     quantitySheets: values.quantitySheets ?? "",
+    sqm: values.sqm ?? "",
     totalSqm: values.totalSqm ?? "",
+    ratePerSqf: values.ratePerSqf ?? "",
     amount: values.amount ?? "",
   };
 }
@@ -429,7 +439,9 @@ function mapLineItemToValues(lineItem: OrderLineItem) {
     width: lineItem.width,
     thickness: lineItem.thickness,
     quantitySheets: lineItem.quantitySheets,
+    sqm: lineItem.sqm,
     totalSqm: lineItem.totalSqm,
+    ratePerSqf: lineItem.ratePerSqf,
     amount: lineItem.amount,
   };
 }
@@ -466,7 +478,11 @@ function renderField({
   );
 }
 
-function getHeaderCellSx(theme: Theme, minWidth: number) {
+function getHeaderCellSx(
+  theme: Theme,
+  minWidth: number,
+  textAlign: "left" | "center" = "left",
+) {
   return {
     minWidth,
     backgroundColor: theme.customTokens.brand.primary,
@@ -475,14 +491,18 @@ function getHeaderCellSx(theme: Theme, minWidth: number) {
     fontSize: theme.typography.caption.fontSize,
     fontWeight: 700,
     py: theme.spacing(1.5),
+    px: textAlign === "center" ? theme.spacing(0.75) : theme.spacing(1.5),
+    textAlign,
     whiteSpace: "nowrap",
   } as const;
 }
 
-function getBodyCellSx(theme: Theme) {
+function getBodyCellSx(theme: Theme, textAlign: "left" | "center" = "left") {
   return {
     borderBottom: `1px solid ${theme.customTokens.borders.default}`,
     py: theme.spacing(1),
+    px: textAlign === "center" ? theme.spacing(0.75) : theme.spacing(1.5),
+    textAlign,
     verticalAlign: "top",
     whiteSpace: "nowrap",
   } as const;

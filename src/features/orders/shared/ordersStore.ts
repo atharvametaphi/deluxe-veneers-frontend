@@ -4,6 +4,7 @@ import type {
   EnterpriseTableColumn,
   EnterpriseTableRow,
 } from "../../../components/data-display/EnterpriseDataTable";
+import { itemSubCategoryMasterOptions } from "../../masters/shared/masterDefinitions";
 import type { MasterFieldDefinition } from "../../masters/shared";
 
 export interface OrderLineItem {
@@ -17,7 +18,9 @@ export interface OrderLineItem {
   width: string;
   thickness: string;
   quantitySheets: string;
+  sqm: string;
   totalSqm: string;
+  ratePerSqf: string;
   amount: string;
 }
 
@@ -68,7 +71,23 @@ export interface OrderDraft {
   width?: string;
 }
 
-export type OrderCreateVariant = "raw" | "marquetry";
+export type OrderCreateVariant =
+  | "raw"
+  | "marquetry"
+  | "decorative"
+  | "fluted"
+  | "embossed";
+
+export const orderCreateOptions: readonly {
+  label: string;
+  value: OrderCreateVariant;
+}[] = [
+  { label: "Raw Order", value: "raw" },
+  { label: "Marquetry Order", value: "marquetry" },
+  { label: "Decorative Order", value: "decorative" },
+  { label: "Fluted Order", value: "fluted" },
+  { label: "Embossed Order", value: "embossed" },
+];
 
 export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] =
   [
@@ -84,8 +103,8 @@ export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] 
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
     { key: "thickness", label: "Thickness" },
-    { key: "quantitySheets", label: "Quantity Sheets" },
-    { key: "totalSqm", label: "Total SQM" },
+    { key: "quantitySheets", label: "Number of Sheets" },
+    { key: "totalSqm", label: "SQF" },
     { key: "amount", label: "Amount" },
     // { key: "deliveryDate", label: "Delivery Date" },
     { key: "salesCoordinator", label: "Sales Coordinator" },
@@ -96,15 +115,7 @@ export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] 
     { key: "status", label: "Status" },
   ];
 
-export const orderTypeOptions = [
-  "Raw Order",
-  "Marquetry Order",
-  "Export / OEM",
-  "Domestic Project",
-  "Marquetry",
-  "Sample Development",
-  "Splicing",
-] as const;
+export const orderTypeOptions = orderCreateOptions.map((option) => option.label);
 
 export const productCategoryOptions = [
   "Raw Veneer",
@@ -113,12 +124,7 @@ export const productCategoryOptions = [
   "MDF",
 ] as const;
 
-export const subCategoryOptions = [
-  "Crown Cut",
-  "Natural",
-  "Quarter Cut",
-  "Rift Cut",
-] as const;
+export const subCategoryOptions = itemSubCategoryMasterOptions;
 
 export const seriesOptions = [
   "DV-Architect",
@@ -191,56 +197,6 @@ export const orderFormFields: readonly MasterFieldDefinition[] = [
     options: [...subCategoryOptions],
     placeholder: "Select Sub Category",
   },
-  {
-    key: "series",
-    label: "Series",
-    type: "select",
-    options: [...seriesOptions],
-    placeholder: "Select Series",
-  },
-  {
-    key: "grade",
-    label: "Grade",
-    type: "select",
-    options: [...gradeOptions],
-    placeholder: "Select Grade",
-  },
-  {
-    key: "length",
-    label: "Length",
-    type: "text",
-    placeholder: "Enter Length",
-  },
-  {
-    key: "width",
-    label: "Width",
-    type: "text",
-    placeholder: "Enter Width",
-  },
-  {
-    key: "thickness",
-    label: "Thickness",
-    type: "text",
-    placeholder: "Enter Thickness",
-  },
-  {
-    key: "quantitySheets",
-    label: "Quantity Sheets",
-    type: "text",
-    placeholder: "Enter Quantity Sheets",
-  },
-  {
-    key: "totalSqm",
-    label: "Total SQM",
-    type: "text",
-    placeholder: "Enter Total SQM",
-  },
-  {
-    key: "amount",
-    label: "Amount",
-    type: "text",
-    placeholder: "Enter Amount",
-  },
   // {
   //   key: "deliveryDate",
   //   label: "Delivery Date",
@@ -250,16 +206,8 @@ export const orderFormFields: readonly MasterFieldDefinition[] = [
   {
     key: "salesCoordinator",
     label: "Sales Coordinator",
-    type: "select",
-    options: [...salesCoordinatorOptions],
-    placeholder: "Select Sales Coordinator",
-  },
-  {
-    key: "status",
-    label: "Status",
-    type: "select",
-    options: [...statusOptions],
-    placeholder: "Select Status",
+    type: "text",
+    placeholder: "Enter Sales Coordinator",
   },
 ];
 
@@ -305,7 +253,10 @@ export const orderViewFields: readonly MasterFieldDefinition[] = [
 ];
 
 export function getOrderVariantLabel(variant: OrderCreateVariant) {
-  return variant === "marquetry" ? "Marquetry Order" : "Raw Order";
+  return (
+    orderCreateOptions.find((option) => option.value === variant)?.label ??
+    "Raw Order"
+  );
 }
 
 export function getOrderVariantFromType(
@@ -321,6 +272,18 @@ export function getOrderVariantFromType(
     return "marquetry";
   }
 
+  if (normalizedType.includes("decorative")) {
+    return "decorative";
+  }
+
+  if (normalizedType.includes("fluted")) {
+    return "fluted";
+  }
+
+  if (normalizedType.includes("embossed")) {
+    return "embossed";
+  }
+
   if (normalizedType.includes("raw")) {
     return "raw";
   }
@@ -331,7 +294,9 @@ export function getOrderVariantFromType(
 export function getOrderCreateVariant(
   value: string | null | undefined,
 ): OrderCreateVariant {
-  return value === "marquetry" ? "marquetry" : "raw";
+  return (
+    orderCreateOptions.find((option) => option.value === value)?.value ?? "raw"
+  );
 }
 
 const orderListeners = new Set<() => void>();
@@ -500,7 +465,7 @@ function normalizeLineItems(
 
   return lineItems.map((item, index) => ({
     id: item.id || `order-line-item-${index + 1}`,
-    productCategory: normalizeString(item.productCategory, "Raw Veneer"),
+    productCategory: normalizeString(item.productCategory, ""),
     itemName: normalizeString(item.itemName, "Oak Veneer Panel"),
     subCategory: normalizeString(item.subCategory, "Quarter Cut"),
     series: normalizeString(item.series, "DV-Prime"),
@@ -509,7 +474,9 @@ function normalizeLineItems(
     width: normalizeString(item.width, "1220 mm"),
     thickness: normalizeString(item.thickness, "0.60 mm"),
     quantitySheets: normalizeString(item.quantitySheets, "24"),
+    sqm: normalizeString(item.sqm, "7.280"),
     totalSqm: normalizeString(item.totalSqm, "78.400"),
+    ratePerSqf: normalizeString(item.ratePerSqf, "2,360.00"),
     amount: normalizeOrderCurrency(item.amount, 185000),
   }));
 }
@@ -538,7 +505,7 @@ function applyOrderLineItemSummary(
 
   return {
     ...record,
-    productCategory: firstItem.productCategory,
+    productCategory: firstItem.productCategory || record.productCategory,
     itemName: firstItem.itemName,
     subCategory: firstItem.subCategory,
     series: firstItem.series,
@@ -634,8 +601,10 @@ function createInitialOrderState() {
     const updatedDate = new Date(2026, 5, 3 + (index % 25));
     const salesCoordinator = pickValue(coordinators, index);
     const quantitySheets = 18 + (index % 8) * 3;
+    const sqm = 7.28 + (index % 6) * 0.74;
     const totalSqm = 52.4 + (index % 7) * 6.35;
     const amount = 142500 + index * 6850;
+    const ratePerSqf = amount / totalSqm;
     const productCategory = pickValue(productCategoryOptions, index);
     const itemName = pickValue(itemNames, index);
     const subCategory = pickValue(subCategoryOptions, index);
@@ -656,7 +625,9 @@ function createInitialOrderState() {
       width,
       thickness,
       quantitySheets: String(quantitySheets),
+      sqm: sqm.toFixed(3),
       totalSqm: totalSqm.toFixed(3),
+      ratePerSqf: formatCurrencyAmount(ratePerSqf),
       amount: formatCurrencyAmount(amount),
     };
     const record: OrderRecord = {

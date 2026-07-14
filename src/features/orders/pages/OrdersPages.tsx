@@ -13,5 +13,5 @@ export function EditOrderPage() {
 }
 
 export function ViewOrderPage() {
-  return <OrderRecordPage mode="view" />;
+  return <OrdersListingPage />;
 }

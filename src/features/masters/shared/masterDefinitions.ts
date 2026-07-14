@@ -430,6 +430,53 @@ const supplierRows = withAuditFields(createMasterRows("supplier-master", [
   },
 ]));
 
+const transporterRows = withAuditFields(createMasterRows("transporter-master", [
+  {
+    transporterName: "Amardeep Cargo Logistic",
+    branchName: "Ahmedabad",
+    transporterId: "TRN-AMD-001",
+    type: "Road",
+    areaOfOperation: "Gujarat",
+    createdEditedBy: "Atharva Patil",
+    updatedBy: "Neha Shah",
+    createdEditedDate: asDate("2026-05-04"),
+    updatedDate: asDate("2026-06-02"),
+  },
+  {
+    transporterName: "National Freight Carrier",
+    branchName: "Mumbai",
+    transporterId: "TRN-NFC-014",
+    type: "Road",
+    areaOfOperation: "West India",
+    createdEditedBy: "Neha Shah",
+    updatedBy: "Rohit Jain",
+    createdEditedDate: asDate("2026-05-12"),
+    updatedDate: asDate("2026-06-08"),
+  },
+  {
+    transporterName: "Deluxe Transport Services",
+    branchName: "Surat",
+    transporterId: "TRN-DTS-021",
+    type: "Road",
+    areaOfOperation: "Pan India",
+    createdEditedBy: "Rohit Jain",
+    updatedBy: "Aditi Desai",
+    createdEditedDate: asDate("2026-05-21"),
+    updatedDate: asDate("2026-06-15"),
+  },
+  {
+    transporterName: "Blue Sky Air Cargo",
+    branchName: "Delhi",
+    transporterId: "TRN-BSA-032",
+    type: "Air",
+    areaOfOperation: "North India",
+    createdEditedBy: "Aditi Desai",
+    updatedBy: "Atharva Patil",
+    createdEditedDate: asDate("2026-06-01"),
+    updatedDate: asDate("2026-06-20"),
+  },
+]));
+
 const gstRows = withAuditFields(createMasterRows("gst-master", [
   {
     gstPercentage: "5%",
@@ -1058,6 +1105,66 @@ export const currencyMasterDefinition: MasterDefinition = {
 };
 
 export const unitMasterOptions = uniqueOptions(unitRows, "unitName");
+
+export const transporterMasterOptions = uniqueOptions(
+  transporterRows,
+  "transporterName",
+);
+
+export const transporterTypeOptions = uniqueOptions(transporterRows, "type");
+
+export const transporterAreaOfOperationOptions = uniqueOptions(
+  transporterRows,
+  "areaOfOperation",
+);
+
+export const transporterMasterDefinition: MasterDefinition = {
+  slug: "transporter-master",
+  title: "Transporter Master",
+  gridColumns: 3,
+  columns: [
+    { key: "srNo", label: "Sr No" },
+    { key: "transporterName", label: "Transporter Name" },
+    { key: "branchName", label: "Branch Name" },
+    { key: "transporterId", label: "Transporter Id" },
+    { key: "type", label: "Type" },
+    { key: "areaOfOperation", label: "Area Of Operation" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
+  ],
+  filters: [
+    {
+      key: "type",
+      label: "Type",
+      options: transporterTypeOptions,
+    },
+    {
+      key: "areaOfOperation",
+      label: "Area Of Operation",
+      options: transporterAreaOfOperationOptions,
+    },
+  ],
+  fields: [
+    { key: "transporterName", label: "Transporter Name*", type: "text" },
+    { key: "branchName", label: "Branch Name", type: "text" },
+    { key: "transporterId", label: "Transporter Id", type: "text" },
+    {
+      key: "type",
+      label: "Type*",
+      type: "select",
+      options: transporterTypeOptions,
+    },
+    {
+      key: "areaOfOperation",
+      label: "Area Of Operation*",
+      type: "select",
+      options: transporterAreaOfOperationOptions,
+    },
+  ],
+  rows: transporterRows,
+};
 
 export const consumableCategoryOptions = uniqueOptions(
   consumablesRows,

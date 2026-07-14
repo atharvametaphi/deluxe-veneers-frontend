@@ -194,6 +194,7 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
       { key: "itemMaster", label: "Item Master" },
       { key: "itemSubCategoryMaster", label: "Sub Category" },
       { key: "supplierMaster", label: "Supplier Master" },
+      { key: "transporterMaster", label: "Transporter Master" },
       { key: "unitMaster", label: "Unit Master" },
       { key: "warehouseLocationMaster", label: "Warehouse / Location" },
     ],
@@ -619,7 +620,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
 ];
 
-const userManagementDetails: UserManagementDetail[] = userManagementSeedRows.map(
+export const userManagementDetails: UserManagementDetail[] = userManagementSeedRows.map(
   (row, index) => ({
     id: `user-${index + 1}`,
     ...row,

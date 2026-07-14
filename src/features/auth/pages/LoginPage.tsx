@@ -19,7 +19,12 @@ import { Navigate, useNavigate } from "react-router";
 
 import deluxeLogo from "../../../assets/deluxe-veneers.png";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
-import { isAuthenticated, resetDemoPassword, signIn } from "../authSession";
+import {
+  demoCredentials,
+  isAuthenticated,
+  resetDemoPassword,
+  signIn,
+} from "../authSession";
 
 type ForgotPasswordStep = "email" | "otp";
 
@@ -27,9 +32,10 @@ export function LoginPage() {
   const theme = useTheme();
   const navigate = useNavigate();
   const authenticated = useMemo(() => isAuthenticated(), []);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState<string>(demoCredentials.email);
+  const [password, setPassword] = useState<string>(demoCredentials.password);
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [loginNotice, setLoginNotice] = useState("");
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
@@ -48,16 +54,22 @@ export function LoginPage() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage("");
 
-    if (signIn(email, password)) {
-      navigate("/dashboard", { replace: true });
-      return;
+    try {
+      if (await signIn(email, password)) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+
+      setLoginNotice("");
+      setErrorMessage("Invalid email or password.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setLoginNotice("");
-    setErrorMessage("Invalid email or password.");
   };
 
   const resetForgotPasswordState = () => {
@@ -99,7 +111,7 @@ export function LoginPage() {
         return;
       }
 
-      if (forgotPasswordEmail.trim().toLowerCase() !== "admin@deluxeveneers.com") {
+      if (forgotPasswordEmail.trim().toLowerCase() !== demoCredentials.email) {
         setForgotPasswordError("Email address not found.");
         return;
       }
@@ -325,6 +337,7 @@ export function LoginPage() {
               ) : null}
 
               <Button
+                disabled={isSubmitting}
                 type="submit"
                 variant="contained"
                 size="large"
@@ -337,7 +350,7 @@ export function LoginPage() {
                   },
                 }}
               >
-                Sign In
+                {isSubmitting ? "Signing In" : "Sign In"}
               </Button>
 
               <Button

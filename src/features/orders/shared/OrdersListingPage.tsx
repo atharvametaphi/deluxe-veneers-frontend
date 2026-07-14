@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   ClickAwayListener,
@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { ChevronDown, Eye, Pencil, Search, XCircle } from "lucide-react";
 import type { MouseEvent } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   EnterpriseDataTable,
@@ -24,23 +24,27 @@ import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inpu
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import {
   cancelOrderRecord,
+  orderCreateOptions,
   getOrdersPaths,
   getOrderVariantFromType,
   orderListingColumns,
+  type OrderCreateVariant,
   type OrderRecord,
   useOrderRecords,
 } from "./ordersStore";
+import { OrderViewDetailsDialog } from "./OrderViewDetailsDialog";
 
-type OrderListingTab = "raw" | "marquetry";
+type OrderListingTab = OrderCreateVariant;
 
-const orderTabs = [
-  { label: "Raw Orders", value: "raw" },
-  { label: "Marquetry Orders", value: "marquetry" },
-] as const;
+const orderTabs = orderCreateOptions.map((option) => ({
+  label: option.label.replace(/ Order$/, " Orders"),
+  value: option.value,
+}));
 
 export function OrdersListingPage() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { id: viewOrderId } = useParams<{ id: string }>();
   const paths = getOrdersPaths();
   const rows = useOrderRecords();
   const [activeTab, setActiveTab] = useState<OrderListingTab>("raw");
@@ -64,6 +68,19 @@ export function OrdersListingPage() {
       );
     });
   }, [activeTab, rows, searchValue]);
+
+  const viewRecord = useMemo(
+    () => rows.find((row) => row.id === viewOrderId),
+    [rows, viewOrderId],
+  );
+
+  useEffect(() => {
+    const viewRecordVariant = getOrderVariantFromType(viewRecord?.orderType);
+
+    if (viewRecordVariant) {
+      setActiveTab(viewRecordVariant);
+    }
+  }, [viewRecord?.orderType]);
 
   const rowActions = useMemo<readonly EnterpriseTableAction<OrderRecord>[]>(
     () => [
@@ -102,7 +119,7 @@ export function OrdersListingPage() {
     setCreateMenuAnchor(null);
   };
 
-  const handleCreateVariantSelect = (variant: "raw" | "marquetry") => {
+  const handleCreateVariantSelect = (variant: OrderCreateVariant) => {
     handleCloseCreateMenu();
     navigate(`${paths.add}?type=${variant}`);
   };
@@ -183,12 +200,14 @@ export function OrdersListingPage() {
               })}
             >
               <MenuList autoFocusItem dense>
-                <MenuItem onClick={() => handleCreateVariantSelect("raw")}>
-                  Raw Order
-                </MenuItem>
-                <MenuItem onClick={() => handleCreateVariantSelect("marquetry")}>
-                  Marquetry Order
-                </MenuItem>
+                {orderCreateOptions.map((option) => (
+                  <MenuItem
+                    key={option.value}
+                    onClick={() => handleCreateVariantSelect(option.value)}
+                  >
+                    {option.label}
+                  </MenuItem>
+                ))}
               </MenuList>
             </Paper>
           </ClickAwayListener>
@@ -203,6 +222,14 @@ export function OrdersListingPage() {
         getRowActions={getRowActions}
         initialSort={{ key: "updatedDate", direction: "desc" }}
         rows={filteredRows}
+      />
+
+      <OrderViewDetailsDialog
+        onClose={() => {
+          navigate(paths.list);
+        }}
+        open={Boolean(viewOrderId)}
+        record={viewRecord}
       />
     </MasterPageShell>
   );

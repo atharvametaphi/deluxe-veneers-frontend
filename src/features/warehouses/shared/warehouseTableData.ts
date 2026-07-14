@@ -19,6 +19,7 @@ export type WarehouseCInventorySlug = Exclude<
   "veneer-blocks"
 >;
 export type WarehouseARawVeneerTab = "purchase" | "production";
+export type WarehouseBRawVeneerTab = "all" | WarehouseARawVeneerTab;
 
 export type WarehouseInventoryRow = {
   id: string;
@@ -33,6 +34,7 @@ export type WarehouseInventoryRow = {
   supplierItemName: string;
   supplierCode: string;
   itemName: string;
+  category?: string;
   subCategory: string;
   unitName: string;
   color: string;
@@ -153,6 +155,45 @@ const warehouseARawProductionColumns: readonly EnterpriseTableColumn<WarehouseIn
       column.key !== "supplierCode",
   );
 
+const warehouseBRawVeneerColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
+  [
+    { key: "invoiceNo", label: "Invoice No" },
+    { key: "veneerSrNo", label: "Veneer Sr No" },
+    { key: "category", label: "Category" },
+    { key: "subCategory", label: "Sub Category" },
+    { key: "supplierName", label: "Supplier Name" },
+    { key: "supplierItemName", label: "Supplier Item Name" },
+    { key: "supplierCode", label: "Supplier Code" },
+    { key: "itemName", label: "Item Name" },
+    { key: "timberCode", label: "Timber Code" },
+    { key: "logCode", label: "Log Code" },
+    { key: "bundleNumber", label: "Bundle Number" },
+    { key: "palletNumber", label: "Pallet Number" },
+    { key: "length", label: "Length" },
+    { key: "width", label: "Width" },
+    { key: "thickness", label: "Thickness" },
+    { key: "noOfLeaves", label: "No of Leaves" },
+    { key: "totalSqm", label: "Total SQM" },
+    { key: "processName", label: "Process Name" },
+    { key: "processColor", label: "Process Color" },
+    { key: "cutName", label: "Cut Name" },
+    { key: "seriesName", label: "Series Name" },
+    { key: "grade", label: "Grade" },
+    { key: "currency", label: "Currency" },
+    { key: "amount", label: "Amount" },
+    { key: "expenseAmount", label: "Expense Amount" },
+    { key: "remark", label: "Remark" },
+  ];
+
+const warehouseBRawProductionColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
+  warehouseBRawVeneerColumns.filter(
+    (column) =>
+      column.key !== "invoiceNo" &&
+      column.key !== "supplierName" &&
+      column.key !== "supplierItemName" &&
+      column.key !== "supplierCode",
+  );
+
 const warehouseAPlywoodColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
   [
     { key: "inwardSrNo", label: "Inward Sr No" },
@@ -232,6 +273,12 @@ const seriesNames = [
 ] as const;
 const grades = ["A", "A+", "B+", "Premium", "Export"] as const;
 const cuts = ["Quarter Cut", "Crown Cut", "Rift Cut", "Natural", "Flaky"] as const;
+const veneerSubCategories = [
+  "Natural Veneer",
+  "Dyed Veneer",
+  "Architectural Panel",
+  "Structural Panel",
+] as const;
 
 function pickCycledValue<const TValue extends string>(
   values: readonly TValue[],
@@ -424,6 +471,22 @@ function mapWarehouseVeneerRow(
   };
 }
 
+function mapWarehouseBRawVeneerRow(
+  row: WarehouseInventoryRow,
+  index: number,
+  inwardType: "Purchase" | "Production",
+): WarehouseInventoryRow {
+  return {
+    ...row,
+    id: `warehouse-b-raw-${inwardType.toLowerCase()}-${index + 1}`,
+    category: "Decorative Veneer",
+    subCategory: pickCycledValue(veneerSubCategories, index),
+    cutName: row.cutName || row.subCategory,
+    inwardType,
+    status: "QC Done",
+  };
+}
+
 function mapWarehousePlywoodRow(
   row: Record<string, unknown>,
   index: number,
@@ -564,6 +627,20 @@ const warehouseARawProductionRows = rawVeneerDefinition.rows.map((row, index) =>
   ),
 );
 
+const warehouseBRawPurchaseRows = warehouseARawPurchaseRows.map((row, index) =>
+  mapWarehouseBRawVeneerRow(row, index, "Purchase"),
+);
+
+const warehouseBRawProductionRows = warehouseARawProductionRows.map((row, index) =>
+  mapWarehouseBRawVeneerRow(row, index, "Production"),
+);
+
+const warehouseBRawAllRows = warehouseBRawPurchaseRows.flatMap((row, index) => {
+  const productionRow = warehouseBRawProductionRows[index];
+
+  return productionRow ? [row, productionRow] : [row];
+});
+
 const warehouseAPlywoodRows = plywoodDefinition.rows.map((row, index) =>
   mapWarehousePlywoodRow(row as Record<string, unknown>, index),
 );
@@ -644,6 +721,27 @@ export const warehouseRawVeneerTabConfigs: Record<
     title: "Production",
     columns: warehouseARawProductionColumns,
     rows: warehouseARawProductionRows,
+  },
+};
+
+export const warehouseBRawVeneerTabConfigs: Record<
+  WarehouseBRawVeneerTab,
+  WarehouseInventoryTabConfig
+> = {
+  all: {
+    title: "All",
+    columns: warehouseBRawVeneerColumns,
+    rows: warehouseBRawAllRows,
+  },
+  purchase: {
+    title: "Purchase",
+    columns: warehouseBRawVeneerColumns,
+    rows: warehouseBRawPurchaseRows,
+  },
+  production: {
+    title: "Production",
+    columns: warehouseBRawProductionColumns,
+    rows: warehouseBRawProductionRows,
   },
 };
 

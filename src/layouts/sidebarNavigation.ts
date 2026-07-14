@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
-  Factory,
   LayoutDashboard,
   PackageOpen,
   ShieldCheck,
@@ -86,6 +85,11 @@ const matchesAnyWarehouseInventoryRecordRoute = (
   inventorySlugs.some((slug) =>
     matchesInventoryRecordRoute(location, slug, warehouse),
   );
+
+const matchesWarehouseBFactoryRoute = (location: SidebarMatchLocation) =>
+  matchesSection(location, "/warehouse-b", "factory") ||
+  matchesPath(location, "/factory/slicing") ||
+  matchesPath(location, "/factory/drying");
 
 export type SidebarNavigationItem = {
   id: string;
@@ -235,6 +239,13 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
           matchesPath(location, "/supplier-master"),
       },
       {
+        id: "transporter-master",
+        label: "Transporter",
+        to: "/masters/transporter-master",
+        match: (location) =>
+          matchesPath(location, "/masters/transporter-master"),
+      },
+      {
         id: "unit-master",
         label: "Unit",
         to: "/masters/unit-master",
@@ -279,7 +290,7 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
         id: "warehouse-b-factory",
         label: "Factory",
         to: "/warehouse-b?section=factory&factory=slicing",
-        match: (location) => matchesSection(location, "/warehouse-b", "factory"),
+        match: matchesWarehouseBFactoryRoute,
       },
       {
         id: "warehouse-b-inspection",
@@ -334,80 +345,6 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
         to: "/qc/done?inventory=veneer-blocks",
         match: (location) => matchesPath(location, "/qc/done"),
       },
-    ],
-  },
-  {
-    id: "factory",
-    label: "Factory",
-    icon: Factory,
-    items: [
-      {
-        id: "slicing",
-        label: "Slicing",
-        to: "/factory/slicing",
-        match: (location) => matchesPath(location, "/factory/slicing"),
-      },
-      {
-        id: "drying",
-        label: "Drying",
-        to: "/factory/drying",
-        match: (location) => matchesPath(location, "/factory/drying"),
-      },
-      {
-        id: "export-oem",
-        label: "Export/OEM",
-        to: "/factory/export-oem",
-        match: (location) => matchesPath(location, "/factory/export-oem"),
-      },
-      {
-        id: "marquetry",
-        label: "Marquetry",
-        to: "/factory/marquetry",
-        match: (location) => matchesPath(location, "/factory/marquetry"),
-      },
-      {
-        id: "grouping",
-        label: "Grouping",
-        to: "/factory/grouping",
-        match: (location) => matchesPath(location, "/factory/grouping"),
-      },
-      {
-        id: "sample-sheets",
-        label: "Sample Sheets",
-        to: "/factory/sample-sheets",
-        match: (location) => matchesPath(location, "/factory/sample-sheets"),
-      },
-      {
-        id: "splicing",
-        label: "Splicing",
-        to: "/factory/splicing",
-        match: (location) => matchesPath(location, "/factory/splicing"),
-      },
-      {
-        id: "pressing",
-        label: "Pressing",
-        to: "/factory/pressing",
-        match: (location) => matchesPath(location, "/factory/pressing"),
-      },
-      {
-        id: "cnc-fluting",
-        label: "CNC/Fluting",
-        to: "/factory/cnc-fluting",
-        match: (location) => matchesPath(location, "/factory/cnc-fluting"),
-      },
-      {
-        id: "embossing",
-        label: "Embossing",
-        to: "/factory/embossing",
-        match: (location) => matchesPath(location, "/factory/embossing"),
-      },
-      {
-        id: "finishing",
-        label: "Finishing",
-        to: "/factory/finishing",
-        match: (location) => matchesPath(location, "/factory/finishing"),
-      },
-      
     ],
   },
   {

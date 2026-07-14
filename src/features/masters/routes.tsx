@@ -73,6 +73,12 @@ import {
   ViewSupplierMasterPage,
 } from "./supplier-master";
 import {
+  AddTransporterMasterPage,
+  EditTransporterMasterPage,
+  TransporterMasterListPage,
+  ViewTransporterMasterPage,
+} from "./transporter-master";
+import {
   AddUnitMasterPage,
   EditUnitMasterPage,
   UnitMasterListPage,
@@ -146,6 +152,11 @@ export const masterRoutes: RouteObject[] = [
   { path: "masters/supplier-master/add", Component: AddSupplierMasterPage },
   { path: "masters/supplier-master/edit/:id", Component: EditSupplierMasterPage },
   { path: "masters/supplier-master/view/:id", Component: ViewSupplierMasterPage },
+
+  { path: "masters/transporter-master", Component: TransporterMasterListPage },
+  { path: "masters/transporter-master/add", Component: AddTransporterMasterPage },
+  { path: "masters/transporter-master/edit/:id", Component: EditTransporterMasterPage },
+  { path: "masters/transporter-master/view/:id", Component: ViewTransporterMasterPage },
 
   { path: "masters/unit-master", Component: UnitMasterListPage },
   { path: "masters/unit-master/add", Component: AddUnitMasterPage },

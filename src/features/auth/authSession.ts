@@ -1,7 +1,9 @@
 const AUTH_STORAGE_KEY = "deluxe-veneers-erp-authenticated";
+const AUTH_TOKEN_STORAGE_KEY = "deluxe-veneers-erp-token";
 const AUTH_USER_STORAGE_KEY = "deluxe-veneers-erp-user";
 const AUTH_PASSWORD_STORAGE_KEY = "deluxe-veneers-erp-password";
 export const AUTH_USER_UPDATED_EVENT = "deluxe-veneers-auth-user-updated";
+const DEMO_AUTH_TOKEN = "deluxe-veneers-local-demo-token";
 
 export interface AuthenticatedUserProfile {
   accountRole: "Admin" | "Super Admin" | "Staff";
@@ -66,20 +68,31 @@ export function isAuthenticated() {
     return false;
   }
 
-  return window.sessionStorage.getItem(AUTH_STORAGE_KEY) === "true";
+  return (
+    window.sessionStorage.getItem(AUTH_STORAGE_KEY) === "true" &&
+    Boolean(window.sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY))
+  );
 }
 
-export function signIn(email: string, password: string) {
-  const isValid =
-    email.trim().toLowerCase() === demoCredentials.email &&
-    password === getCurrentPassword();
-
-  if (!isValid || typeof window === "undefined") {
+export async function signIn(email: string, password: string) {
+  if (typeof window === "undefined") {
     return false;
   }
 
-  window.sessionStorage.setItem(AUTH_STORAGE_KEY, "true");
-  persistCurrentUser(demoUserProfile);
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (normalizedEmail !== demoCredentials.email) {
+    return false;
+  }
+
+  if (
+    password !== demoCredentials.password &&
+    password !== getCurrentPassword()
+  ) {
+    return false;
+  }
+
+  persistAuthenticatedSession(DEMO_AUTH_TOKEN, demoUserProfile);
   return true;
 }
 
@@ -89,7 +102,16 @@ export function signOut() {
   }
 
   window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
+  window.sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   window.sessionStorage.removeItem(AUTH_USER_STORAGE_KEY);
+}
+
+export function getAuthToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
 export function resetDemoPassword(password: string) {
@@ -162,6 +184,12 @@ function persistCurrentUser(profile: AuthenticatedUserProfile) {
     JSON.stringify(serializedProfile),
   );
   window.dispatchEvent(new CustomEvent(AUTH_USER_UPDATED_EVENT));
+}
+
+function persistAuthenticatedSession(token: string, user: AuthenticatedUserProfile) {
+  window.sessionStorage.setItem(AUTH_STORAGE_KEY, "true");
+  window.sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  persistCurrentUser(user);
 }
 
 function getCurrentPassword() {

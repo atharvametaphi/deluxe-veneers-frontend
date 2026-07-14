@@ -8,6 +8,7 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Truck,
 } from "lucide-react";
 import {
   Box,
@@ -59,8 +60,8 @@ import type {
 } from "../../inventory/shared/types";
 import { qcTableConfigs } from "../../qc/shared/qcTableData";
 import {
-  warehouseRawVeneerTabConfigs,
-  type WarehouseARawVeneerTab,
+  warehouseBRawVeneerTabConfigs,
+  type WarehouseBRawVeneerTab,
 } from "../shared/warehouseTableData";
 import type { WarehouseInventoryRow } from "../shared/warehouseTableData";
 
@@ -112,6 +113,11 @@ const warehouseBFactoryDefinitions = {
 } as const;
 
 const warehouseBInspectionConfig = qcTableConfigs.pending["veneer-blocks"];
+const warehouseBMoveToWarehouseCInventories = new Set<WarehouseBInventorySlug>([
+  "raw-veneer",
+  "plywood",
+  "mdf",
+]);
 
 export function WarehouseBInventoryPage() {
   return <WarehouseBInventoryModulePage />;
@@ -144,7 +150,7 @@ export function WarehouseBInventoryModulePage({
   const activeDefinition = inventoryDefinitions[activeInventory];
   const activeRawVeneerConfig =
     activeInventory === "raw-veneer"
-      ? warehouseRawVeneerTabConfigs[activeRawVeneerTab]
+      ? warehouseBRawVeneerTabConfigs[activeRawVeneerTab]
       : null;
   const activeRows = (
     activeRawVeneerConfig?.rows ?? activeDefinition.rows
@@ -233,6 +239,37 @@ export function WarehouseBInventoryModulePage({
 
     if (activeProcessTab === "history") {
       return baseActions;
+    }
+
+    if (activeInventory === "veneer-blocks") {
+      baseActions.push({
+        id: "edit",
+        label: "Edit",
+        icon: Pencil,
+        onSelect: (row) =>
+          navigate(inventoryPaths.edit(getWarehouseBRecordId(row))),
+      });
+    }
+
+    if (warehouseBMoveToWarehouseCInventories.has(activeInventory)) {
+      baseActions.push(
+        {
+          id: "edit",
+          label: "Edit",
+          icon: Pencil,
+          onSelect: (row) =>
+            navigate(inventoryPaths.edit(getWarehouseBRecordId(row))),
+        },
+        {
+          id: "move-to-warehouse-c",
+          label: "Move to Warehouse C",
+          icon: Truck,
+          onSelect: () =>
+            navigate(
+              `/warehouse-c?section=inventory&inventory=${activeInventory}`,
+            ),
+        },
+      );
     }
 
     if (
@@ -348,10 +385,19 @@ export function WarehouseBInventoryModulePage({
     activeInventory === "veneer-blocks" &&
     activeProcessTab === "issued" &&
     selectedRows.length > 1;
+  const showBulkMoveToWarehouseC =
+    activeSection === "inventory" &&
+    warehouseBMoveToWarehouseCInventories.has(activeInventory) &&
+    activeProcessTab === "issued" &&
+    selectedRows.length > 1;
 
   const handleCancelBulkSelection = () => {
     setSelectedRows([]);
     setSelectionResetKey((current) => current + 1);
+  };
+
+  const handleMoveSelectionToWarehouseC = () => {
+    navigate(`/warehouse-c?section=inventory&inventory=${activeInventory}`);
   };
 
   return (
@@ -361,7 +407,10 @@ export function WarehouseBInventoryModulePage({
         activeDefinitionTitle: activeDefinition.title,
         activeFactoryTitle: activeFactoryDefinition.title,
         activeProcessTab,
-        activeRawVeneerTitle: activeRawVeneerConfig?.title,
+        activeRawVeneerTitle:
+          activeRawVeneerConfig?.title === "All"
+            ? undefined
+            : activeRawVeneerConfig?.title,
         activeSection,
         warehouseName,
         warehouseRootPath,
@@ -426,11 +475,15 @@ export function WarehouseBInventoryModulePage({
                   select
                   value={activeRawVeneerTab}
                   onChange={(event) => {
+                    const selectedRawTab = event.target.value as WarehouseBRawVeneerTab;
+
                     setSearchParams(
                       {
                         section: "inventory",
                         inventory: activeInventory,
-                        rawTab: event.target.value,
+                        ...(selectedRawTab === "all"
+                          ? {}
+                          : { rawTab: selectedRawTab }),
                         ...(activeProcessTab === "history"
                           ? { tab: "history" }
                           : {}),
@@ -445,6 +498,7 @@ export function WarehouseBInventoryModulePage({
                     },
                   ]}
                 >
+                  <MenuItem value="all">All</MenuItem>
                   <MenuItem value="purchase">Purchase</MenuItem>
                   <MenuItem value="production">Production</MenuItem>
                 </TextField>
@@ -503,6 +557,49 @@ export function WarehouseBInventoryModulePage({
                   }
                 >
                   Issue for Slicing
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
+        ) : null}
+
+        {showBulkMoveToWarehouseC ? (
+          <Box
+            sx={{
+              width: "100%",
+              border: `1px solid ${theme.customTokens.borders.default}`,
+              borderRadius: `${theme.customTokens.radius.md}px`,
+              backgroundColor: theme.customTokens.surfaces.surface,
+              boxShadow: theme.customTokens.elevation.sm,
+              px: theme.spacing(2),
+              py: theme.spacing(1.5),
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              alignItems={{ xs: "stretch", sm: "center" }}
+              justifyContent="space-between"
+            >
+              <Typography variant="body2" color="text.secondary">
+                {selectedRows.length} {activeDefinition.title.toLowerCase()} records selected
+              </Typography>
+
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.25}
+                sx={{ width: { xs: "100%", sm: "auto" } }}
+              >
+                <Button variant="outlined" onClick={handleCancelBulkSelection}>
+                  Cancel
+                </Button>
+
+                <Button
+                  variant="contained"
+                  onClick={handleMoveSelectionToWarehouseC}
+                  startIcon={<Truck size={16} />}
+                >
+                  Move to Warehouse C
                 </Button>
               </Stack>
             </Stack>
@@ -572,7 +669,7 @@ function renderWarehouseBSectionTabs({
   activeFactoryProcessTab: FactoryProcessTab;
   activeProcessTab: InventoryProcessTab;
   factoryProcessTabs: ReturnType<typeof getFactoryProcessTabs>;
-  activeRawVeneerTab: WarehouseARawVeneerTab;
+  activeRawVeneerTab: WarehouseBRawVeneerTab;
   activeSection: WarehouseBSection;
   setSearchParams: ReturnType<typeof useSearchParams>[1];
 }) {
@@ -635,7 +732,6 @@ function renderWarehouseBSectionTabs({
               ? {
                   section: "inventory",
                   inventory: value,
-                  rawTab: activeRawVeneerTab,
                   ...(activeProcessTab === "history" ? { tab: "history" } : {}),
                 }
               : {
@@ -657,7 +753,9 @@ function renderWarehouseBSectionTabs({
               ? {
                   section: "inventory",
                   inventory: activeInventory,
-                  rawTab: activeRawVeneerTab,
+                  ...(activeRawVeneerTab === "all"
+                    ? {}
+                    : { rawTab: activeRawVeneerTab }),
                   ...(value === "history" ? { tab: value } : {}),
                 }
               : {
@@ -740,8 +838,12 @@ function getActiveInventoryTab(value: string | null): WarehouseBInventorySlug {
     : "veneer-blocks";
 }
 
-function getActiveRawVeneerTab(value: string | null): WarehouseARawVeneerTab {
-  return value === "production" ? "production" : "purchase";
+function getActiveRawVeneerTab(value: string | null): WarehouseBRawVeneerTab {
+  if (value === "purchase" || value === "production") {
+    return value;
+  }
+
+  return "all";
 }
 
 function getActiveWarehouseBFactory(

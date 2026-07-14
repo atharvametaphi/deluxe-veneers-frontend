@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 
@@ -12,11 +12,16 @@ import {
 } from "../../masters/shared";
 import {
   buildUserManagementInitialValues,
-  getUserManagementDetail,
   getUserManagementPaths,
   userManagementFormFields,
   userManagementViewFields,
+  type UserManagementDetail,
 } from "./userManagementConfig";
+import {
+  createUserManagementRecord,
+  fetchUserManagementDetail,
+  updateUserManagementRecord,
+} from "./userManagementApi";
 
 interface UserManagementFormPageProps {
   mode: "add" | "edit" | "view";
@@ -28,24 +33,68 @@ export function UserManagementFormPage({
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
   const paths = getUserManagementPaths();
-  const row =
-    mode === "add"
-      ? undefined
-      : params.id
-        ? getUserManagementDetail(params.id)
-        : undefined;
   const activeFields =
     mode === "view" ? userManagementViewFields : userManagementFormFields;
+  const [row, setRow] = useState<UserManagementDetail | undefined>();
+  const [isLoading, setIsLoading] = useState(mode !== "add");
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [notFound, setNotFound] = useState(false);
 
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildUserManagementInitialValues(activeFields, row),
+    buildUserManagementInitialValues(activeFields),
   );
 
   useEffect(() => {
-    setValues(buildUserManagementInitialValues(activeFields, row));
-  }, [activeFields, row]);
+    let ignore = false;
 
-  if ((mode === "edit" || mode === "view") && !row) {
+    async function loadDetail() {
+      setErrorMessage("");
+      setNotFound(false);
+
+      if (mode === "add") {
+        setRow(undefined);
+        setValues(buildUserManagementInitialValues(activeFields));
+        setIsLoading(false);
+        return;
+      }
+
+      if (!params.id) {
+        setNotFound(true);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const nextRow = await fetchUserManagementDetail(params.id);
+        if (!ignore) {
+          setRow(nextRow);
+          setValues(buildUserManagementInitialValues(activeFields, nextRow));
+        }
+      } catch (error) {
+        if (!ignore) {
+          setNotFound(true);
+          setErrorMessage(
+            error instanceof Error ? error.message : "Unable to load user.",
+          );
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadDetail();
+
+    return () => {
+      ignore = true;
+    };
+  }, [activeFields, mode, params.id]);
+
+  if ((mode === "edit" || mode === "view") && notFound) {
     return (
       <MasterPageShell
         breadcrumbs={[
@@ -56,7 +105,7 @@ export function UserManagementFormPage({
       >
         <MasterSectionCard>
           <Typography variant="body2" color="text.secondary">
-            The requested user could not be found in the mock dataset.
+            The requested user could not be found.
           </Typography>
         </MasterSectionCard>
       </MasterPageShell>
@@ -65,6 +114,27 @@ export function UserManagementFormPage({
 
   const pageLabel =
     mode === "add" ? "Add User" : mode === "edit" ? "Edit User" : "View User";
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setErrorMessage("");
+
+    try {
+      if (mode === "add") {
+        await createUserManagementRecord(values);
+      } else if (mode === "edit" && params.id) {
+        await updateUserManagementRecord(params.id, values);
+      }
+
+      navigate(paths.list);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to save user.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <MasterPageShell
@@ -79,7 +149,16 @@ export function UserManagementFormPage({
           sx={(theme) => ({
             gap: theme.spacing(3),
           })}
-        >
+          >
+          {errorMessage ? (
+            <Alert severity="error">{errorMessage}</Alert>
+          ) : null}
+
+          {isLoading ? (
+            <Typography variant="body2" color="text.secondary">
+              Loading user details...
+            </Typography>
+          ) : (
           <MasterFormFields
             definition={{
               fields: activeFields as MasterFieldDefinition[],
@@ -94,6 +173,7 @@ export function UserManagementFormPage({
             readOnly={mode === "view"}
             values={values}
           />
+          )}
 
           <Box
             sx={(theme) => ({
@@ -126,6 +206,7 @@ export function UserManagementFormPage({
             ) : (
               <>
                 <Button
+                  disabled={isSaving}
                   onClick={() => navigate(paths.list)}
                   variant="outlined"
                 >
@@ -133,11 +214,12 @@ export function UserManagementFormPage({
                 </Button>
 
                 <Button
-                  onClick={() => navigate(paths.list)}
+                  disabled={isLoading || isSaving}
+                  onClick={handleSave}
                   startIcon={<Save size={16} />}
                   variant="contained"
                 >
-                  Save
+                  {isSaving ? "Saving" : "Save"}
                 </Button>
               </>
             )}

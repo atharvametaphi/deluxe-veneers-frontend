@@ -34,6 +34,13 @@ export type ErpDatePickerFieldProps = BaseFieldProps & {
 };
 
 const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const monthLabels = Array.from({ length: 12 }, (_, monthIndex) =>
+  new Intl.DateTimeFormat("en-US", { month: "short" }).format(
+    new Date(2026, monthIndex, 1),
+  ),
+);
+
+type CalendarView = "days" | "months" | "years";
 
 function startOfDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
@@ -45,6 +52,10 @@ function startOfMonth(value: Date) {
 
 function addMonths(value: Date, months: number) {
   return new Date(value.getFullYear(), value.getMonth() + months, 1);
+}
+
+function addYears(value: Date, years: number) {
+  return new Date(value.getFullYear() + years, value.getMonth(), 1);
 }
 
 function addDays(value: Date, days: number) {
@@ -74,6 +85,22 @@ function formatMonthLabel(value: Date) {
     month: "long",
     year: "numeric",
   }).format(value);
+}
+
+function getMonthName(value: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+  }).format(value);
+}
+
+function getYearRangeStart(year: number) {
+  return Math.floor((year - 1) / 10) * 10 + 1;
+}
+
+function getYearRangeLabel(month: Date) {
+  const start = getYearRangeStart(month.getFullYear());
+
+  return `${start}-${start + 9}`;
 }
 
 function formatDateLabel(value: Date | null) {
@@ -257,18 +284,194 @@ function CalendarMonth({
   );
 }
 
+function CalendarHeaderButton({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <Typography
+      component="button"
+      onClick={onClick}
+      variant="body2"
+      sx={{
+        appearance: "none",
+        border: 0,
+        borderRadius: `${theme.customTokens.radius.sm}px`,
+        backgroundColor: "transparent",
+        color: theme.palette.text.primary,
+        cursor: "pointer",
+        font: "inherit",
+        fontWeight: 600,
+        lineHeight: 1.35,
+        px: theme.spacing(0.5),
+        py: theme.spacing(0.25),
+        "&:hover": {
+          backgroundColor: theme.customTokens.navigation.hoverBackground,
+          color: theme.customTokens.navigation.activeText,
+        },
+      }}
+      type="button"
+    >
+      {children}
+    </Typography>
+  );
+}
+
+function CalendarMonthSelector({
+  month,
+  onSelectMonth,
+  size,
+}: {
+  month: Date;
+  onSelectMonth: (monthIndex: number) => void;
+  size: FieldSize;
+}) {
+  const theme = useTheme();
+  const metrics = getControlMetrics(theme, size);
+  const selectedMonth = month.getMonth();
+
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gap: theme.spacing(0.5),
+      }}
+    >
+      {monthLabels.map((label, monthIndex) => {
+        const isSelected = monthIndex === selectedMonth;
+
+        return (
+          <Box
+            key={label}
+            component="button"
+            onClick={() => onSelectMonth(monthIndex)}
+            sx={{
+              appearance: "none",
+              border: isSelected
+                ? `1px solid ${theme.customTokens.brand.primary}`
+                : `1px solid ${theme.customTokens.borders.default}`,
+              backgroundColor: isSelected
+                ? theme.customTokens.brand.primary
+                : theme.customTokens.surfaces.surface,
+              borderRadius: `${theme.customTokens.radius.sm}px`,
+              color: isSelected ? theme.customTokens.text.inverse : theme.palette.text.primary,
+              cursor: "pointer",
+              minHeight: metrics.menuItemHeight,
+              fontSize: theme.typography.caption.fontSize,
+              fontWeight: isSelected ? 600 : 500,
+              transition: theme.transitions.create(["background-color", "border-color"], {
+                duration: theme.transitions.duration.shorter,
+              }),
+              "&:hover": {
+                backgroundColor: isSelected
+                  ? theme.customTokens.brand.secondary
+                  : theme.customTokens.navigation.hoverBackground,
+                borderColor: theme.customTokens.brand.secondary,
+              },
+            }}
+            type="button"
+          >
+            {label}
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
+function CalendarYearSelector({
+  month,
+  onSelectYear,
+  size,
+}: {
+  month: Date;
+  onSelectYear: (year: number) => void;
+  size: FieldSize;
+}) {
+  const theme = useTheme();
+  const metrics = getControlMetrics(theme, size);
+  const selectedYear = month.getFullYear();
+  const currentYear = new Date().getFullYear();
+  const rangeStart = getYearRangeStart(selectedYear);
+  const years = Array.from({ length: 10 }, (_, index) => rangeStart + index);
+
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: theme.spacing(0.5),
+      }}
+    >
+      {years.map((year) => {
+        const isSelected = year === selectedYear;
+        const isCurrentYear = year === currentYear;
+
+        return (
+          <Box
+            key={year}
+            component="button"
+            onClick={() => onSelectYear(year)}
+            sx={{
+              appearance: "none",
+              border: isSelected
+                ? `1px solid ${theme.customTokens.brand.primary}`
+                : isCurrentYear
+                  ? `1px solid ${theme.customTokens.brand.secondary}`
+                  : `1px solid ${theme.customTokens.borders.default}`,
+              backgroundColor: isSelected
+                ? theme.customTokens.brand.primary
+                : theme.customTokens.surfaces.surface,
+              borderRadius: `${theme.customTokens.radius.sm}px`,
+              color: isSelected ? theme.customTokens.text.inverse : theme.palette.text.primary,
+              cursor: "pointer",
+              minHeight: metrics.menuItemHeight,
+              fontSize: theme.typography.caption.fontSize,
+              fontWeight: isSelected ? 600 : 500,
+              transition: theme.transitions.create(["background-color", "border-color"], {
+                duration: theme.transitions.duration.shorter,
+              }),
+              "&:hover": {
+                backgroundColor: isSelected
+                  ? theme.customTokens.brand.secondary
+                  : theme.customTokens.navigation.hoverBackground,
+                borderColor: theme.customTokens.brand.secondary,
+              },
+            }}
+            type="button"
+          >
+            {year}
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
 function CalendarSurface({
   children,
   month,
   onNext,
   onPrevious,
+  onShowMonths,
+  onShowYears,
   size,
+  view,
 }: {
   children: ReactNode;
   month: Date;
   onNext: () => void;
   onPrevious: () => void;
+  onShowMonths: () => void;
+  onShowYears: () => void;
   size: FieldSize;
+  view: CalendarView;
 }) {
   const theme = useTheme();
   const metrics = getControlMetrics(theme, size);
@@ -289,7 +492,7 @@ function CalendarSurface({
         }}
       >
         <IconButton
-          aria-label="Previous month"
+          aria-label={`Previous ${view}`}
           onClick={onPrevious}
           size="small"
           sx={{
@@ -306,12 +509,41 @@ function CalendarSurface({
           <ChevronLeft size={14} />
         </IconButton>
 
-        <Typography variant="body2" color="text.primary" fontWeight={600}>
-          {formatMonthLabel(month)}
-        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flex: 1,
+            gap: theme.spacing(0.25),
+          }}
+        >
+          {view === "days" ? (
+            <>
+              <CalendarHeaderButton onClick={onShowMonths}>
+                {getMonthName(month)}
+              </CalendarHeaderButton>
+              <CalendarHeaderButton onClick={onShowYears}>
+                {month.getFullYear()}
+              </CalendarHeaderButton>
+            </>
+          ) : null}
+
+          {view === "months" ? (
+            <CalendarHeaderButton onClick={onShowYears}>
+              {month.getFullYear()}
+            </CalendarHeaderButton>
+          ) : null}
+
+          {view === "years" ? (
+            <Typography variant="body2" color="text.primary" fontWeight={600}>
+              {getYearRangeLabel(month)}
+            </Typography>
+          ) : null}
+        </Box>
 
         <IconButton
-          aria-label="Next month"
+          aria-label={`Next ${view}`}
           onClick={onNext}
           size="small"
           sx={{
@@ -496,11 +728,38 @@ export function ErpDatePickerField({
   const metrics = getControlMetrics(theme, size);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [month, setMonth] = useState<Date>(startOfMonth(value ?? new Date()));
+  const [calendarView, setCalendarView] = useState<CalendarView>("days");
 
   const open = Boolean(anchorEl);
   const styles = getInteractiveFieldStyles(theme, state, open);
 
   const displayValue = formatDateLabel(value);
+  const handlePrevious = () => {
+    setMonth((current) => {
+      if (calendarView === "years") {
+        return addYears(current, -10);
+      }
+
+      if (calendarView === "months") {
+        return addYears(current, -1);
+      }
+
+      return addMonths(current, -1);
+    });
+  };
+  const handleNext = () => {
+    setMonth((current) => {
+      if (calendarView === "years") {
+        return addYears(current, 10);
+      }
+
+      if (calendarView === "months") {
+        return addYears(current, 1);
+      }
+
+      return addMonths(current, 1);
+    });
+  };
 
   return (
     <Stack
@@ -514,6 +773,7 @@ export function ErpDatePickerField({
         onClick={(event) => {
           if (state !== "disabled" && state !== "readOnly") {
             setMonth(startOfMonth(value ?? new Date()));
+            setCalendarView("days");
             setAnchorEl(event.currentTarget);
           }
         }}
@@ -571,7 +831,10 @@ export function ErpDatePickerField({
       <Popover
         anchorEl={anchorEl}
         open={open}
-        onClose={() => setAnchorEl(null)}
+        onClose={() => {
+          setAnchorEl(null);
+          setCalendarView("days");
+        }}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
         slotProps={{
@@ -589,19 +852,47 @@ export function ErpDatePickerField({
       >
         <CalendarSurface
           month={month}
-          onNext={() => setMonth((current) => addMonths(current, 1))}
-          onPrevious={() => setMonth((current) => addMonths(current, -1))}
+          onNext={handleNext}
+          onPrevious={handlePrevious}
+          onShowMonths={() => setCalendarView("months")}
+          onShowYears={() => setCalendarView("years")}
           size={size}
+          view={calendarView}
         >
-          <CalendarMonth
-            month={month}
-            onSelectDate={(day) => {
-              onChange(startOfDay(day));
-              setAnchorEl(null);
-            }}
-            selectedDate={value}
-            size={size}
-          />
+          {calendarView === "days" ? (
+            <CalendarMonth
+              month={month}
+              onSelectDate={(day) => {
+                onChange(startOfDay(day));
+                setAnchorEl(null);
+                setCalendarView("days");
+              }}
+              selectedDate={value}
+              size={size}
+            />
+          ) : null}
+
+          {calendarView === "months" ? (
+            <CalendarMonthSelector
+              month={month}
+              onSelectMonth={(monthIndex) => {
+                setMonth((current) => new Date(current.getFullYear(), monthIndex, 1));
+                setCalendarView("days");
+              }}
+              size={size}
+            />
+          ) : null}
+
+          {calendarView === "years" ? (
+            <CalendarYearSelector
+              month={month}
+              onSelectYear={(year) => {
+                setMonth((current) => new Date(year, current.getMonth(), 1));
+                setCalendarView("months");
+              }}
+              size={size}
+            />
+          ) : null}
         </CalendarSurface>
       </Popover>
     </Stack>
