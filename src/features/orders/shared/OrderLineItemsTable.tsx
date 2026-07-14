@@ -503,7 +503,7 @@ function getBodyCellSx(theme: Theme, textAlign: "left" | "center" = "left") {
     py: theme.spacing(1),
     px: textAlign === "center" ? theme.spacing(0.75) : theme.spacing(1.5),
     textAlign,
-    verticalAlign: "top",
+    verticalAlign: "middle",
     whiteSpace: "nowrap",
   } as const;
 }
