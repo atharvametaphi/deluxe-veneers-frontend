@@ -127,19 +127,6 @@ export const userTypeOptions = [
   "Executive",
 ] as const;
 
-export const roleOptions = [
-  "System Administrator",
-  "Executive Approver",
-  "Warehouse Supervisor",
-  "Warehouse Executive",
-  "QC Analyst",
-  "Production Supervisor",
-  "Sales Coordinator",
-  "Sales Executive",
-  "Accounts Executive",
-  "Dispatch Coordinator",
-] as const;
-
 export const countryOptions = ["India"] as const;
 
 export const stateOptions = [
@@ -687,7 +674,7 @@ export const userManagementFormFields: readonly MasterFieldDefinition[] = [
     key: "role",
     label: "Role",
     type: "select",
-    options: [...roleOptions],
+    options: [],
     placeholder: "Select Role",
   },
   {
@@ -776,7 +763,7 @@ export const userManagementConfigureFields: readonly MasterFieldDefinition[] = [
     key: "role",
     label: "Role",
     type: "select",
-    options: [...roleOptions],
+    options: [],
     placeholder: "Select Role",
   },
   {

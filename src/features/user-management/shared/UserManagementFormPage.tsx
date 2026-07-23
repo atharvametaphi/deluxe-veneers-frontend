@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
@@ -12,6 +12,7 @@ import {
   type MasterFieldValue,
 } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
+import { fetchRolePermissionRows } from "../../roles-permissions/shared/rolesPermissionsApi";
 import {
   buildUserManagementInitialValues,
   getUserManagementPaths,
@@ -42,18 +43,52 @@ export function UserManagementFormPage({
     (mode === "add" && canCreate) ||
     (mode === "edit" && canEdit) ||
     (mode === "view" && canView);
-  const activeFields =
+  const baseFields =
     mode === "view" ? userManagementViewFields : userManagementFormFields;
   const [row, setRow] = useState<UserManagementDetail | undefined>();
+  const [roleOptions, setRoleOptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(mode !== "add");
   const [isSaving, setIsSaving] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [notFound, setNotFound] = useState(false);
+  const activeFields = useMemo(
+    () => withUserRoleOptions(baseFields, roleOptions, row?.role),
+    [baseFields, roleOptions, row?.role],
+  );
 
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildUserManagementInitialValues(activeFields),
+    buildUserManagementInitialValues(baseFields),
   );
+
+  useEffect(() => {
+    let ignore = false;
+
+    fetchRolePermissionRows()
+      .then((rows) => {
+        if (!ignore) {
+          setRoleOptions(
+            Array.from(
+              new Set(
+                rows
+                  .filter((role) => role.isActive !== false)
+                  .map((role) => role.roleName.trim())
+                  .filter(Boolean),
+              ),
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setRoleOptions([]);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -64,7 +99,7 @@ export function UserManagementFormPage({
 
       if (mode === "add") {
         setRow(undefined);
-        setValues(buildUserManagementInitialValues(activeFields));
+        setValues(buildUserManagementInitialValues(baseFields));
         setIsLoading(false);
         return;
       }
@@ -81,7 +116,7 @@ export function UserManagementFormPage({
         const nextRow = await fetchUserManagementDetail(params.id);
         if (!ignore) {
           setRow(nextRow);
-          setValues(buildUserManagementInitialValues(activeFields, nextRow));
+          setValues(buildUserManagementInitialValues(baseFields, nextRow));
         }
       } catch (error) {
         if (!ignore) {
@@ -102,7 +137,7 @@ export function UserManagementFormPage({
     return () => {
       ignore = true;
     };
-  }, [activeFields, mode, params.id]);
+  }, [baseFields, mode, params.id]);
 
   if ((mode === "edit" || mode === "view") && notFound) {
     return (
@@ -254,5 +289,28 @@ export function UserManagementFormPage({
         </Stack>
       </MasterSectionCard>
     </MasterPageShell>
+  );
+}
+
+function withUserRoleOptions(
+  fields: readonly MasterFieldDefinition[],
+  roleOptions: readonly string[],
+  currentRole?: string,
+) {
+  const options = Array.from(
+    new Set(
+      [...roleOptions, currentRole ?? ""]
+        .map((option) => option.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  return fields.map((field) =>
+    field.key === "role"
+      ? {
+          ...field,
+          options,
+        }
+      : field,
   );
 }
