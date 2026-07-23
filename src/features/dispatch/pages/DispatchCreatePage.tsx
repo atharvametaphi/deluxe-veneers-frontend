@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Stack,
@@ -19,6 +20,7 @@ import {
   MasterFormFields,
   MasterPageShell,
   MasterSectionCard,
+  hasRequiredFieldErrors,
   type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
@@ -28,6 +30,7 @@ import {
   type PackingRecord,
   usePackingRecords,
 } from "../../packing/shared/packingStore";
+import { canAccessPermission } from "../../permissions";
 import { orderTypeOptions } from "../../orders/shared/ordersStore";
 
 interface DispatchItemRow {
@@ -196,6 +199,18 @@ export function DispatchCreatePage({
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildDispatchInitialValues(activeFields, sourceRecord, mode),
   );
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const canCreate = canAccessPermission("dispatch", "create");
+  const canEdit = canAccessPermission("dispatch", "edit");
+  const canView = canAccessPermission("dispatch", "view");
+  const canUseMode =
+    mode === "add" ? canCreate : mode === "edit" ? canEdit : canView;
+  const pageLabel =
+    mode === "add"
+      ? "Create Dispatch"
+      : mode === "edit"
+        ? "Edit Dispatch"
+        : "View Dispatch";
 
   useEffect(() => {
     setValues(buildDispatchInitialValues(activeFields, sourceRecord, mode));
@@ -219,12 +234,23 @@ export function DispatchCreatePage({
     );
   }
 
-  const pageLabel =
-    mode === "add"
-      ? "Create Dispatch"
-      : mode === "edit"
-        ? "Edit Dispatch"
-        : "View Dispatch";
+  if (!canUseMode) {
+    return (
+      <MasterPageShell
+        breadcrumbs={[
+          { label: "Dispatch", to: "/dispatch" },
+          { label: pageLabel },
+        ]}
+        title={pageLabel}
+      >
+        <MasterSectionCard>
+          <Alert severity="warning">
+            You do not have permission to access this dispatch action.
+          </Alert>
+        </MasterSectionCard>
+      </MasterPageShell>
+    );
+  }
 
   return (
     <MasterPageShell
@@ -252,6 +278,7 @@ export function DispatchCreatePage({
               }))
             }
             readOnly={mode === "view"}
+            showRequiredErrors={mode === "add" && hasSubmitted}
             values={values}
           />
 
@@ -371,13 +398,15 @@ export function DispatchCreatePage({
                   Back
                 </Button>
 
-                <Button
-                  onClick={() => navigate(`/dispatch/edit/${sourceRecord.id}`)}
-                  startIcon={<Pencil size={16} />}
-                  variant="contained"
-                >
-                  Edit
-                </Button>
+                {canEdit ? (
+                  <Button
+                    onClick={() => navigate(`/dispatch/edit/${sourceRecord.id}`)}
+                    startIcon={<Pencil size={16} />}
+                    variant="contained"
+                  >
+                    Edit
+                  </Button>
+                ) : null}
               </>
             ) : (
               <>
@@ -390,6 +419,19 @@ export function DispatchCreatePage({
 
                 <Button
                   onClick={() => {
+                    if (!canUseMode) {
+                      return;
+                    }
+
+                    setHasSubmitted(true);
+
+                    if (
+                      mode === "add" &&
+                      hasRequiredFieldErrors(activeFields, values)
+                    ) {
+                      return;
+                    }
+
                     createDispatchEntry(sourceRecord.id, {
                       dispatchDate:
                         values.removalDateTime instanceof Date

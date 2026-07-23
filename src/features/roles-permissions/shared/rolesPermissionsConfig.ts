@@ -5,7 +5,6 @@ import type {
 import type { MasterFieldDefinition, MasterFieldValue } from "../../masters/shared";
 import {
   buildDefaultUserPermissions,
-  departmentOptions,
   type UserPermissionFlags,
 } from "../../user-management/shared";
 
@@ -152,7 +151,7 @@ export const rolePermissionFormFields: readonly MasterFieldDefinition[] = [
     key: "department",
     label: "Department",
     type: "select",
-    options: [...departmentOptions],
+    options: [],
     placeholder: "Select Department",
   },
   {
@@ -175,7 +174,7 @@ export const rolePermissionConfigureFields: readonly MasterFieldDefinition[] = [
     key: "department",
     label: "Department",
     type: "select",
-    options: [...departmentOptions],
+    options: [],
     placeholder: "Select Department",
   },
   {
@@ -183,11 +182,6 @@ export const rolePermissionConfigureFields: readonly MasterFieldDefinition[] = [
     label: "Remark",
     type: "text",
     placeholder: "Enter Remark",
-  },
-  {
-    key: "isActive",
-    label: "Status",
-    type: "toggle",
   },
 ];
 
@@ -225,6 +219,29 @@ export function buildRolePermissionInitialValues(
     accumulator[field.key] = typeof value === "string" ? value : "";
     return accumulator;
   }, {});
+}
+
+export function withRolePermissionDepartmentOptions(
+  fields: readonly MasterFieldDefinition[],
+  departmentNames: readonly string[],
+  currentDepartment = "",
+) {
+  const options = Array.from(
+    new Set(
+      [...departmentNames, currentDepartment]
+        .map((department) => department.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  return fields.map((field) =>
+    field.key === "department"
+      ? {
+          ...field,
+          options,
+        }
+      : field,
+  );
 }
 
 export function getRolePermissionDetail(id: string) {

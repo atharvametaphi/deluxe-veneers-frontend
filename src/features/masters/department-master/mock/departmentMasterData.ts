@@ -51,7 +51,7 @@ export const departmentAccessSections: readonly DepartmentAccessSection[] = [
       { key: "department-master", label: "Department Master" },
       { key: "gst-master", label: "GST Master" },
       { key: "hsn-master", label: "HSN Master" },
-      { key: "item-master", label: "Item Master" },
+      { key: "item-name-master", label: "Item Name Master" },
       { key: "sub-category-master", label: "Sub Category Master" },
       { key: "supplier-master", label: "Supplier Master" },
       { key: "transporter-master", label: "Transporter Master" },
@@ -125,7 +125,7 @@ const departmentMasterSeedRows: readonly DepartmentMasterSeedRow[] = [
     createdEditedDate: asDate("2026-03-15"),
     updatedDate: asDate("2026-06-23"),
     selectedModuleKeys: [
-      "item-master",
+      "item-name-master",
       "unit-master",
       "warehouse-b",
       "warehouse-c",
@@ -174,7 +174,7 @@ const departmentMasterSeedRows: readonly DepartmentMasterSeedRow[] = [
       "customer-master",
       "gst-master",
       "hsn-master",
-      "item-master",
+      "item-name-master",
       "sub-category-master",
       "orders",
       "packing",
@@ -207,7 +207,12 @@ export const departmentMasterDetails: readonly DepartmentMasterDetail[] =
   });
 
 const departmentRowsForDefinition = departmentMasterDetails.map(
-  ({ selectedModuleKeys, ...row }) => row,
+  ({ selectedModuleKeys, ...row }) => ({
+    ...row,
+    createdBy: row.createdEditedBy,
+    editedBy: row.updatedBy,
+    createdDate: row.createdEditedDate,
+  }),
 );
 
 export const departmentMasterDefinition: MasterDefinition = {
@@ -218,9 +223,10 @@ export const departmentMasterDefinition: MasterDefinition = {
     { key: "srNo", label: "Sr No" },
     { key: "departmentName", label: "Department Name" },
     { key: "remark", label: "Remark" },
-    { key: "createdEditedBy", label: "Created By" },
-    { key: "updatedBy", label: "Edited By" },
-    { key: "createdEditedDate", label: "Created Date" },
+    { key: "status", label: "Status" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
@@ -233,6 +239,7 @@ export const departmentMasterDefinition: MasterDefinition = {
   fields: [
     { key: "departmentName", label: "Department Name", type: "text" },
     { key: "remark", label: "Remark", type: "text" },
+    { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
   ],
   rows: departmentRowsForDefinition,
 };
@@ -247,6 +254,7 @@ export function buildDepartmentMasterInitialValues(
   return {
     departmentName: row?.departmentName ?? "",
     remark: row?.remark ?? "",
+    status: row?.status ?? "Active",
   } satisfies Record<string, MasterFieldValue>;
 }
 

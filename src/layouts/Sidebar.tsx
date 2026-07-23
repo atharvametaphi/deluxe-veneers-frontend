@@ -24,11 +24,18 @@ import deluxeWordmark from "../assets/deluxe-veneers.png";
 import deluxeFavicon from "../assets/favicon.png";
 import {
   AUTH_USER_UPDATED_EVENT,
+  type AuthenticatedUserProfile,
   getCurrentUser,
   getUserDisplayName,
   getUserInitials,
   signOut,
 } from "../features/auth";
+import {
+  canAccessAnyAction,
+  canAccessPermission,
+  factoryPermissionKeyBySlug,
+  masterPermissionKeyBySlug,
+} from "../features/permissions";
 import {
   getDynamicSidebarWarehouses,
   LOCAL_WAREHOUSES_UPDATED_EVENT,
@@ -79,8 +86,12 @@ export function Sidebar({
     search: location.search,
   };
   const navigationEntries = useMemo(
-    () => getSidebarNavigation(dynamicWarehouses),
-    [dynamicWarehouses],
+    () =>
+      filterNavigationEntriesByPermissions(
+        getSidebarNavigation(dynamicWarehouses),
+        currentUser,
+      ),
+    [currentUser, dynamicWarehouses],
   );
   const [accountMenuAnchorEl, setAccountMenuAnchorEl] =
     useState<HTMLElement | null>(null);
@@ -789,4 +800,75 @@ export function Sidebar({
       </Menu>
     </Drawer>
   );
+}
+
+const navigationPermissionKeyById: Record<string, string> = {
+  dashboard: "dashboard",
+  dispatch: "dispatch",
+  orders: "placeOrder",
+  packing: "packing",
+  "qc-done": "qcDone",
+  "qc-pending": "qcPending",
+  "roles-permissions": "rolesPermissions",
+  "user-management": "userManagement",
+  "warehouse-a": "warehouseA",
+  "warehouse-b": "warehouseB",
+  "warehouse-b-inspection": "qcPending",
+  "warehouse-b-inventory": "warehouseB",
+  "warehouse-c": "warehouseC",
+  "warehouse-c-inventory": "warehouseC",
+};
+
+function filterNavigationEntriesByPermissions(
+  entries: readonly SidebarNavigationEntry[],
+  user: AuthenticatedUserProfile,
+) {
+  return entries.flatMap<SidebarNavigationEntry>((entry) => {
+    if (isExpandableGroup(entry)) {
+      const permittedItems = entry.items.filter((item) =>
+        canViewNavigationItem(item.id, user),
+      );
+
+      if (permittedItems.length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          ...entry,
+          items: permittedItems,
+        },
+      ];
+    }
+
+    return canViewNavigationItem(entry.id, user) ? [entry] : [];
+  });
+}
+
+function canViewNavigationItem(
+  itemId: string,
+  user: AuthenticatedUserProfile,
+) {
+  const permissionKey =
+    navigationPermissionKeyById[itemId] ?? masterPermissionKeyBySlug[itemId];
+
+  if (permissionKey) {
+    return canAccessAnyAction(permissionKey, user);
+  }
+
+  if (
+    itemId === "warehouse-b-factory" ||
+    itemId === "warehouse-c-factory" ||
+    itemId.endsWith("-factory")
+  ) {
+    return Object.values(factoryPermissionKeyBySlug).some((factoryKey) =>
+      canAccessAnyAction(factoryKey, user),
+    );
+  }
+
+  if (itemId === "component-library") {
+    return canAccessPermission("componentLibrary", "view", user);
+  }
+
+  return true;
 }

@@ -14,6 +14,10 @@ import {
   type EnterpriseTableCellValue,
 } from "../../../components/data-display/EnterpriseDataTable";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
+import {
+  canAccessPermission,
+  getWarehousePermissionKey,
+} from "../../permissions";
 import { InventoryPageShell } from "./InventoryPageShell";
 import { InventoryToolbar } from "./InventoryToolbar";
 import {
@@ -37,6 +41,9 @@ export function InventoryListing<Row extends InventoryRecord>({
 }: InventoryListingProps<Row>) {
   const theme = useTheme();
   const navigate = useNavigate();
+  const permissionKey = getWarehousePermissionKey("warehouse-b");
+  const canCreate = canAccessPermission(permissionKey, "create");
+  const canView = canAccessPermission(permissionKey, "view");
   const [activeTab, setActiveTab] = useState<InventoryProcessTab>(
     getInventoryProcessTab(null),
   );
@@ -65,15 +72,18 @@ export function InventoryListing<Row extends InventoryRecord>({
   }, [searchValue, tabRows]);
 
   const rowActions = useMemo<ReadonlyArray<EnterpriseTableAction<Row>>>(
-    () => [
-      {
-        id: "view",
-        label: "View",
-        icon: Eye,
-        onSelect: (row) => navigate(paths.view(row.id)),
-      },
-    ],
-    [navigate, paths],
+    () =>
+      canView
+        ? [
+            {
+              id: "view",
+              label: "View",
+              icon: Eye,
+              onSelect: (row: Row) => navigate(paths.view(row.id)),
+            },
+          ]
+        : [],
+    [canView, navigate, paths],
   );
 
   return (
@@ -82,6 +92,7 @@ export function InventoryListing<Row extends InventoryRecord>({
         <InventoryToolbar
           addLabel="Add Stock"
           addPath={paths.add}
+          canAdd={canCreate}
         />
       }
       breadcrumbs={[
@@ -134,8 +145,8 @@ export function InventoryListing<Row extends InventoryRecord>({
           columns={definition.listColumns}
           defaultRowsPerPage={10}
           emptyStateLabel={`No ${definition.title.toLowerCase()} records are available for this tab.`}
-          rows={filteredRows}
-          selectable={activeTab !== "history"}
+          rows={canView ? filteredRows : []}
+          selectable={activeTab !== "history" && canView}
           {...(definition.initialSort
             ? { initialSort: definition.initialSort }
             : {})}

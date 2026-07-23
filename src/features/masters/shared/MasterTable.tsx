@@ -40,18 +40,26 @@ type SortConfig = {
 } | null;
 
 interface MasterTableProps {
+  canChangeStatus?: boolean;
+  canEdit?: boolean;
+  canView?: boolean;
   columns: MasterColumn[];
   rows: MasterRecord[];
   getEditPath: (id: string) => string;
   getViewPath: (id: string) => string;
+  onStatusChange?: (row: MasterRecord, checked: boolean) => Promise<void> | void;
 }
 
 const actionColumnWidth = 88;
 
 export function MasterTable({
+  canChangeStatus = true,
+  canEdit = true,
+  canView = true,
   columns,
   getEditPath,
   getViewPath,
+  onStatusChange,
   rows,
 }: MasterTableProps) {
   const theme = useTheme();
@@ -70,6 +78,7 @@ export function MasterTable({
   const [statusOverrides, setStatusOverrides] = useState<Record<string, boolean>>(
     {},
   );
+  const hasRowActions = canView || canEdit;
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) =>
@@ -337,7 +346,9 @@ export function MasterTable({
                         column,
                         statusOverrides,
                         setStatusOverrides,
+                        onStatusChange,
                         theme,
+                        canChangeStatus,
                       )}
                     </TableCell>
                   ))}
@@ -360,21 +371,23 @@ export function MasterTable({
                         justifyContent: "center",
                       }}
                     >
-                      <IconButton
-                        size="small"
-                        aria-label="Open row actions"
-                        onClick={(event) => handleOpenActionMenu(row.id, event)}
-                        sx={(theme) => ({
-                          color: theme.customTokens.navigation.activeText,
-                          "&:hover": {
-                            backgroundColor:
-                              theme.customTokens.navigation.hoverBackground,
-                            color: theme.customTokens.brand.secondary,
-                          },
-                        })}
-                      >
-                        <MoreHorizontal size={16} />
-                      </IconButton>
+                      {hasRowActions ? (
+                        <IconButton
+                          size="small"
+                          aria-label="Open row actions"
+                          onClick={(event) => handleOpenActionMenu(row.id, event)}
+                          sx={(theme) => ({
+                            color: theme.customTokens.navigation.activeText,
+                            "&:hover": {
+                              backgroundColor:
+                                theme.customTokens.navigation.hoverBackground,
+                              color: theme.customTokens.brand.secondary,
+                            },
+                          })}
+                        >
+                          <MoreHorizontal size={16} />
+                        </IconButton>
+                      ) : null}
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -522,29 +535,33 @@ export function MasterTable({
           },
         }}
       >
-        <MenuItem
-          onClick={() => {
-            if (activeActionRowId) {
-              navigate(getViewPath(activeActionRowId));
-            }
-            handleCloseActionMenu();
-          }}
-          sx={actionMenuItemSx}
-        >
-          View
-        </MenuItem>
+        {canView ? (
+          <MenuItem
+            onClick={() => {
+              if (activeActionRowId) {
+                navigate(getViewPath(activeActionRowId));
+              }
+              handleCloseActionMenu();
+            }}
+            sx={actionMenuItemSx}
+          >
+            View
+          </MenuItem>
+        ) : null}
 
-        <MenuItem
-          onClick={() => {
-            if (activeActionRowId) {
-              navigate(getEditPath(activeActionRowId));
-            }
-            handleCloseActionMenu();
-          }}
-          sx={actionMenuItemSx}
-        >
-          Edit
-        </MenuItem>
+        {canEdit ? (
+          <MenuItem
+            onClick={() => {
+              if (activeActionRowId) {
+                navigate(getEditPath(activeActionRowId));
+              }
+              handleCloseActionMenu();
+            }}
+            sx={actionMenuItemSx}
+          >
+            Edit
+          </MenuItem>
+        ) : null}
       </Menu>
 
       <Menu
@@ -705,7 +722,9 @@ function renderMasterTableCell(
   column: MasterColumn,
   statusOverrides: Record<string, boolean>,
   setStatusOverrides: Dispatch<SetStateAction<Record<string, boolean>>>,
+  onStatusChange: MasterTableProps["onStatusChange"],
   theme: Theme,
+  canChangeStatus: boolean,
 ) {
   const toggleState = getStatusToggleState(column, row[column.key]);
 
@@ -720,12 +739,20 @@ function renderMasterTableCell(
     <ErpToggleSwitch
       ariaLabel={`${column.label} for row ${row.id}`}
       checked={checked}
-      onChange={(nextChecked) =>
+      disabled={!canChangeStatus}
+      onChange={(nextChecked) => {
         setStatusOverrides((current) => ({
           ...current,
           [toggleKey]: nextChecked,
-        }))
-      }
+        }));
+
+        Promise.resolve(onStatusChange?.(row, nextChecked)).catch(() => {
+          setStatusOverrides((current) => ({
+            ...current,
+            [toggleKey]: checked,
+          }));
+        });
+      }}
     />
   );
 }

@@ -1,3 +1,8 @@
+import {
+  buildDefaultUserPermissions,
+  type UserPermissionFlags,
+} from "../user-management/shared/userManagementConfig";
+
 const AUTH_STORAGE_KEY = "deluxe-veneers-erp-authenticated";
 const AUTH_TOKEN_STORAGE_KEY = "deluxe-veneers-erp-token";
 const AUTH_USER_STORAGE_KEY = "deluxe-veneers-erp-user";
@@ -18,9 +23,11 @@ export interface AuthenticatedUserProfile {
   email: string;
   firstName: string;
   gender: string;
+  id: string;
   lastName: string;
   phoneNo: string;
   pincode: string;
+  permissions: Record<string, UserPermissionFlags>;
   remarks: string;
   role: string;
   state: string;
@@ -53,9 +60,11 @@ export const demoUserProfile: AuthenticatedUserProfile = {
   email: demoCredentials.email,
   firstName: "Atharva",
   gender: "Male",
+  id: "",
   lastName: "Patil",
   phoneNo: "+91 98765 43210",
   pincode: "380015",
+  permissions: buildDefaultUserPermissions(),
   remarks: "System administrator profile for the Deluxe Veneers ERP.",
   role: "System Administrator",
   state: "Gujarat",
@@ -151,6 +160,10 @@ export function getCurrentUser() {
 
 export function saveCurrentUser(profile: AuthenticatedUserProfile) {
   persistCurrentUser(profile);
+}
+
+export async function refreshCurrentUserPermissions() {
+  return getCurrentUser();
 }
 
 export function getUserDisplayName(profile: AuthenticatedUserProfile) {

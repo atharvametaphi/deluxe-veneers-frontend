@@ -92,10 +92,43 @@ export async function changeUserPassword(id: string, password: string) {
   passwordStore[id] = normalizedPassword;
   savePasswordStore(passwordStore);
 
+  record.updatedBy = SYSTEM_USER_NAME;
   record.updatedDate = new Date();
   saveUserStore(records);
 
   return record;
+}
+
+export async function updateUserManagementStatus(
+  id: string,
+  status: "ACTIVE" | "INACTIVE",
+) {
+  const records = getUserStore();
+  const recordIndex = records.findIndex((row) => row.id === id);
+
+  if (recordIndex < 0) {
+    throw new Error("User record not found.");
+  }
+
+  const existingRecord = records[recordIndex];
+
+  if (!existingRecord) {
+    throw new Error("User record not found.");
+  }
+
+  const isActive = status === "ACTIVE";
+  const updatedRecord = {
+    ...existingRecord,
+    isActive,
+    statusLabel: isActive ? "Active" : "Inactive",
+    updatedBy: SYSTEM_USER_NAME,
+    updatedDate: new Date(),
+  };
+
+  records[recordIndex] = updatedRecord;
+  saveUserStore(records);
+
+  return updatedRecord;
 }
 
 function buildUserDetailFromValues(
@@ -130,9 +163,10 @@ function buildUserDetailFromValues(
     role: getStringValue(values.role, existingRecord?.role),
     state: getStringValue(values.state, existingRecord?.state),
     statusLabel: isActive ? "Active" : "Inactive",
+    updatedBy: SYSTEM_USER_NAME,
     updatedDate: now,
     userName: getStringValue(values.userName, existingRecord?.userName),
-    userType: getStringValue(values.userType, existingRecord?.userType),
+    userType: existingRecord?.userType ?? "",
   };
 }
 

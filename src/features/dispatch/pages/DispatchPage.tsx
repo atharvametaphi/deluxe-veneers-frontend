@@ -22,12 +22,16 @@ import {
   type PackingRecord,
   usePackingRecords,
 } from "../../packing/shared/packingStore";
+import { canAccessPermission } from "../../permissions";
 
 export function DispatchPage() {
   const theme = useTheme();
   const navigate = useNavigate();
   const records = usePackingRecords();
   const [searchValue, setSearchValue] = useState("");
+  const canCreate = canAccessPermission("dispatch", "create");
+  const canEdit = canAccessPermission("dispatch", "edit");
+  const canView = canAccessPermission("dispatch", "view");
   const eligibleRecord = useMemo(
     () => records.find((record) => record.packingState === "done"),
     [records],
@@ -50,26 +54,34 @@ export function DispatchPage() {
   }, [records, searchValue]);
   const rowActions = useMemo<ReadonlyArray<EnterpriseTableAction<PackingRecord>>>(
     () => [
-      {
-        id: "view",
-        label: "View",
-        icon: Eye,
-        onSelect: (row) => navigate(`/dispatch/view/${row.id}`),
-      },
-      {
-        id: "edit",
-        label: "Edit",
-        icon: Pencil,
-        onSelect: (row) => navigate(`/dispatch/edit/${row.id}`),
-      },
-      {
-        id: "revert-dispatch",
-        label: "Revert Dispatch",
-        icon: RotateCcw,
-        onSelect: (row) => revertDispatchEntry(row.id),
-      },
+      ...(canView
+        ? [
+            {
+              id: "view",
+              label: "View",
+              icon: Eye,
+              onSelect: (row: PackingRecord) => navigate(`/dispatch/view/${row.id}`),
+            },
+          ]
+        : []),
+      ...(canEdit
+        ? [
+            {
+              id: "edit",
+              label: "Edit",
+              icon: Pencil,
+              onSelect: (row: PackingRecord) => navigate(`/dispatch/edit/${row.id}`),
+            },
+            {
+              id: "revert-dispatch",
+              label: "Revert Dispatch",
+              icon: RotateCcw,
+              onSelect: (row: PackingRecord) => revertDispatchEntry(row.id),
+            },
+          ]
+        : []),
     ],
-    [navigate],
+    [canEdit, canView, navigate],
   );
 
   return (
@@ -113,18 +125,20 @@ export function DispatchPage() {
             }}
           />
 
-          <Button
-            disabled={!eligibleRecord}
-            onClick={() => {
-              if (eligibleRecord) {
-                navigate(`/dispatch/add/${eligibleRecord.id}`);
-              }
-            }}
-            startIcon={<Truck size={16} />}
-            variant="contained"
-          >
-            Create Dispatch
-          </Button>
+          {canCreate ? (
+            <Button
+              disabled={!eligibleRecord}
+              onClick={() => {
+                if (eligibleRecord) {
+                  navigate(`/dispatch/add/${eligibleRecord.id}`);
+                }
+              }}
+              startIcon={<Truck size={16} />}
+              variant="contained"
+            >
+              Create Dispatch
+            </Button>
+          ) : null}
         </Stack>
 
         <EnterpriseDataTable
@@ -133,7 +147,7 @@ export function DispatchPage() {
           defaultRowsPerPage={10}
           emptyStateLabel="No dispatch records are available."
           initialSort={{ key: "updatedDate", direction: "desc" }}
-          rows={rows}
+          rows={canView ? rows : []}
         />
       </Stack>
     </MasterPageShell>

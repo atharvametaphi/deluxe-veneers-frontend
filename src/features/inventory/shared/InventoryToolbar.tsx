@@ -5,11 +5,13 @@ import { Link as RouterLink } from "react-router";
 interface InventoryToolbarProps {
   addLabel: string;
   addPath: string;
+  canAdd?: boolean;
 }
 
 export function InventoryToolbar({
   addLabel,
   addPath,
+  canAdd = true,
 }: InventoryToolbarProps) {
   return (
     <Stack
@@ -18,14 +20,16 @@ export function InventoryToolbar({
       useFlexGap
       sx={{ alignItems: { xs: "stretch", md: "center" } }}
     >
-      <Button
-        component={RouterLink}
-        to={addPath}
-        variant="contained"
-        startIcon={<Plus size={16} />}
-      >
-        {addLabel}
-      </Button>
+      {canAdd ? (
+        <Button
+          component={RouterLink}
+          to={addPath}
+          variant="contained"
+          startIcon={<Plus size={16} />}
+        >
+          {addLabel}
+        </Button>
+      ) : null}
 
       <Button variant="outlined" startIcon={<FileOutput size={16} />}>
         Export

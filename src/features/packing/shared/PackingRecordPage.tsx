@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 
@@ -12,6 +12,7 @@ import {
   MasterFormFields,
   MasterPageShell,
   MasterSectionCard,
+  hasRequiredFieldErrors,
   type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
@@ -21,6 +22,7 @@ import {
   type OrderRecord,
   useOrderRecords,
 } from "../../orders/shared/ordersStore";
+import { canAccessPermission } from "../../permissions";
 import {
   createPackingEntry,
   getPackingPaths,
@@ -160,7 +162,13 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildPackingInitialValues(activeFields, record, mode),
   );
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [selectedSourceRowIds, setSelectedSourceRowIds] = useState<string[]>([]);
+  const canCreate = canAccessPermission("packing", "create");
+  const canEdit = canAccessPermission("packing", "edit");
+  const canView = canAccessPermission("packing", "view");
+  const canUseMode =
+    mode === "add" ? canCreate : mode === "edit" ? canEdit : canView;
 
   useEffect(() => {
     setValues(buildPackingInitialValues(activeFields, record, mode));
@@ -238,6 +246,31 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
     );
   }
 
+  if (!canUseMode) {
+    return (
+      <MasterPageShell
+        breadcrumbs={[
+          { label: "Packing", to: paths.list },
+          {
+            label:
+              mode === "add"
+                ? "Create Packing"
+                : mode === "edit"
+                  ? "Edit Packing"
+                  : "View Packing",
+          },
+        ]}
+        title="Packing"
+      >
+        <MasterSectionCard>
+          <Alert severity="warning">
+            You do not have permission to access this packing action.
+          </Alert>
+        </MasterSectionCard>
+      </MasterPageShell>
+    );
+  }
+
   return (
     <MasterPageShell
       breadcrumbs={[
@@ -277,6 +310,7 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
               }))
             }
             readOnly={mode === "view"}
+            showRequiredErrors={mode === "add" && hasSubmitted}
             values={values}
           />
 
@@ -329,17 +363,19 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                   Back
                 </Button>
 
-                <Button
-                  onClick={() => {
-                    if (record) {
-                      navigate(paths.edit(record.id));
-                    }
-                  }}
-                  startIcon={<Pencil size={16} />}
-                  variant="contained"
-                >
-                  Edit
-                </Button>
+                {canEdit ? (
+                  <Button
+                    onClick={() => {
+                      if (record) {
+                        navigate(paths.edit(record.id));
+                      }
+                    }}
+                    startIcon={<Pencil size={16} />}
+                    variant="contained"
+                  >
+                    Edit
+                  </Button>
+                ) : null}
               </>
             ) : (
               <>
@@ -352,6 +388,19 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
 
                 <Button
                   onClick={() => {
+                    if (!canUseMode) {
+                      return;
+                    }
+
+                    setHasSubmitted(true);
+
+                    if (
+                      mode === "add" &&
+                      hasRequiredFieldErrors(activeFields, values)
+                    ) {
+                      return;
+                    }
+
                     if (mode === "add") {
                       const packingDate =
                         values.packingDate instanceof Date

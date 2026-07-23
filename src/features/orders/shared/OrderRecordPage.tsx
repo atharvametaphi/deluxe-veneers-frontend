@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Stack,
@@ -19,9 +20,11 @@ import {
   MasterPageShell,
   MasterSectionCard,
   formatMasterValue,
+  hasRequiredFieldErrors,
   type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
+import { canAccessPermission } from "../../permissions";
 import {
   createOrderRecord,
   getCreateOrderFormFields,
@@ -112,9 +115,15 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildOrderInitialValues(activeFields, record, activeVariant),
   );
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [lineItems, setLineItems] = useState<OrderLineItem[]>(() =>
     record ? getOrderLineItems(record.id) : [],
   );
+  const canCreate = canAccessPermission("placeOrder", "create");
+  const canEdit = canAccessPermission("placeOrder", "edit");
+  const canView = canAccessPermission("placeOrder", "view");
+  const canUseMode =
+    mode === "add" ? canCreate : mode === "edit" ? canEdit : canView;
 
   useEffect(() => {
     setValues(buildOrderInitialValues(activeFields, record, activeVariant));
@@ -137,6 +146,24 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
           <Typography variant="body2" color="text.secondary">
             The requested order could not be found in the mock dataset.
           </Typography>
+        </MasterSectionCard>
+      </MasterPageShell>
+    );
+  }
+
+  if (!canUseMode) {
+    return (
+      <MasterPageShell
+        breadcrumbs={[
+          { label: "Orders", to: paths.list },
+          { label: pageTitle },
+        ]}
+        title={pageTitle}
+      >
+        <MasterSectionCard>
+          <Alert severity="warning">
+            You do not have permission to access this order action.
+          </Alert>
         </MasterSectionCard>
       </MasterPageShell>
     );
@@ -223,6 +250,7 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
               }))
             }
             readOnly={mode === "view"}
+            showRequiredErrors={mode === "add" && hasSubmitted}
             values={values}
           />
 
@@ -273,6 +301,19 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
 
                 <Button
                   onClick={() => {
+                    if (!canUseMode) {
+                      return;
+                    }
+
+                    setHasSubmitted(true);
+
+                    if (
+                      mode === "add" &&
+                      hasRequiredFieldErrors(activeFields, values)
+                    ) {
+                      return;
+                    }
+
                     const payload = buildOrderPayload(values, lineItems);
 
                     if (mode === "add") {

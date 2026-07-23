@@ -7,9 +7,11 @@ import {
   MasterFormFields,
   MasterPageShell,
   MasterSectionCard,
+  hasRequiredFieldErrors,
   type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
+import { canAccessPermission } from "../../permissions";
 import {
   buildUserManagementInitialValues,
   getUserManagementPaths,
@@ -33,11 +35,19 @@ export function UserManagementFormPage({
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
   const paths = getUserManagementPaths();
+  const canCreate = canAccessPermission("userManagement", "create");
+  const canEdit = canAccessPermission("userManagement", "edit");
+  const canView = canAccessPermission("userManagement", "view");
+  const canUseMode =
+    (mode === "add" && canCreate) ||
+    (mode === "edit" && canEdit) ||
+    (mode === "view" && canView);
   const activeFields =
     mode === "view" ? userManagementViewFields : userManagementFormFields;
   const [row, setRow] = useState<UserManagementDetail | undefined>();
   const [isLoading, setIsLoading] = useState(mode !== "add");
   const [isSaving, setIsSaving] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [notFound, setNotFound] = useState(false);
 
@@ -116,6 +126,16 @@ export function UserManagementFormPage({
     mode === "add" ? "Add User" : mode === "edit" ? "Edit User" : "View User";
 
   const handleSave = async () => {
+    if (!canUseMode) {
+      return;
+    }
+
+    setHasSubmitted(true);
+
+    if (mode === "add" && hasRequiredFieldErrors(activeFields, values)) {
+      return;
+    }
+
     setIsSaving(true);
     setErrorMessage("");
 
@@ -144,21 +164,27 @@ export function UserManagementFormPage({
       ]}
       title={pageLabel}
     >
+      {!canUseMode ? (
+        <Alert severity="warning">
+          You do not have permission to {mode} users.
+        </Alert>
+      ) : null}
+
       <MasterSectionCard>
         <Stack
           sx={(theme) => ({
             gap: theme.spacing(3),
           })}
           >
-          {errorMessage ? (
+          {canUseMode && errorMessage ? (
             <Alert severity="error">{errorMessage}</Alert>
           ) : null}
 
-          {isLoading ? (
+          {canUseMode && isLoading ? (
             <Typography variant="body2" color="text.secondary">
               Loading user details...
             </Typography>
-          ) : (
+          ) : canUseMode ? (
           <MasterFormFields
             definition={{
               fields: activeFields as MasterFieldDefinition[],
@@ -171,9 +197,10 @@ export function UserManagementFormPage({
               }))
             }
             readOnly={mode === "view"}
+            showRequiredErrors={mode === "add" && hasSubmitted}
             values={values}
           />
-          )}
+          ) : null}
 
           <Box
             sx={(theme) => ({
@@ -193,7 +220,7 @@ export function UserManagementFormPage({
                   Back
                 </Button>
 
-                {row ? (
+                {row && canEdit ? (
                   <Button
                     onClick={() => navigate(paths.edit(row.id))}
                     startIcon={<Pencil size={16} />}

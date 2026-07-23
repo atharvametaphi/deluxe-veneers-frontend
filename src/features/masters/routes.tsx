@@ -132,11 +132,10 @@ export const masterRoutes: RouteObject[] = [
   { path: "masters/hsn-master/edit/:id", Component: EditHSNMasterPage },
   { path: "masters/hsn-master/view/:id", Component: ViewHSNMasterPage },
 
-  { path: "masters/item-master", Component: ItemMasterListPage },
   { path: "masters/item-name-master", Component: ItemMasterListPage },
-  { path: "masters/item-master/add", Component: AddItemMasterPage },
-  { path: "masters/item-master/edit/:id", Component: EditItemMasterPage },
-  { path: "masters/item-master/view/:id", Component: ViewItemMasterPage },
+  { path: "masters/item-name-master/add", Component: AddItemMasterPage },
+  { path: "masters/item-name-master/edit/:id", Component: EditItemMasterPage },
+  { path: "masters/item-name-master/view/:id", Component: ViewItemMasterPage },
 
   { path: "masters/item-category-master", Component: ItemCategoryMasterListPage,},
   { path: "masters/item-category-master/add", Component: AddItemCategoryMasterPage,},

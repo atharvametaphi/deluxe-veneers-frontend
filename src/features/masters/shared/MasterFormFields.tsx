@@ -34,6 +34,7 @@ interface MasterFormFieldsProps {
   definition: FormFieldLayoutDefinition;
   onChange: (key: string, value: MasterFieldValue) => void;
   readOnly?: boolean;
+  showRequiredErrors?: boolean;
   values: Record<string, MasterFieldValue>;
 }
 
@@ -66,10 +67,41 @@ function getMasterFileName(value: MasterFieldValue) {
   return "";
 }
 
+const requiredFieldKeys = new Set([
+  "category",
+  "categoryName",
+  "colorName",
+  "consumableName",
+  "currencyName",
+  "customerName",
+  "cutName",
+  "department",
+  "departmentName",
+  "email",
+  "firstName",
+  "gstPercentage",
+  "hsnCode",
+  "itemCode",
+  "itemName",
+  "itemSubCategory",
+  "lastName",
+  "phoneNo",
+  "role",
+  "roleName",
+  "supplierName",
+  "transporterId",
+  "transporterName",
+  "unitName",
+  "userName",
+  "warehouseCode",
+  "warehouseName",
+]);
+
 export function MasterFormFields({
   definition,
   onChange,
   readOnly = false,
+  showRequiredErrors = false,
   values,
 }: MasterFormFieldsProps) {
   const theme = useTheme();
@@ -107,6 +139,20 @@ export function MasterFormFields({
           const fieldValue = values[field.key] ?? null;
           const isFullWidth = field.span === "full" || field.type === "textarea";
           const fieldIsReadOnly = readOnly || Boolean(field.readOnly);
+          const fieldHasRequiredError =
+            showRequiredErrors &&
+            !fieldIsReadOnly &&
+            isRequiredFieldEmpty(field, fieldValue);
+          const fieldState = fieldHasRequiredError
+            ? "error"
+            : fieldIsReadOnly
+              ? "readOnly"
+              : "default";
+          const interactiveFieldState = fieldHasRequiredError
+            ? "error"
+            : fieldIsReadOnly
+              ? "disabled"
+              : "default";
 
           return (
             <Stack
@@ -132,7 +178,7 @@ export function MasterFormFields({
                   placeholder={field.placeholder ?? `Enter ${field.label}`}
                   value={typeof fieldValue === "string" ? fieldValue : ""}
                   onChange={(event) => onChange(field.key, event.target.value)}
-                  sx={getCompactFieldSx(theme, fieldIsReadOnly ? "readOnly" : "default")}
+                  sx={getCompactFieldSx(theme, fieldState)}
                   slotProps={{
                     input: {
                       readOnly: fieldIsReadOnly,
@@ -149,7 +195,7 @@ export function MasterFormFields({
                   placeholder={field.placeholder ?? `Enter ${field.label}`}
                   value={typeof fieldValue === "string" ? fieldValue : ""}
                   onChange={(event) => onChange(field.key, event.target.value)}
-                  sx={getCompactFieldSx(theme, fieldIsReadOnly ? "readOnly" : "default")}
+                  sx={getCompactFieldSx(theme, fieldState)}
                   slotProps={{
                     input: {
                       readOnly: fieldIsReadOnly,
@@ -164,7 +210,7 @@ export function MasterFormFields({
                   onChange={(value) => onChange(field.key, value)}
                   options={field.options ?? []}
                   placeholder={field.placeholder ?? `Select ${field.label}`}
-                  state={fieldIsReadOnly ? "disabled" : "default"}
+                  state={interactiveFieldState}
                   value={typeof fieldValue === "string" ? fieldValue : ""}
                 />
               ) : null}
@@ -174,7 +220,7 @@ export function MasterFormFields({
                   helperText={field.helperText}
                   onChange={(value) => onChange(field.key, value)}
                   placeholder={field.placeholder ?? `Select ${field.label}`}
-                  state={fieldIsReadOnly ? "disabled" : "default"}
+                  state={interactiveFieldState}
                   value={fieldValue instanceof Date ? fieldValue : null}
                 />
               ) : null}
@@ -227,7 +273,7 @@ export function MasterFormFields({
                         fullWidth
                         placeholder={field.placeholder ?? "No file uploaded"}
                         value={fileName}
-                        sx={getCompactFieldSx(theme, "readOnly")}
+                        sx={getCompactFieldSx(theme, fieldHasRequiredError ? "error" : "readOnly")}
                         slotProps={{
                           input: {
                             readOnly: true,
@@ -292,7 +338,7 @@ export function MasterFormFields({
                       fullWidth
                       placeholder={field.placeholder ?? "No file selected"}
                       value={fileName}
-                      sx={getCompactFieldSx(theme, "readOnly")}
+                      sx={getCompactFieldSx(theme, fieldHasRequiredError ? "error" : "readOnly")}
                       slotProps={{
                         input: {
                           readOnly: true,
@@ -425,5 +471,56 @@ export function MasterFormFields({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+export function hasRequiredFieldErrors(
+  fields: readonly MasterFieldDefinition[],
+  values: Record<string, MasterFieldValue>,
+) {
+  return fields.some((field) =>
+    isRequiredFieldEmpty(field, values[field.key] ?? null),
+  );
+}
+
+function isRequiredFieldEmpty(
+  field: MasterFieldDefinition,
+  value: MasterFieldValue | null,
+) {
+  if (!isRequiredField(field)) {
+    return false;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length === 0;
+  }
+
+  if (value === null) {
+    return true;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime());
+  }
+
+  if (isMasterUploadedFileValue(value)) {
+    return value.name.trim().length === 0;
+  }
+
+  return false;
+}
+
+function isRequiredField(field: MasterFieldDefinition) {
+  if (field.required !== undefined) {
+    return field.required;
+  }
+
+  if (field.type === "toggle" || field.type === "checkbox") {
+    return false;
+  }
+
+  return (
+    field.label.trim().endsWith("*") ||
+    requiredFieldKeys.has(field.key)
   );
 }

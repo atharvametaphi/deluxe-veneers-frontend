@@ -40,6 +40,7 @@ export interface MasterFieldDefinition {
   options?: string[];
   placeholder?: string;
   readOnly?: boolean;
+  required?: boolean;
   rows?: number;
   span?: "single" | "full";
 }

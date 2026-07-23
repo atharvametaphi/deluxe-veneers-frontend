@@ -26,6 +26,10 @@ import {
 import { getInventoryPaths } from "../../inventory/shared";
 import { MasterPageShell } from "../../masters/shared";
 import {
+  canAccessPermission,
+  getFactoryPermissionKey,
+} from "../../permissions";
+import {
   warehouseCInventoryConfigs,
   type WarehouseInventoryRow,
   type WarehouseCInventorySlug,
@@ -99,6 +103,17 @@ export function WarehouseCInventoryModulePage({
   );
   const activeInventoryConfig = warehouseCInventoryConfigs[activeInventory];
   const activeFactoryDefinition = warehouseCFactoryDefinitions[activeFactory];
+  const activeFactoryPermissionKey = getFactoryPermissionKey(
+    activeFactoryDefinition.slug,
+  );
+  const canCreateFactory = canAccessPermission(
+    activeFactoryPermissionKey,
+    "create",
+  );
+  const canEditFactory = canAccessPermission(activeFactoryPermissionKey, "edit");
+  const canViewFactory = canAccessPermission(activeFactoryPermissionKey, "view");
+  const canEditWarehouseC = canAccessPermission("warehouseC", "edit");
+  const canViewWarehouseC = canAccessPermission("warehouseC", "view");
   const factoryProcessTabs = useMemo(
     () => getFactoryProcessTabs(activeFactoryDefinition.title),
     [activeFactoryDefinition.title],
@@ -108,30 +123,38 @@ export function WarehouseCInventoryModulePage({
     ReadonlyArray<EnterpriseTableAction<WarehouseInventoryRow>>
   >(
     () => [
-      {
-        id: "view",
-        label: "View",
-        icon: Eye,
-        onSelect: (row) =>
-          navigate(
-            getInventoryPaths(row.inventorySlug, "issued", "warehouse-c").view(
-              row.inventoryRecordId,
-            ),
-          ),
-      },
-      {
-        id: "edit",
-        label: "Edit",
-        icon: Pencil,
-        onSelect: (row) =>
-          navigate(
-            getInventoryPaths(row.inventorySlug, "issued", "warehouse-c").edit(
-              row.inventoryRecordId,
-            ),
-          ),
-      },
+      ...(canViewWarehouseC
+        ? [
+            {
+              id: "view",
+              label: "View",
+              icon: Eye,
+              onSelect: (row: WarehouseInventoryRow) =>
+                navigate(
+                  getInventoryPaths(row.inventorySlug, "issued", "warehouse-c").view(
+                    row.inventoryRecordId,
+                  ),
+                ),
+            },
+          ]
+        : []),
+      ...(canEditWarehouseC
+        ? [
+            {
+              id: "edit",
+              label: "Edit",
+              icon: Pencil,
+              onSelect: (row: WarehouseInventoryRow) =>
+                navigate(
+                  getInventoryPaths(row.inventorySlug, "issued", "warehouse-c").edit(
+                    row.inventoryRecordId,
+                  ),
+                ),
+            },
+          ]
+        : []),
     ],
-    [navigate],
+    [canEditWarehouseC, canViewWarehouseC, navigate],
   );
 
   const factoryPaths = getFactoryPaths(activeFactoryDefinition.slug);
@@ -146,21 +169,29 @@ export function WarehouseCInventoryModulePage({
     ReadonlyArray<EnterpriseTableAction<FactoryRecord>>
   >(() => {
     const baseActions: EnterpriseTableAction<FactoryRecord>[] = [
-      {
-        id: "view",
-        label: "View",
-        icon: Eye,
-        onSelect: (row) => navigate(factoryPaths.view(row.id)),
-      },
-      {
-        id: "edit",
-        label: "Edit",
-        icon: Pencil,
-        onSelect: (row) => navigate(factoryPaths.edit(row.id)),
-      },
+      ...(canViewFactory
+        ? [
+            {
+              id: "view",
+              label: "View",
+              icon: Eye,
+              onSelect: (row: FactoryRecord) => navigate(factoryPaths.view(row.id)),
+            },
+          ]
+        : []),
+      ...(canEditFactory
+        ? [
+            {
+              id: "edit",
+              label: "Edit",
+              icon: Pencil,
+              onSelect: (row: FactoryRecord) => navigate(factoryPaths.edit(row.id)),
+            },
+          ]
+        : []),
     ];
 
-    if (activeFactoryProcessTab === "issued") {
+    if (activeFactoryProcessTab === "issued" && canCreateFactory) {
       baseActions.unshift({
         id: "create-process",
         label: `Create ${activeFactoryDefinition.title}`,
@@ -185,6 +216,9 @@ export function WarehouseCInventoryModulePage({
   }, [
     activeFactoryDefinition.title,
     activeFactoryProcessTab,
+    canCreateFactory,
+    canEditFactory,
+    canViewFactory,
     factoryPaths,
     navigate,
   ]);
@@ -298,9 +332,13 @@ export function WarehouseCInventoryModulePage({
             actions={factoryRowActions}
             columns={activeFactoryDefinition.listColumns}
             defaultRowsPerPage={10}
-            rows={factoryRows.filter(
-              (row) => !revertedFactoryRowIds.includes(row.id),
-            )}
+            rows={
+              canViewFactory
+                ? factoryRows.filter(
+                    (row) => !revertedFactoryRowIds.includes(row.id),
+                  )
+                : []
+            }
             {...(getFactoryRowActions
               ? { getRowActions: getFactoryRowActions }
               : {})}
@@ -315,7 +353,7 @@ export function WarehouseCInventoryModulePage({
             columns={activeInventoryConfig.columns}
             defaultRowsPerPage={10}
             initialSort={{ key: "inwardDate", direction: "desc" }}
-            rows={activeInventoryConfig.rows}
+            rows={canViewWarehouseC ? activeInventoryConfig.rows : []}
           />
         )}
       </Stack>
@@ -364,11 +402,13 @@ function getWarehouseCFactoryNextProcessActions(
     return [
       createWarehouseCFactoryIssueAction("CNC / Fluting", navigate),
       createWarehouseCFactoryIssueAction("Embossing", navigate),
-    ];
+    ].filter((action) => canAccessPermission(action.permissionKey, "create"));
   }
 
   if (slug === "sample-sheets") {
-    return [createWarehouseCFactoryIssueAction("Finishing", navigate)];
+    return [createWarehouseCFactoryIssueAction("Finishing", navigate)].filter(
+      (action) => canAccessPermission(action.permissionKey, "create"),
+    );
   }
 
   const issuedFor =
@@ -378,18 +418,38 @@ function getWarehouseCFactoryNextProcessActions(
     return [];
   }
 
-  return [createWarehouseCFactoryIssueAction(issuedFor, navigate)];
+  return [createWarehouseCFactoryIssueAction(issuedFor, navigate)].filter(
+    (action) => canAccessPermission(action.permissionKey, "create"),
+  );
 }
 
 function createWarehouseCFactoryIssueAction(
   issuedFor: string,
   navigate: ReturnType<typeof useNavigate>,
-): EnterpriseTableAction<FactoryRecord> {
+): EnterpriseTableAction<FactoryRecord> & { permissionKey?: string } {
+  const route = warehouseCFactoryNextProcessRouteMap[issuedFor]!;
+  const permissionKey = getWarehouseCIssueRoutePermissionKey(route);
+
   return {
     id: `issue-for-${issuedFor.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
     label: `Issue for ${issuedFor}`,
-    onSelect: () => navigate(warehouseCFactoryNextProcessRouteMap[issuedFor]!),
+    onSelect: () => navigate(route),
+    ...(permissionKey ? { permissionKey } : {}),
   };
+}
+
+function getWarehouseCIssueRoutePermissionKey(route: string) {
+  if (route.startsWith("/factory/")) {
+    return getFactoryPermissionKey(route.replace(/^\/factory\//, ""));
+  }
+
+  const permissionKeyByRoute: Record<string, string> = {
+    "/dispatch": "dispatch",
+    "/packing": "packing",
+    "/qc/pending": "qcPending",
+  };
+
+  return permissionKeyByRoute[route];
 }
 
 const warehouseCFactoryNextProcessRouteMap: Record<string, string> = {

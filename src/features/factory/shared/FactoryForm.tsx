@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 
 import {
   MasterFormFields,
   MasterSectionCard,
+  hasRequiredFieldErrors,
   type MasterFieldValue,
 } from "../../masters/shared";
+import {
+  canAccessPermission,
+  getFactoryPermissionKey,
+} from "../../permissions";
 import { FactoryPageShell } from "./FactoryPageShell";
 import {
   buildFactoryInitialValues,
@@ -29,6 +34,14 @@ export function FactoryForm<Row extends FactoryRecord>({
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
   const paths = getFactoryPaths(definition.slug);
+  const permissionKey = getFactoryPermissionKey(definition.slug);
+  const canCreate = canAccessPermission(permissionKey, "create");
+  const canEdit = canAccessPermission(permissionKey, "edit");
+  const canView = canAccessPermission(permissionKey, "view");
+  const canUseMode =
+    (mode === "add" && canCreate) ||
+    (mode === "edit" && canEdit) ||
+    (mode === "view" && canView);
 
   const row =
     mode === "add"
@@ -38,6 +51,7 @@ export function FactoryForm<Row extends FactoryRecord>({
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildFactoryInitialValues(definition.formSections, row),
   );
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
     setValues(buildFactoryInitialValues(definition.formSections, row));
@@ -58,6 +72,23 @@ export function FactoryForm<Row extends FactoryRecord>({
             The requested factory process record could not be found in the mock dataset.
           </Typography>
         </MasterSectionCard>
+      </FactoryPageShell>
+    );
+  }
+
+  if (!canUseMode) {
+    return (
+      <FactoryPageShell
+        breadcrumbs={[
+          { label: "Factory", to: "/factory" },
+          { label: definition.title, to: paths.list },
+          { label: mode === "add" ? "Add" : mode === "edit" ? "Edit" : "View" },
+        ]}
+        title={getFactoryPageTitle(definition, mode)}
+      >
+        <Alert severity="warning">
+          You do not have permission to {mode} this factory process.
+        </Alert>
       </FactoryPageShell>
     );
   }
@@ -115,6 +146,7 @@ export function FactoryForm<Row extends FactoryRecord>({
                   }))
                 }
                 readOnly={mode === "view"}
+                showRequiredErrors={mode === "add" && hasSubmitted}
                 values={values}
               />
             </Stack>
@@ -138,17 +170,19 @@ export function FactoryForm<Row extends FactoryRecord>({
                   Back
                 </Button>
 
-                <Button
-                  variant="contained"
-                  startIcon={<Pencil size={16} />}
-                  onClick={() => {
-                    if (row) {
-                      navigate(paths.edit(row.id));
-                    }
-                  }}
-                >
-                  Edit
-                </Button>
+                {canEdit ? (
+                  <Button
+                    variant="contained"
+                    startIcon={<Pencil size={16} />}
+                    onClick={() => {
+                      if (row) {
+                        navigate(paths.edit(row.id));
+                      }
+                    }}
+                  >
+                    Edit
+                  </Button>
+                ) : null}
               </>
             ) : (
               <>
@@ -159,7 +193,18 @@ export function FactoryForm<Row extends FactoryRecord>({
                 <Button
                   variant="contained"
                   startIcon={<Save size={16} />}
-                  onClick={() => navigate(paths.list)}
+                  onClick={() => {
+                    setHasSubmitted(true);
+                    if (
+                      mode === "add" &&
+                      definition.formSections.some((section) =>
+                        hasRequiredFieldErrors(section.fields, values),
+                      )
+                    ) {
+                      return;
+                    }
+                    navigate(paths.list);
+                  }}
                 >
                   {primaryLabel}
                 </Button>

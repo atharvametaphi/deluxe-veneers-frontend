@@ -19,7 +19,12 @@ import { useLocation, useNavigate } from "react-router";
 
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
-import { MasterFormFields, type MasterFieldDefinition, type MasterFieldValue } from "../../masters/shared";
+import {
+  MasterFormFields,
+  hasRequiredFieldErrors,
+  type MasterFieldDefinition,
+  type MasterFieldValue,
+} from "../../masters/shared";
 import { FactoryPageShell } from "./FactoryPageShell";
 import { buildFactoryInitialValues, flattenFactorySections, getFactoryPaths } from "./factoryUtils";
 import type { FactoryDefinition, FactoryRecord } from "./types";
@@ -174,6 +179,7 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
   );
   const [lineItems, setLineItems] = useState<LineItemRecord[]>([]);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [editingValues, setEditingValues] = useState<Record<string, string>>(() =>
     createEmptyLineItemValues(lineItemFields),
   );
@@ -292,6 +298,7 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                 [key]: value,
               }))
             }
+            showRequiredErrors={hasSubmitted}
             values={formValues}
           />
         ) : null}
@@ -467,7 +474,16 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
             Cancel
           </Button>
 
-          <Button variant="contained" onClick={() => navigate(paths.list)}>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setHasSubmitted(true);
+              if (hasRequiredFieldErrors(metadataFields, formValues)) {
+                return;
+              }
+              navigate(paths.list);
+            }}
+          >
             Submit
           </Button>
         </Box>

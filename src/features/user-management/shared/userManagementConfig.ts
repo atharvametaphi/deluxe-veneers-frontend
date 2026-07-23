@@ -47,6 +47,7 @@ interface UserManagementSeedRow {
   createdDate: Date;
   isActive: boolean;
   permissions: Record<string, UserPermissionFlags>;
+  updatedBy: string;
   updatedDate: Date;
 }
 
@@ -75,6 +76,7 @@ export interface UserManagementRecord extends EnterpriseTableRow {
   createdDate: Date;
   isActive: boolean;
   statusLabel: string;
+  updatedBy: string;
   updatedDate: Date;
 }
 
@@ -88,9 +90,9 @@ export const userManagementColumns: readonly EnterpriseTableColumn<UserManagemen
     { key: "firstName", label: "First Name" },
     { key: "lastName", label: "Last Name" },
     { key: "userName", label: "User Name" },
-    { key: "userType", label: "User Type" },
     { key: "department", label: "Department" },
     { key: "role", label: "Role" },
+    { key: "statusLabel", label: "Status" },
     { key: "email", label: "Email" },
     { key: "phoneNo", label: "Phone No" },
     { key: "dateOfBirth", label: "Date Of Birth" },
@@ -102,6 +104,10 @@ export const userManagementColumns: readonly EnterpriseTableColumn<UserManagemen
     { key: "state", label: "State" },
     { key: "country", label: "Country" },
     { key: "remarks", label: "Remarks" },
+    { key: "createdBy", label: "Created By" },
+    { key: "updatedBy", label: "Updated By" },
+    { key: "createdDate", label: "Created At" },
+    { key: "updatedDate", label: "Updated At" },
   ];
 
 export const departmentOptions = [
@@ -184,6 +190,7 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
     label: "Masters",
     items: [
       { key: "colorMaster", label: "Color Master" },
+      { key: "consumablesMaster", label: "Consumables Master" },
       { key: "currencyMaster", label: "Currency Master" },
       { key: "cutMaster", label: "Cut Master" },
       { key: "customerMaster", label: "Customer Master" },
@@ -191,7 +198,7 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
       { key: "gstMaster", label: "GST Master" },
       { key: "hsnMaster", label: "HSN Master" },
       { key: "itemCategoryMaster", label: "Category" },
-      { key: "itemMaster", label: "Item Master" },
+      { key: "itemMaster", label: "Item Name Master" },
       { key: "itemSubCategoryMaster", label: "Sub Category" },
       { key: "supplierMaster", label: "Supplier Master" },
       { key: "transporterMaster", label: "Transporter Master" },
@@ -234,13 +241,19 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
     ],
   },
   {
-    id: "commercial",
-    label: "Commercial",
-    items: [
-      { key: "placeOrder", label: "Place Order" },
-      { key: "packing", label: "Packing" },
-      { key: "dispatch", label: "Dispatch" },
-    ],
+    id: "orders",
+    label: "Orders",
+    items: [{ key: "placeOrder", label: "Orders" }],
+  },
+  {
+    id: "packing",
+    label: "Packing",
+    items: [{ key: "packing", label: "Packing" }],
+  },
+  {
+    id: "dispatch",
+    label: "Dispatch",
+    items: [{ key: "dispatch", label: "Dispatch" }],
   },
   {
     id: "tools",
@@ -294,6 +307,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "Warehouse stock visibility and inward coordination.",
     createdBy: "Neha Sharma",
     createdDate: new Date("2026-06-12"),
+    updatedBy: "Neha Sharma",
     updatedDate: new Date("2026-06-24"),
     isActive: true,
     permissions: buildPermissionState({
@@ -327,6 +341,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "Sales coordination, order intake, and dispatch visibility.",
     createdBy: "Vikram Mehta",
     createdDate: new Date("2026-06-10"),
+    updatedBy: "Vikram Mehta",
     updatedDate: new Date("2026-06-26"),
     isActive: true,
     permissions: buildPermissionState({
@@ -360,6 +375,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "Client coordination for orders and dispatch updates.",
     createdBy: "Aarav Bansal",
     createdDate: new Date("2026-06-08"),
+    updatedBy: "Aarav Bansal",
     updatedDate: new Date("2026-06-18"),
     isActive: true,
     permissions: buildPermissionState({
@@ -391,6 +407,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "QC pending review and approval movement access.",
     createdBy: "Neha Sharma",
     createdDate: new Date("2026-06-14"),
+    updatedBy: "Neha Sharma",
     updatedDate: new Date("2026-06-25"),
     isActive: true,
     permissions: buildPermissionState({
@@ -423,6 +440,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "Factory process execution across active production stages.",
     createdBy: "Vikram Mehta",
     createdDate: new Date("2026-06-07"),
+    updatedBy: "Vikram Mehta",
     updatedDate: new Date("2026-06-22"),
     isActive: false,
     permissions: buildPermissionState({
@@ -463,6 +481,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "Commercial documentation and inward financial visibility.",
     createdBy: "Aarav Bansal",
     createdDate: new Date("2026-06-11"),
+    updatedBy: "Aarav Bansal",
     updatedDate: new Date("2026-06-23"),
     isActive: true,
     permissions: buildPermissionState({
@@ -498,6 +517,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "Administrative oversight across commercial and factory modules.",
     createdBy: "Vikram Mehta",
     createdDate: new Date("2026-06-09"),
+    updatedBy: "Vikram Mehta",
     updatedDate: new Date("2026-06-27"),
     isActive: true,
     permissions: buildPermissionState({
@@ -542,6 +562,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "Dispatch documentation and packed order release workflow.",
     createdBy: "Neha Sharma",
     createdDate: new Date("2026-06-13"),
+    updatedBy: "Neha Sharma",
     updatedDate: new Date("2026-06-28"),
     isActive: true,
     permissions: buildPermissionState({
@@ -574,6 +595,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "Warehouse B inventory and movement monitoring access.",
     createdBy: "Aarav Bansal",
     createdDate: new Date("2026-06-15"),
+    updatedBy: "Aarav Bansal",
     updatedDate: new Date("2026-06-29"),
     isActive: true,
     permissions: buildPermissionState({
@@ -606,6 +628,7 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
     remarks: "Executive visibility for customer, order, and dispatch flow.",
     createdBy: "Neha Sharma",
     createdDate: new Date("2026-06-16"),
+    updatedBy: "Neha Sharma",
     updatedDate: new Date("2026-06-30"),
     isActive: true,
     permissions: buildPermissionState({
@@ -654,13 +677,6 @@ export const userManagementFormFields: readonly MasterFieldDefinition[] = [
     placeholder: "Enter User Name",
   },
   {
-    key: "userType",
-    label: "User Type",
-    type: "select",
-    options: [...userTypeOptions],
-    placeholder: "Select User Type",
-  },
-  {
     key: "department",
     label: "Department",
     type: "select",
@@ -701,9 +717,8 @@ export const userManagementFormFields: readonly MasterFieldDefinition[] = [
   {
     key: "bloodGroup",
     label: "Blood Group",
-    type: "select",
-    options: [...bloodGroupOptions],
-    placeholder: "Select Blood Group",
+    type: "text",
+    placeholder: "Enter Blood Group",
   },
   {
     key: "address",
@@ -714,9 +729,8 @@ export const userManagementFormFields: readonly MasterFieldDefinition[] = [
   {
     key: "city",
     label: "City",
-    type: "select",
-    options: [...cityOptions],
-    placeholder: "Select City",
+    type: "text",
+    placeholder: "Enter City",
   },
   {
     key: "pincode",
@@ -727,16 +741,14 @@ export const userManagementFormFields: readonly MasterFieldDefinition[] = [
   {
     key: "state",
     label: "State",
-    type: "select",
-    options: [...stateOptions],
-    placeholder: "Select State",
+    type: "text",
+    placeholder: "Enter State",
   },
   {
     key: "country",
     label: "Country",
-    type: "select",
-    options: [...countryOptions],
-    placeholder: "Select Country",
+    type: "text",
+    placeholder: "Enter Country",
   },
   {
     key: "remarks",

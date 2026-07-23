@@ -17,6 +17,7 @@ import {
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { MasterPageShell } from "../../masters/shared";
+import { canAccessPermission } from "../../permissions";
 import {
   getPackingPaths,
   packingListingColumns,
@@ -38,6 +39,10 @@ export function PackingListingPage() {
   const paths = getPackingPaths();
   const [activeTab, setActiveTab] = useState<PackingTabValue>("issued");
   const [searchValue, setSearchValue] = useState("");
+  const canCreatePacking = canAccessPermission("packing", "create");
+  const canEditPacking = canAccessPermission("packing", "edit");
+  const canViewPacking = canAccessPermission("packing", "view");
+  const canCreateDispatch = canAccessPermission("dispatch", "create");
 
   const rows = useMemo(() => {
     const tabRows = records.filter((record) =>
@@ -60,44 +65,60 @@ export function PackingListingPage() {
 
   const issuedActions = useMemo<readonly EnterpriseTableAction<PackingRecord>[]>(
     () => [
-      {
-        id: "edit",
-        label: "Edit",
-        icon: Pencil,
-        onSelect: (row) => navigate(paths.edit(row.id)),
-      },
-      {
-        id: "view",
-        label: "View",
-        icon: Eye,
-        onSelect: (row) => navigate(paths.view(row.id)),
-      },
-      {
-        id: "revert",
-        label: "Revert",
-        icon: RotateCcw,
-        onSelect: (row) => revertPackingRecord(row.id),
-      },
+      ...(canEditPacking
+        ? [
+            {
+              id: "edit",
+              label: "Edit",
+              icon: Pencil,
+              onSelect: (row: PackingRecord) => navigate(paths.edit(row.id)),
+            },
+            {
+              id: "revert",
+              label: "Revert",
+              icon: RotateCcw,
+              onSelect: (row: PackingRecord) => revertPackingRecord(row.id),
+            },
+          ]
+        : []),
+      ...(canViewPacking
+        ? [
+            {
+              id: "view",
+              label: "View",
+              icon: Eye,
+              onSelect: (row: PackingRecord) => navigate(paths.view(row.id)),
+            },
+          ]
+        : []),
     ],
-    [navigate, paths],
+    [canEditPacking, canViewPacking, navigate, paths],
   );
 
   const doneActions = useMemo<readonly EnterpriseTableAction<PackingRecord>[]>(
     () => [
-      {
-        id: "view",
-        label: "View",
-        icon: Eye,
-        onSelect: (row) => navigate(paths.view(row.id)),
-      },
-      {
-        id: "dispatch",
-        label: "Create Dispatch",
-        icon: Truck,
-        onSelect: (row) => navigate(`/dispatch/add/${row.id}`),
-      },
+      ...(canViewPacking
+        ? [
+            {
+              id: "view",
+              label: "View",
+              icon: Eye,
+              onSelect: (row: PackingRecord) => navigate(paths.view(row.id)),
+            },
+          ]
+        : []),
+      ...(canCreateDispatch
+        ? [
+            {
+              id: "dispatch",
+              label: "Create Dispatch",
+              icon: Truck,
+              onSelect: (row: PackingRecord) => navigate(`/dispatch/add/${row.id}`),
+            },
+          ]
+        : []),
     ],
-    [navigate, paths],
+    [canCreateDispatch, canViewPacking, navigate, paths],
   );
 
   return (
@@ -147,13 +168,15 @@ export function PackingListingPage() {
             }}
           />
 
-          <Button
-            onClick={() => navigate(paths.add())}
-            startIcon={<PackageOpen size={16} />}
-            variant="contained"
-          >
-            Create Packing
-          </Button>
+          {canCreatePacking ? (
+            <Button
+              onClick={() => navigate(paths.add())}
+              startIcon={<PackageOpen size={16} />}
+              variant="contained"
+            >
+              Create Packing
+            </Button>
+          ) : null}
         </Stack>
 
         <EnterpriseDataTable
@@ -162,7 +185,7 @@ export function PackingListingPage() {
           defaultRowsPerPage={10}
           emptyStateLabel={`No records are currently available in ${activeTab === "issued" ? "Issued for Packing" : "Packing Done"}.`}
           initialSort={{ key: "updatedDate", direction: "desc" }}
-          rows={rows}
+          rows={canViewPacking ? rows : []}
         />
       </Stack>
     </MasterPageShell>

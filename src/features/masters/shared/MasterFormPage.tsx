@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 
-import { MasterFormFields } from "./MasterFormFields";
+import {
+  canAccessPermission,
+  getMasterPermissionKey,
+} from "../../permissions";
+import { MasterFormFields, hasRequiredFieldErrors } from "./MasterFormFields";
 import { MasterPageShell } from "./MasterPageShell";
 import { MasterSectionCard } from "./MasterSectionCard";
 import type { MasterDefinition, MasterFieldValue, MasterRecord } from "./types";
@@ -32,6 +36,14 @@ export function MasterFormPage({
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
   const paths = getMasterPaths(definition.slug);
+  const permissionKey = getMasterPermissionKey(definition.slug);
+  const canCreate = canAccessPermission(permissionKey, "create");
+  const canEdit = canAccessPermission(permissionKey, "edit");
+  const canView = canAccessPermission(permissionKey, "view");
+  const canUseMode =
+    (mode === "add" && canCreate) ||
+    (mode === "edit" && canEdit) ||
+    (mode === "view" && canView);
 
   const row =
     mode === "add"
@@ -41,6 +53,7 @@ export function MasterFormPage({
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildMasterInitialValues(definition, row),
   );
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
     setValues(buildMasterInitialValues(definition, row));
@@ -65,8 +78,31 @@ export function MasterFormPage({
     );
   }
 
+  if (!canUseMode) {
+    return (
+      <MasterPageShell
+        breadcrumbs={[
+          { label: "Masters", to: "/masters" },
+          { label: definition.title, to: paths.list },
+          { label: mode === "add" ? "Add" : mode === "edit" ? "Edit" : "View" },
+        ]}
+        title={getMasterPageTitle(definition, mode)}
+      >
+        <Alert severity="warning">
+          You do not have permission to {mode} this master record.
+        </Alert>
+      </MasterPageShell>
+    );
+  }
+
   const handleSave = () => {
     if (mode === "view") {
+      return;
+    }
+
+    setHasSubmitted(true);
+
+    if (mode === "add" && hasRequiredFieldErrors(definition.fields, values)) {
       return;
     }
 
@@ -112,6 +148,7 @@ export function MasterFormPage({
               }))
             }
             readOnly={mode === "view"}
+            showRequiredErrors={mode === "add" && hasSubmitted}
             values={values}
           />
 
@@ -133,17 +170,19 @@ export function MasterFormPage({
                   Back
                 </Button>
 
-                <Button
-                  variant="contained"
-                  startIcon={<Pencil size={16} />}
-                  onClick={() => {
-                    if (row) {
-                      navigate(paths.edit(row.id));
-                    }
-                  }}
-                >
-                  Edit
-                </Button>
+                {canEdit ? (
+                  <Button
+                    variant="contained"
+                    startIcon={<Pencil size={16} />}
+                    onClick={() => {
+                      if (row) {
+                        navigate(paths.edit(row.id));
+                      }
+                    }}
+                  >
+                    Edit
+                  </Button>
+                ) : null}
               </>
             ) : (
               <>

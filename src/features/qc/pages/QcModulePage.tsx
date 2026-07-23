@@ -9,6 +9,7 @@ import {
 } from "../../../components/data-display/EnterpriseDataTable";
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { MasterPageShell } from "../../masters/shared";
+import { canAccessPermission } from "../../permissions";
 import {
   qcInventoryTabs,
   qcStageTitles,
@@ -29,12 +30,17 @@ export function QcModulePage({ stage }: QcModulePageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeInventory = getActiveQcInventory(searchParams.get("inventory"));
   const activeConfig = qcTableConfigs[stage][activeInventory];
+  const permissionKey = stage === "pending" ? "qcPending" : "qcDone";
+  const canEdit = canAccessPermission(permissionKey, "edit");
+  const canView = canAccessPermission(permissionKey, "view");
 
   const rowActions = useMemo<
     ReadonlyArray<EnterpriseTableAction<WarehouseInventoryRow>>
   >(
     () =>
-      stage === "pending"
+      !canEdit
+        ? []
+        : stage === "pending"
         ? [
             {
               id: "mark-as-qc-done",
@@ -54,7 +60,7 @@ export function QcModulePage({ stage }: QcModulePageProps) {
                 ),
             },
           ],
-    [activeInventory, navigate, stage],
+    [activeInventory, canEdit, navigate, stage],
   );
 
   return (
@@ -85,7 +91,7 @@ export function QcModulePage({ stage }: QcModulePageProps) {
           columns={activeConfig.columns}
           defaultRowsPerPage={10}
           initialSort={{ key: "inwardDate", direction: "desc" }}
-          rows={activeConfig.rows}
+          rows={canView ? activeConfig.rows : []}
         />
       </Stack>
     </MasterPageShell>

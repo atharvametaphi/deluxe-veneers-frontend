@@ -22,7 +22,7 @@ function withAuditFields<T extends MasterRecord>(rows: ReadonlyArray<T>) {
   }));
 }
 
-const itemRows = withAuditFields(createMasterRows("item-master", [
+const itemRows = withAuditFields(createMasterRows("item-name-master", [
   {
     itemName: "Oak Quarter Cut Veneer",
     itemCode: "ITM-OAK-001",
@@ -721,6 +721,16 @@ const uniqueOptions = (rows: ReadonlyArray<MasterRecord>, key: string) =>
     new Set(rows.map((row) => String(row[key] ?? "")).filter(Boolean)),
   );
 
+const activeOptions = (rows: ReadonlyArray<MasterRecord>, key: string) =>
+  uniqueOptions(
+    rows.filter(
+      (row) => String(row.status ?? "Active").toLowerCase() !== "inactive",
+    ),
+    key,
+  );
+
+const statusOptions = ["Active", "Inactive"];
+
 export const itemSubCategoryMasterOptions = uniqueOptions(
   itemSubCategoryRows,
   "itemSubCategory",
@@ -732,8 +742,8 @@ export const itemCategoryMasterOptions = uniqueOptions(
 );
 
 export const itemMasterDefinition: MasterDefinition = {
-  slug: "item-master",
-  title: "Item Master",
+  slug: "item-name-master",
+  title: "Item Name Master",
   gridColumns: 4,
   columns: [
     { key: "srNo", label: "Sr No" },
@@ -742,6 +752,7 @@ export const itemMasterDefinition: MasterDefinition = {
     { key: "category", label: "Category" },
     { key: "subCategory", label: "Sub Category" },
     { key: "remark", label: "Remark" },
+    { key: "status", label: "Status" },
     { key: "createdBy", label: "Created By" },
     { key: "editedBy", label: "Edited By" },
     { key: "createdDate", label: "Created Date" },
@@ -750,16 +761,18 @@ export const itemMasterDefinition: MasterDefinition = {
   filters: [
     { key: "category", label: "Category", options: itemCategoryMasterOptions },
     { key: "subCategory", label: "Sub Category", options: itemSubCategoryMasterOptions },
+    { key: "status", label: "Status", options: statusOptions },
   ],
   fields: [
     { key: "itemName", label: "Item Name", type: "text" },
     { key: "itemCode", label: "Item Code", type: "text" },
-    { key: "category", label: "Category", type: "select", options: itemCategoryMasterOptions },
-    { key: "subCategory", label: "Sub Category", type: "select", options: itemSubCategoryMasterOptions },
-    { key: "color", label: "Color", type: "select", options: uniqueOptions(colorRows, "colorName") },
-    { key: "gst", label: "GST", type: "select", options: uniqueOptions(gstRows, "gstPercentage") },
-    { key: "hsn", label: "HSN", type: "select", options: uniqueOptions(hsnRows, "hsnCode") },
+    { key: "category", label: "Category", type: "select", options: activeOptions(itemCategoryRows, "categoryName") },
+    { key: "subCategory", label: "Sub Category", type: "select", options: activeOptions(itemSubCategoryRows, "itemSubCategory") },
+    { key: "color", label: "Color", type: "select", options: activeOptions(colorRows, "colorName") },
+    { key: "gst", label: "GST", type: "select", options: activeOptions(gstRows, "gstPercentage") },
+    { key: "hsn", label: "HSN", type: "select", options: activeOptions(hsnRows, "hsnCode") },
     { key: "remark", label: "Remark", type: "text" },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: itemRows,
 };
@@ -772,6 +785,7 @@ export const itemCategoryMasterDefinition: MasterDefinition = {
     { key: "srNo", label: "Sr No" },
     { key: "categoryName", label: "Category Name" },
     { key: "remark", label: "Remark" },
+    { key: "status", label: "Status" },
     { key: "createdBy", label: "Created By" },
     { key: "editedBy", label: "Edited By" },
     { key: "createdDate", label: "Created Date" },
@@ -779,10 +793,12 @@ export const itemCategoryMasterDefinition: MasterDefinition = {
   ],
   filters: [
     { key: "categoryName", label: "Category Name", options: uniqueOptions(itemCategoryRows, "categoryName") },
+    { key: "status", label: "Status", options: statusOptions },
   ],
   fields: [
     { key: "categoryName", label: "Category Name", type: "text" },
     { key: "remark", label: "Remark", type: "text" },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: itemCategoryRows,
 };
@@ -795,6 +811,7 @@ export const itemSubCategoryMasterDefinition: MasterDefinition = {
     { key: "srNo", label: "Sr No" },
     { key: "itemSubCategory", label: "Item Sub Category" },
     { key: "category", label: "Category" },
+    { key: "status", label: "Status" },
     { key: "createdBy", label: "Created By" },
     { key: "editedBy", label: "Edited By" },
     { key: "createdDate", label: "Created Date" },
@@ -802,10 +819,12 @@ export const itemSubCategoryMasterDefinition: MasterDefinition = {
   ],
   filters: [
     { key: "category", label: "Category", options: uniqueOptions(itemSubCategoryRows, "category") },
+    { key: "status", label: "Status", options: statusOptions },
   ],
   fields: [
     { key: "itemSubCategory", label: "Item Sub Category", type: "text" },
-    { key: "category", label: "Category", type: "select", options: uniqueOptions(itemCategoryRows, "categoryName") },
+    { key: "category", label: "Category", type: "select", options: activeOptions(itemCategoryRows, "categoryName") },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: itemSubCategoryRows,
 };
@@ -824,13 +843,13 @@ export const colorMasterDefinition: MasterDefinition = {
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
-    { key: "status", label: "Status", options: uniqueOptions(colorRows, "status") },
+    { key: "status", label: "Status", options: statusOptions },
     { key: "createdBy", label: "Created By", options: uniqueOptions(colorRows, "createdBy") },
     { key: "editedBy", label: "Edited By", options: uniqueOptions(colorRows, "editedBy") },
   ],
   fields: [
     { key: "colorName", label: "Color Name", type: "text" },
-    { key: "status", label: "Status", type: "select", options: ["Active", "Inactive"] },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: colorRows,
 };
@@ -846,6 +865,7 @@ export const cutMasterDefinition: MasterDefinition = {
     { key: "srNo", label: "Sr No" },
     { key: "cutName", label: "Cut Name" },
     { key: "remark", label: "Remark" },
+    { key: "status", label: "Status" },
     { key: "createdBy", label: "Created By" },
     { key: "editedBy", label: "Edited By" },
     { key: "createdDate", label: "Created Date" },
@@ -853,10 +873,12 @@ export const cutMasterDefinition: MasterDefinition = {
   ],
   filters: [
     { key: "cutName", label: "Cut Name", options: cutMasterOptions },
+    { key: "status", label: "Status", options: statusOptions },
   ],
   fields: [
     { key: "cutName", label: "Cut Name", type: "text" },
     { key: "remark", label: "Remark", type: "text" },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: cutRows,
 };
@@ -918,13 +940,13 @@ export const unitMasterDefinition: MasterDefinition = {
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
-    { key: "status", label: "Status", options: uniqueOptions(unitRows, "status") },
+    { key: "status", label: "Status", options: statusOptions },
     { key: "createdBy", label: "Created By", options: uniqueOptions(unitRows, "createdBy") },
   ],
   fields: [
     { key: "unitName", label: "Unit Name", type: "text" },
     { key: "symbolicName", label: "Symbolic Name", type: "text" },
-    { key: "status", label: "Status", type: "select", options: uniqueOptions(unitRows, "status") },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: unitRows,
 };
@@ -966,8 +988,8 @@ export const supplierMasterDefinition: MasterDefinition = {
     { key: "emailAddress", label: "Email Address", type: "text" },
     { key: "city", label: "City", type: "text" },
     { key: "state", label: "State", type: "text" },
-    { key: "country", label: "Country", type: "select", options: uniqueOptions(supplierRows, "country") },
-    { key: "msmeType", label: "MSME Type", type: "select", options: uniqueOptions(supplierRows, "msmeType") },
+    { key: "country", label: "Country", type: "text" },
+    { key: "msmeType", label: "MSME Type", type: "text" },
     { key: "msmeNo", label: "MSME No", type: "text" },
     { key: "gstNo", label: "GST", type: "text" },
     { key: "gstUpload", label: "GST Upload", type: "file" },
@@ -993,12 +1015,12 @@ export const gstMasterDefinition: MasterDefinition = {
   ],
   filters: [
     { key: "gstPercentage", label: "GST %", options: uniqueOptions(gstRows, "gstPercentage") },
-    { key: "status", label: "Status", options: uniqueOptions(gstRows, "status") },
+    { key: "status", label: "Status", options: statusOptions },
     { key: "createdBy", label: "Created By", options: uniqueOptions(gstRows, "createdBy") },
   ],
   fields: [
     { key: "gstPercentage", label: "GST %", type: "text" },
-    { key: "status", label: "Status", type: "select", options: uniqueOptions(gstRows, "status") },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
     { key: "remark", label: "Remark", type: "text" },
   ],
   rows: gstRows,
@@ -1021,14 +1043,14 @@ export const hsnMasterDefinition: MasterDefinition = {
   ],
   filters: [
     { key: "gstPercentage", label: "GST%", options: uniqueOptions(hsnRows, "gstPercentage") },
-    { key: "status", label: "Status", options: uniqueOptions(hsnRows, "status") },
+    { key: "status", label: "Status", options: statusOptions },
     { key: "createdBy", label: "Created By", options: uniqueOptions(hsnRows, "createdBy") },
   ],
   fields: [
     { key: "hsnCode", label: "HSN Code", type: "text" },
     { key: "hsnCodeDescription", label: "HSN Code Description", type: "text" },
-    { key: "gstPercentage", label: "GST%", type: "select", options: uniqueOptions(hsnRows, "gstPercentage") },
-    { key: "status", label: "Status", type: "select", options: uniqueOptions(hsnRows, "status") },
+    { key: "gstPercentage", label: "GST%", type: "select", options: activeOptions(gstRows, "gstPercentage") },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: hsnRows,
 };
@@ -1055,7 +1077,7 @@ export const warehouseLocationMasterDefinition: MasterDefinition = {
   filters: [
     { key: "country", label: "Country", options: uniqueOptions(warehouseRows, "country") },
     { key: "state", label: "State", options: uniqueOptions(warehouseRows, "state") },
-    { key: "status", label: "Status", options: uniqueOptions(warehouseRows, "status") },
+    { key: "status", label: "Status", options: statusOptions },
   ],
   fields: [
     { key: "warehouseName", label: "Warehouse Name", type: "text" },
@@ -1066,7 +1088,7 @@ export const warehouseLocationMasterDefinition: MasterDefinition = {
       type: "select",
       options: ["Inward", "Storage", "Production"],
     },
-    { key: "status", label: "Status", type: "select", options: uniqueOptions(warehouseRows, "status") },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
     { key: "address", label: "Address", type: "text" },
     { key: "city", label: "City", type: "text" },
     { key: "pincode", label: "Pincode", type: "text" },
@@ -1092,13 +1114,13 @@ export const currencyMasterDefinition: MasterDefinition = {
     { key: "updatedDate", label: "Updated Date" },
   ],
   filters: [
-    { key: "status", label: "Status", options: uniqueOptions(currencyRows, "status") },
+    { key: "status", label: "Status", options: statusOptions },
     { key: "createdBy", label: "Created By", options: uniqueOptions(currencyRows, "createdBy") },
     { key: "currencyName", label: "Currency Name", options: uniqueOptions(currencyRows, "currencyName") },
   ],
   fields: [
     { key: "currencyName", label: "Currency Name", type: "text" },
-    { key: "status", label: "Status", type: "select", options: uniqueOptions(currencyRows, "status") },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
     { key: "remark", label: "Remark", type: "text" },
   ],
   rows: currencyRows,
@@ -1129,6 +1151,7 @@ export const transporterMasterDefinition: MasterDefinition = {
     { key: "transporterId", label: "Transporter Id" },
     { key: "type", label: "Type" },
     { key: "areaOfOperation", label: "Area Of Operation" },
+    { key: "status", label: "Status" },
     { key: "createdBy", label: "Created By" },
     { key: "editedBy", label: "Edited By" },
     { key: "createdDate", label: "Created Date" },
@@ -1145,6 +1168,7 @@ export const transporterMasterDefinition: MasterDefinition = {
       label: "Area Of Operation",
       options: transporterAreaOfOperationOptions,
     },
+    { key: "status", label: "Status", options: statusOptions },
   ],
   fields: [
     { key: "transporterName", label: "Transporter Name*", type: "text" },
@@ -1162,6 +1186,7 @@ export const transporterMasterDefinition: MasterDefinition = {
       type: "select",
       options: transporterAreaOfOperationOptions,
     },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: transporterRows,
 };
@@ -1188,6 +1213,7 @@ export const consumablesMasterDefinition: MasterDefinition = {
     { key: "gst", label: "GST" },
     { key: "hsn", label: "HSN" },
     { key: "remark", label: "Remark" },
+    { key: "status", label: "Status" },
     { key: "createdBy", label: "Created By" },
     { key: "editedBy", label: "Edited By" },
     { key: "createdDate", label: "Created Date" },
@@ -1202,13 +1228,14 @@ export const consumablesMasterDefinition: MasterDefinition = {
     {
       key: "unitName",
       label: "Unit Name",
-      options: unitMasterOptions,
+      options: activeOptions(unitRows, "unitName"),
     },
     {
       key: "gst",
       label: "GST",
       options: uniqueOptions(consumablesRows, "gst"),
     },
+    { key: "status", label: "Status", options: statusOptions },
   ],
   fields: [
     { key: "consumableName", label: "Consumable Name", type: "text" },
@@ -1228,15 +1255,16 @@ export const consumablesMasterDefinition: MasterDefinition = {
       key: "gst",
       label: "GST",
       type: "select",
-      options: uniqueOptions(gstRows, "gstPercentage"),
+      options: activeOptions(gstRows, "gstPercentage"),
     },
     {
       key: "hsn",
       label: "HSN",
       type: "select",
-      options: uniqueOptions(hsnRows, "hsnCode"),
+      options: activeOptions(hsnRows, "hsnCode"),
     },
     { key: "remark", label: "Remark", type: "text" },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: consumablesRows,
 };

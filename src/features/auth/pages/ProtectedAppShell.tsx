@@ -1,10 +1,19 @@
 import { Navigate } from "react-router";
+import { useEffect } from "react";
 
 import { AppShell } from "../../../layouts/AppShell";
-import { isAuthenticated } from "../authSession";
+import { isAuthenticated, refreshCurrentUserPermissions } from "../authSession";
 
 export function ProtectedAppShell() {
-  if (!isAuthenticated()) {
+  const authenticated = isAuthenticated();
+
+  useEffect(() => {
+    if (authenticated) {
+      void refreshCurrentUserPermissions();
+    }
+  }, [authenticated]);
+
+  if (!authenticated) {
     return <Navigate to="/" replace />;
   }
 

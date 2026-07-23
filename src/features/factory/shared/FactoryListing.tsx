@@ -10,6 +10,10 @@ import {
   type EnterpriseTableAction,
 } from "../../../components/data-display/EnterpriseDataTable";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
+import {
+  canAccessPermission,
+  getFactoryPermissionKey,
+} from "../../permissions";
 import { FactoryPageShell } from "./FactoryPageShell";
 import { FactoryToolbar } from "./FactoryToolbar";
 import {
@@ -30,6 +34,10 @@ export function FactoryListing<Row extends FactoryRecord>({
   const theme = useTheme();
   const navigate = useNavigate();
   const paths = getFactoryPaths(definition.slug);
+  const permissionKey = getFactoryPermissionKey(definition.slug);
+  const canCreate = canAccessPermission(permissionKey, "create");
+  const canEdit = canAccessPermission(permissionKey, "edit");
+  const canView = canAccessPermission(permissionKey, "view");
   const [activeTab, setActiveTab] = useState<FactoryProcessTab>("issued");
   const [searchValue, setSearchValue] = useState("");
   const [revertedRowIds, setRevertedRowIds] = useState<string[]>([]);
@@ -59,21 +67,29 @@ export function FactoryListing<Row extends FactoryRecord>({
   const rowActions = useMemo<ReadonlyArray<EnterpriseTableAction<Row>>>(
     () => {
       const baseActions: EnterpriseTableAction<Row>[] = [
-        {
-          id: "view",
-          label: "View",
-          icon: Eye,
-          onSelect: (row) => navigate(paths.view(row.id)),
-        },
-        {
-          id: "edit",
-          label: "Edit",
-          icon: Pencil,
-          onSelect: (row) => navigate(paths.edit(row.id)),
-        },
+        ...(canView
+          ? [
+              {
+                id: "view",
+                label: "View",
+                icon: Eye,
+                onSelect: (row: Row) => navigate(paths.view(row.id)),
+              },
+            ]
+          : []),
+        ...(canEdit
+          ? [
+              {
+                id: "edit",
+                label: "Edit",
+                icon: Pencil,
+                onSelect: (row: Row) => navigate(paths.edit(row.id)),
+              },
+            ]
+          : []),
       ];
 
-      if (activeTab === "issued") {
+      if (activeTab === "issued" && canCreate) {
         baseActions.unshift({
           id: "create-process",
           label: `Create ${definition.title}`,
@@ -93,7 +109,7 @@ export function FactoryListing<Row extends FactoryRecord>({
 
       return baseActions;
     },
-    [activeTab, definition.title, navigate, paths],
+    [activeTab, canCreate, canEdit, canView, definition.title, navigate, paths],
   );
 
   const getRowActions = useMemo<
@@ -176,7 +192,7 @@ export function FactoryListing<Row extends FactoryRecord>({
           actions={rowActions}
           columns={definition.listColumns}
           defaultRowsPerPage={10}
-          rows={filteredRows}
+          rows={canView ? filteredRows : []}
           {...(getRowActions ? { getRowActions } : {})}
           {...(definition.initialSort
             ? { initialSort: definition.initialSort }
@@ -220,11 +236,13 @@ function getFactoryNextProcessActions<Row extends FactoryRecord>(
     return [
       createFactoryIssueAction<Row>("CNC / Fluting", navigate),
       createFactoryIssueAction<Row>("Embossing", navigate),
-    ];
+    ].filter((action) => canAccessPermission(action.permissionKey, "create"));
   }
 
   if (slug === "sample-sheets") {
-    return [createFactoryIssueAction<Row>("Finishing", navigate)];
+    return [createFactoryIssueAction<Row>("Finishing", navigate)].filter((action) =>
+      canAccessPermission(action.permissionKey, "create"),
+    );
   }
 
   const issuedFor = typeof row.issuedFor === "string" ? row.issuedFor.trim() : "";
@@ -233,18 +251,38 @@ function getFactoryNextProcessActions<Row extends FactoryRecord>(
     return [];
   }
 
-  return [createFactoryIssueAction<Row>(issuedFor, navigate)];
+  return [createFactoryIssueAction<Row>(issuedFor, navigate)].filter((action) =>
+    canAccessPermission(action.permissionKey, "create"),
+  );
 }
 
 function createFactoryIssueAction<Row extends FactoryRecord>(
   issuedFor: string,
   navigate: ReturnType<typeof useNavigate>,
-): EnterpriseTableAction<Row> {
+): EnterpriseTableAction<Row> & { permissionKey?: string } {
+  const route = factoryNextProcessRouteMap[issuedFor]!;
+  const permissionKey = getIssueRoutePermissionKey(route);
+
   return {
     id: `issue-for-${issuedFor.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
     label: `Issue for ${issuedFor}`,
-    onSelect: () => navigate(factoryNextProcessRouteMap[issuedFor]!),
+    onSelect: () => navigate(route),
+    ...(permissionKey ? { permissionKey } : {}),
   };
+}
+
+function getIssueRoutePermissionKey(route: string) {
+  if (route.startsWith("/factory/")) {
+    return getFactoryPermissionKey(route.replace(/^\/factory\//, ""));
+  }
+
+  const permissionKeyByRoute: Record<string, string> = {
+    "/dispatch": "dispatch",
+    "/packing": "packing",
+    "/qc/pending": "qcPending",
+  };
+
+  return permissionKeyByRoute[route];
 }
 
 const factoryNextProcessRouteMap: Record<string, string> = {

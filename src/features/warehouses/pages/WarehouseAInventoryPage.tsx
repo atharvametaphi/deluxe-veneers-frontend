@@ -26,6 +26,7 @@ import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessT
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { MasterPageShell } from "../../masters/shared";
 import { getInventoryPaths } from "../../inventory/shared";
+import { canAccessPermission } from "../../permissions";
 import {
   warehouseAInventoryConfigs,
   type WarehouseInventoryRow,
@@ -62,6 +63,10 @@ export function WarehouseAInventoryModulePage({
     searchParams.get("inventory"),
   );
   const activeConfig = warehouseAInventoryConfigs[activeInventory];
+  const canCreate = canAccessPermission("warehouseA", "create");
+  const canEdit = canAccessPermission("warehouseA", "edit");
+  const canView = canAccessPermission("warehouseA", "view");
+  const canCreateQcPending = canAccessPermission("qcPending", "create");
   const filteredRows = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
@@ -80,31 +85,39 @@ export function WarehouseAInventoryModulePage({
     ReadonlyArray<EnterpriseTableAction<WarehouseInventoryRow>>
   >(() => {
     const actions: EnterpriseTableAction<WarehouseInventoryRow>[] = [
-      {
-        id: "view",
-        label: "View",
-        icon: Eye,
-        onSelect: (row) =>
-          navigate(
-            getInventoryPaths(row.inventorySlug, "issued", "warehouse-a").view(
-              row.inventoryRecordId,
-            ),
-          ),
-      },
-      {
-        id: "edit",
-        label: "Edit",
-        icon: Pencil,
-        onSelect: (row) =>
-          navigate(
-            getInventoryPaths(row.inventorySlug, "issued", "warehouse-a").edit(
-              row.inventoryRecordId,
-            ),
-          ),
-      },
+      ...(canView
+        ? [
+            {
+              id: "view",
+              label: "View",
+              icon: Eye,
+              onSelect: (row: WarehouseInventoryRow) =>
+                navigate(
+                  getInventoryPaths(row.inventorySlug, "issued", "warehouse-a").view(
+                    row.inventoryRecordId,
+                  ),
+                ),
+            },
+          ]
+        : []),
+      ...(canEdit
+        ? [
+            {
+              id: "edit",
+              label: "Edit",
+              icon: Pencil,
+              onSelect: (row: WarehouseInventoryRow) =>
+                navigate(
+                  getInventoryPaths(row.inventorySlug, "issued", "warehouse-a").edit(
+                    row.inventoryRecordId,
+                  ),
+                ),
+            },
+          ]
+        : []),
     ];
 
-    if (activeInventory !== "consumables") {
+    if (activeInventory !== "consumables" && canEdit && canCreateQcPending) {
       actions.push({
         id: "issue-for-qc",
         label: "Issue for QC",
@@ -115,7 +128,7 @@ export function WarehouseAInventoryModulePage({
     }
 
     return actions;
-  }, [activeInventory, navigate]);
+  }, [activeInventory, canCreateQcPending, canEdit, canView, navigate]);
 
   return (
     <MasterPageShell
@@ -175,14 +188,16 @@ export function WarehouseAInventoryModulePage({
             useFlexGap
             sx={{ alignItems: { xs: "stretch", lg: "center" } }}
           >
-            <Button
-              component={RouterLink}
-              to={getInventoryPaths(activeInventory, "issued", "warehouse-a").add}
-              startIcon={<Plus size={16} />}
-              variant="contained"
-            >
-              Add Stock
-            </Button>
+            {canCreate ? (
+              <Button
+                component={RouterLink}
+                to={getInventoryPaths(activeInventory, "issued", "warehouse-a").add}
+                startIcon={<Plus size={16} />}
+                variant="contained"
+              >
+                Add Stock
+              </Button>
+            ) : null}
 
             <Button variant="outlined" startIcon={<FileOutput size={16} />}>
               Export
@@ -200,7 +215,7 @@ export function WarehouseAInventoryModulePage({
           columns={activeConfig.columns}
           defaultRowsPerPage={10}
           initialSort={{ key: "inwardDate", direction: "desc" }}
-          rows={filteredRows}
+          rows={canView ? filteredRows : []}
         />
       </Stack>
     </MasterPageShell>

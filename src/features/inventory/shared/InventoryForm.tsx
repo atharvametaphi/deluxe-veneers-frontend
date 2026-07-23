@@ -1,13 +1,19 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Typography } from "@mui/material";
+import { Alert, Box, Button, Typography } from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   MasterFormFields,
   MasterSectionCard,
+  hasRequiredFieldErrors,
+  type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
+import {
+  canAccessPermission,
+  getWarehousePermissionKey,
+} from "../../permissions";
 import { InventoryPageShell } from "./InventoryPageShell";
 import {
   isWarehouseAAddStockSlug,
@@ -40,6 +46,14 @@ export function InventoryForm<Row extends InventoryRecord>({
   const activeWarehouse = getInventoryWarehouseContext(
     searchParams.get("warehouse"),
   );
+  const permissionKey = getWarehousePermissionKey(activeWarehouse);
+  const canCreate = canAccessPermission(permissionKey, "create");
+  const canEdit = canAccessPermission(permissionKey, "edit");
+  const canView = canAccessPermission(permissionKey, "view");
+  const canUseMode =
+    (mode === "add" && canCreate) ||
+    (mode === "edit" && canEdit) ||
+    (mode === "view" && canView);
   const activeProcessTab = getInventoryProcessTab(searchParams.get("tab"));
   const paths = getInventoryPaths(
     definition.slug,
@@ -65,17 +79,27 @@ export function InventoryForm<Row extends InventoryRecord>({
     mode === "add"
       ? undefined
       : definition.rows.find((record) => record.id === params.id);
+  const warehouseAAddStockSlug =
+    mode === "add" &&
+    activeWarehouse === "warehouse-a" &&
+    isWarehouseAAddStockSlug(definition.slug)
+      ? definition.slug
+      : null;
 
-  const fields =
+  const baseFields =
     mode === "add"
       ? definition.formFields
       : mode === "edit"
         ? definition.editFields ?? definition.viewFields
         : definition.viewFields;
+  const fields = warehouseAAddStockSlug
+    ? getWarehouseAAddStockFormFields(baseFields)
+    : baseFields;
 
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildInventoryInitialValues(fields, row),
   );
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
     setValues(buildInventoryInitialValues(fields, row));
@@ -105,6 +129,28 @@ export function InventoryForm<Row extends InventoryRecord>({
     );
   }
 
+  if (!canUseMode) {
+    return (
+      <InventoryPageShell
+        breadcrumbs={getInventoryBreadcrumbs({
+          currentLabel: mode === "add" ? "Add" : mode === "edit" ? "Edit" : "View",
+          definitionTitle: definition.title,
+          inventoryBreadcrumbLabel,
+          inventoryListPath,
+          inventoryTitlePath,
+          warehouseLabel,
+          warehouseRootPath,
+          warehouseType: activeWarehouse,
+        })}
+        title={getInventoryPageTitle(definition, mode)}
+      >
+        <Alert severity="warning">
+          You do not have permission to {mode} this inventory record.
+        </Alert>
+      </InventoryPageShell>
+    );
+  }
+
   const primaryLabel = "Save";
   const warehouseInventoryBreadcrumbs = getInventoryBreadcrumbs({
     currentLabel: mode === "add" ? "Add" : mode === "edit" ? "Edit" : "View",
@@ -116,13 +162,6 @@ export function InventoryForm<Row extends InventoryRecord>({
     warehouseRootPath,
     warehouseType: activeWarehouse,
   });
-  const warehouseAAddStockSlug =
-    mode === "add" &&
-    activeWarehouse === "warehouse-a" &&
-    isWarehouseAAddStockSlug(definition.slug)
-      ? definition.slug
-      : null;
-
   return (
     <InventoryPageShell
       breadcrumbs={warehouseInventoryBreadcrumbs}
@@ -149,6 +188,9 @@ export function InventoryForm<Row extends InventoryRecord>({
               }))
             }
             readOnly={mode === "view"}
+            showRequiredErrors={
+              mode === "add" && !warehouseAAddStockSlug && hasSubmitted
+            }
             values={values}
           />
 
@@ -174,7 +216,7 @@ export function InventoryForm<Row extends InventoryRecord>({
                   Back
                 </Button>
 
-                {row ? (
+                {row && canEdit ? (
                   <Button
                     variant="contained"
                     startIcon={<Pencil size={16} />}
@@ -193,7 +235,17 @@ export function InventoryForm<Row extends InventoryRecord>({
                 <Button
                   variant="contained"
                   startIcon={<Save size={16} />}
-                  onClick={() => navigate(paths.list)}
+                  onClick={() => {
+                    setHasSubmitted(true);
+                    if (
+                      mode === "add" &&
+                      !warehouseAAddStockSlug &&
+                      hasRequiredFieldErrors(fields, values)
+                    ) {
+                      return;
+                    }
+                    navigate(paths.list);
+                  }}
                 >
                   {primaryLabel}
                 </Button>
@@ -204,6 +256,25 @@ export function InventoryForm<Row extends InventoryRecord>({
       </MasterSectionCard>
     </InventoryPageShell>
   );
+}
+
+function getWarehouseAAddStockFormFields(
+  fields: readonly MasterFieldDefinition[],
+) {
+  return fields.map<MasterFieldDefinition>((field) => {
+    if (field.key !== "inwardType" && field.key !== "shift") {
+      return field;
+    }
+
+    const { options: _options, ...fieldWithoutOptions } = field;
+
+    return {
+      ...fieldWithoutOptions,
+      placeholder:
+        field.key === "inwardType" ? "Enter Inward Type" : "Enter Shift",
+      type: "text",
+    };
+  });
 }
 
 function getInventoryBreadcrumbs({

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Button,
@@ -19,14 +19,18 @@ import {
   EnterpriseDataTable,
 } from "../../../components/data-display/EnterpriseDataTable";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
-import { MasterPageShell } from "../../masters/shared";
+import { getCurrentUser } from "../../auth";
+import { formatMasterValue, MasterPageShell } from "../../masters/shared";
+import { canAccessPermission } from "../../permissions";
 import {
   getUserManagementPaths,
+  getUserManagementSearchValues,
   userManagementColumns,
 } from "./userManagementConfig";
 import {
   changeUserPassword,
   fetchUserManagementRows,
+  updateUserManagementStatus,
 } from "./userManagementApi";
 import type { UserManagementRecord } from "./userManagementConfig";
 
@@ -34,6 +38,9 @@ export function UserManagementListing() {
   const theme = useTheme();
   const navigate = useNavigate();
   const paths = getUserManagementPaths();
+  const canCreate = canAccessPermission("userManagement", "create");
+  const canEdit = canAccessPermission("userManagement", "edit");
+  const canView = canAccessPermission("userManagement", "view");
   const [searchValue, setSearchValue] = useState("");
   const [rows, setRows] = useState<UserManagementRecord[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
@@ -54,7 +61,7 @@ export function UserManagementListing() {
       setErrorMessage("");
 
       try {
-        const nextRows = await fetchUserManagementRows(searchValue);
+        const nextRows = await fetchUserManagementRows();
         if (!ignore) {
           setRows(nextRows);
         }
@@ -71,41 +78,62 @@ export function UserManagementListing() {
       }
     }
 
-    const timeoutId = window.setTimeout(loadRows, 250);
+    loadRows();
 
     return () => {
       ignore = true;
-      window.clearTimeout(timeoutId);
     };
-  }, [searchValue]);
+  }, []);
+
+  const filteredRows = useMemo(() => {
+    const normalizedSearch = searchValue.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return rows;
+    }
+
+    return rows.filter((row) =>
+      getUserManagementSearchValues(row).some((value) =>
+        formatMasterValue(value).toLowerCase().includes(normalizedSearch),
+      ),
+    );
+  }, [rows, searchValue]);
 
   const tableActions: readonly EnterpriseTableAction<
     UserManagementRecord
   >[] = [
-    {
-      id: "view",
-      label: "View",
-      icon: Eye,
-      onSelect: (row) => navigate(paths.view(row.id)),
-    },
-    {
-      id: "edit",
-      label: "Edit",
-      icon: Pencil,
-      onSelect: (row) => navigate(paths.edit(row.id)),
-    },
-    {
-      id: "change-password",
-      label: "Change Password",
-      icon: KeyRound,
-      onSelect: (row) => {
-        setPasswordDialogUser(row);
-        setNewPassword("");
-        setConfirmPassword("");
-        setPasswordError("");
-        setPasswordSuccessMessage("");
-      },
-    },
+    ...(canView
+      ? [
+          {
+            id: "view",
+            label: "View",
+            icon: Eye,
+            onSelect: (row: UserManagementRecord) => navigate(paths.view(row.id)),
+          },
+        ]
+      : []),
+    ...(canEdit
+      ? [
+          {
+            id: "edit",
+            label: "Edit",
+            icon: Pencil,
+            onSelect: (row: UserManagementRecord) => navigate(paths.edit(row.id)),
+          },
+          {
+            id: "change-password",
+            label: "Change Password",
+            icon: KeyRound,
+            onSelect: (row: UserManagementRecord) => {
+              setPasswordDialogUser(row);
+              setNewPassword("");
+              setConfirmPassword("");
+              setPasswordError("");
+              setPasswordSuccessMessage("");
+            },
+          },
+        ]
+      : []),
   ];
 
   const handleClosePasswordDialog = () => {
@@ -154,6 +182,40 @@ export function UserManagementListing() {
     }
   };
 
+  const handleStatusChange = async (
+    row: UserManagementRecord,
+    checked: boolean,
+  ) => {
+    if (!canEdit) {
+      return;
+    }
+
+    const status = checked ? "ACTIVE" : "INACTIVE";
+
+    try {
+      const updatedUser = await updateUserManagementStatus(row.id, status);
+      setRows((currentRows) =>
+        currentRows.map((currentRow) =>
+          currentRow.id === row.id
+            ? {
+                ...currentRow,
+                isActive: updatedUser.isActive,
+                statusLabel: updatedUser.statusLabel,
+                updatedBy: updatedUser.updatedBy,
+                updatedDate: updatedUser.updatedDate,
+              }
+            : currentRow,
+        ),
+      );
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Unable to update user status.",
+      );
+      throw error;
+    }
+  };
+
   return (
     <MasterPageShell
       breadcrumbs={[{ label: "User Management" }]}
@@ -187,13 +249,15 @@ export function UserManagementListing() {
           }}
         />
 
-        <Button
-          component={RouterLink}
-          to={paths.add}
-          variant="contained"
-        >
-          Add User
-        </Button>
+        {canCreate ? (
+          <Button
+            component={RouterLink}
+            to={paths.add}
+            variant="contained"
+          >
+            Add User
+          </Button>
+        ) : null}
       </Stack>
 
       {errorMessage ? (
@@ -210,7 +274,9 @@ export function UserManagementListing() {
         columns={userManagementColumns}
         defaultRowsPerPage={10}
         initialSort={{ key: "updatedDate", direction: "desc" }}
-        rows={rows}
+        isStatusChangeDisabled={(row) => !canEdit || isProtectedStatusRow(row)}
+        onStatusChange={handleStatusChange}
+        rows={canView ? filteredRows : []}
       />
 
       <Dialog
@@ -302,4 +368,21 @@ export function UserManagementListing() {
       </Dialog>
     </MasterPageShell>
   );
+}
+
+function isProtectedStatusRow(row: UserManagementRecord) {
+  return isCurrentUserRow(row) || isSuperAdminRole(row.role);
+}
+
+function isCurrentUserRow(row: UserManagementRecord) {
+  const currentUser = getCurrentUser();
+
+  return (
+    Boolean(currentUser.id && currentUser.id === row.id) ||
+    Boolean(currentUser.email && currentUser.email === row.email)
+  );
+}
+
+function isSuperAdminRole(role: string) {
+  return role.trim().toLowerCase() === "super admin";
 }

@@ -23,6 +23,8 @@ const permissionActions: readonly UserPermissionAction[] = [
   "create",
 ];
 
+type PermissionSection = (typeof userPermissionSections)[number];
+
 export function UserPermissionMatrix({
   onToggle,
   permissions,
@@ -60,7 +62,14 @@ export function UserPermissionMatrix({
             overflowX: "auto",
           }}
         >
-          <Typography variant="subtitle2" color="text.secondary">
+          <Typography
+            variant="subtitle2"
+            color="text.secondary"
+            sx={{
+              fontSize: theme.typography.body1.fontSize,
+              fontWeight: 700,
+            }}
+          >
             Module
           </Typography>
 
@@ -69,7 +78,12 @@ export function UserPermissionMatrix({
               key={action}
               variant="subtitle2"
               color="text.secondary"
-              sx={{ textAlign: "center", textTransform: "capitalize" }}
+              sx={{
+                fontSize: theme.typography.body1.fontSize,
+                fontWeight: 700,
+                textAlign: "center",
+                textTransform: "capitalize",
+              }}
             >
               {action}
             </Typography>
@@ -80,24 +94,68 @@ export function UserPermissionMatrix({
           <Box key={section.id}>
             <Box
               sx={{
+                display: "grid",
+                gridTemplateColumns: "minmax(220px, 1fr) repeat(3, 92px)",
+                alignItems: "center",
                 px: theme.spacing(2),
-                py: theme.spacing(0.875),
+                py: theme.spacing(0.75),
                 backgroundColor: theme.customTokens.navigation.hoverBackground,
                 borderTop: `1px solid ${theme.customTokens.borders.default}`,
+                overflowX: "auto",
               }}
             >
               <Typography
-                variant="caption"
+                variant="subtitle2"
                 color={theme.customTokens.navigation.activeText}
                 sx={{
                   display: "block",
+                  fontSize: theme.typography.body2.fontSize,
                   fontWeight: 700,
-                  letterSpacing: "0.08em",
+                  letterSpacing: "0.06em",
                   textTransform: "uppercase",
                 }}
               >
                 {section.label}
               </Typography>
+
+              {permissionActions.map((action) => (
+                <Box
+                  key={action}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Checkbox
+                    checked={isSectionActionFullySelected(section, action)}
+                    disabled={readOnly}
+                    indeterminate={isSectionActionPartlySelected(section, action)}
+                    inputProps={{
+                      "aria-label": `Select all ${section.label} ${action} permissions`,
+                    }}
+                    onChange={(event) =>
+                      toggleSectionActionPermissions(
+                        section,
+                        action,
+                        event.target.checked,
+                      )
+                    }
+                    sx={{
+                      color: theme.customTokens.borders.strong,
+                      p: 0,
+                      "& .MuiSvgIcon-root": {
+                        fontSize: 28,
+                      },
+                      "&.Mui-checked": {
+                        color: theme.customTokens.brand.primary,
+                      },
+                      "&.MuiCheckbox-indeterminate": {
+                        color: theme.customTokens.brand.primary,
+                      },
+                    }}
+                  />
+                </Box>
+              ))}
             </Box>
 
             {section.items.map((item) => (
@@ -133,6 +191,9 @@ export function UserPermissionMatrix({
                       }
                       sx={{
                         color: theme.customTokens.borders.strong,
+                        "& .MuiSvgIcon-root": {
+                          fontSize: 28,
+                        },
                         "&.Mui-checked": {
                           color: theme.customTokens.brand.primary,
                         },
@@ -150,4 +211,37 @@ export function UserPermissionMatrix({
       </Box>
     </Stack>
   );
+
+  function getSectionActionValues(
+    section: PermissionSection,
+    action: UserPermissionAction,
+  ) {
+    return section.items.map((item) => permissions[item.key]?.[action] ?? false);
+  }
+
+  function isSectionActionFullySelected(
+    section: PermissionSection,
+    action: UserPermissionAction,
+  ) {
+    const values = getSectionActionValues(section, action);
+    return values.length > 0 && values.every(Boolean);
+  }
+
+  function isSectionActionPartlySelected(
+    section: PermissionSection,
+    action: UserPermissionAction,
+  ) {
+    const values = getSectionActionValues(section, action);
+    return values.some(Boolean) && !values.every(Boolean);
+  }
+
+  function toggleSectionActionPermissions(
+    section: PermissionSection,
+    action: UserPermissionAction,
+    checked: boolean,
+  ) {
+    section.items.forEach((item) => {
+      onToggle(item.key, action, checked);
+    });
+  }
 }

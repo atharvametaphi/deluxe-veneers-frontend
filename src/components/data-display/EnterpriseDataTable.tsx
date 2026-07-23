@@ -81,8 +81,10 @@ interface EnterpriseDataTableProps<Row extends EnterpriseTableRow> {
   emptyStateLabel?: string;
   getRowActions?: (row: Row) => readonly EnterpriseTableAction<Row>[];
   initialSort?: EnterpriseTableSortConfig<Row>;
+  isStatusChangeDisabled?: (row: Row) => boolean;
   maxBodyHeight?: number;
   onSelectionChange?: (rows: Row[]) => void;
+  onStatusChange?: (row: Row, checked: boolean) => Promise<void> | void;
   renderActionCell?: (row: Row) => ReactNode;
   rows: readonly Row[];
   rowsPerPageOptions?: readonly number[];
@@ -99,8 +101,10 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   emptyStateLabel = "No records found.",
   getRowActions,
   initialSort = null,
+  isStatusChangeDisabled,
   maxBodyHeight = 440,
   onSelectionChange,
+  onStatusChange,
   renderActionCell,
   rows,
   rowsPerPageOptions = [10, 25, 50, 75, 100, 200],
@@ -508,6 +512,8 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                           column,
                           statusOverrides,
                           setStatusOverrides,
+                          isStatusChangeDisabled,
+                          onStatusChange,
                           theme,
                         )}
                       </TableCell>
@@ -987,6 +993,8 @@ function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
   column: EnterpriseTableColumn<Row>,
   statusOverrides: Record<string, boolean>,
   setStatusOverrides: Dispatch<SetStateAction<Record<string, boolean>>>,
+  isStatusChangeDisabled: EnterpriseDataTableProps<Row>["isStatusChangeDisabled"],
+  onStatusChange: EnterpriseDataTableProps<Row>["onStatusChange"],
   theme: Theme,
 ) {
   const toggleState = getEnterpriseStatusToggleState(column, row[column.key]);
@@ -997,17 +1005,26 @@ function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
 
   const toggleKey = `${row.id}:${column.key}`;
   const checked = statusOverrides[toggleKey] ?? Boolean(toggleState);
+  const disabled = isStatusChangeDisabled?.(row) ?? false;
 
   return (
     <ErpToggleSwitch
       ariaLabel={`${column.label} for row ${row.id}`}
       checked={checked}
-      onChange={(nextChecked) =>
+      disabled={disabled}
+      onChange={(nextChecked) => {
         setStatusOverrides((current) => ({
           ...current,
           [toggleKey]: nextChecked,
-        }))
-      }
+        }));
+
+        Promise.resolve(onStatusChange?.(row, nextChecked)).catch(() => {
+          setStatusOverrides((current) => ({
+            ...current,
+            [toggleKey]: checked,
+          }));
+        });
+      }}
     />
   );
 }

@@ -22,6 +22,7 @@ import {
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
+import { canAccessPermission } from "../../permissions";
 import {
   cancelOrderRecord,
   orderCreateOptions,
@@ -52,6 +53,9 @@ export function OrdersListingPage() {
   const [createMenuAnchor, setCreateMenuAnchor] = useState<HTMLElement | null>(
     null,
   );
+  const canCreate = canAccessPermission("placeOrder", "create");
+  const canEdit = canAccessPermission("placeOrder", "edit");
+  const canView = canAccessPermission("placeOrder", "view");
 
   const filteredRows = useMemo(() => {
     return rows
@@ -84,26 +88,34 @@ export function OrdersListingPage() {
 
   const rowActions = useMemo<readonly EnterpriseTableAction<OrderRecord>[]>(
     () => [
-      {
-        id: "view",
-        label: "View",
-        icon: Eye,
-        onSelect: (row) => navigate(paths.view(row.id)),
-      },
-      {
-        id: "edit",
-        label: "Edit",
-        icon: Pencil,
-        onSelect: (row) => navigate(paths.edit(row.id)),
-      },
+      ...(canView
+        ? [
+            {
+              id: "view",
+              label: "View",
+              icon: Eye,
+              onSelect: (row: OrderRecord) => navigate(paths.view(row.id)),
+            },
+          ]
+        : []),
+      ...(canEdit
+        ? [
+            {
+              id: "edit",
+              label: "Edit",
+              icon: Pencil,
+              onSelect: (row: OrderRecord) => navigate(paths.edit(row.id)),
+            },
+          ]
+        : []),
     ],
-    [navigate, paths],
+    [canEdit, canView, navigate, paths],
   );
 
   const getRowActions = (
     row: OrderRecord,
   ): readonly EnterpriseTableAction<OrderRecord>[] =>
-    row.status === "Cancelled"
+    row.status === "Cancelled" || !canEdit
       ? rowActions
       : [
           ...rowActions,
@@ -169,49 +181,53 @@ export function OrdersListingPage() {
           }}
         />
 
-        <Button
-          endIcon={<ChevronDown size={16} />}
-          onClick={(event: MouseEvent<HTMLElement>) =>
-            setCreateMenuAnchor(event.currentTarget)
-          }
-          sx={{ alignSelf: { xs: "flex-start", md: "center" } }}
-          variant="contained"
-        >
-          Create Order
-        </Button>
+        {canCreate ? (
+          <Button
+            endIcon={<ChevronDown size={16} />}
+            onClick={(event: MouseEvent<HTMLElement>) =>
+              setCreateMenuAnchor(event.currentTarget)
+            }
+            sx={{ alignSelf: { xs: "flex-start", md: "center" } }}
+            variant="contained"
+          >
+            Create Order
+          </Button>
+        ) : null}
 
-        <Popper
-          anchorEl={createMenuAnchor}
-          open={Boolean(createMenuAnchor)}
-          placement="bottom-start"
-          sx={(theme) => ({
-            zIndex: theme.zIndex.modal,
-          })}
-        >
-          <ClickAwayListener onClickAway={handleCloseCreateMenu}>
-            <Paper
-              sx={(theme) => ({
-                mt: theme.spacing(1),
-                minWidth: 200,
-                border: `1px solid ${theme.customTokens.borders.default}`,
-                borderRadius: `${theme.customTokens.radius.md}px`,
-                boxShadow: theme.shadows[0],
-                overflow: "hidden",
-              })}
-            >
-              <MenuList autoFocusItem dense>
-                {orderCreateOptions.map((option) => (
-                  <MenuItem
-                    key={option.value}
-                    onClick={() => handleCreateVariantSelect(option.value)}
-                  >
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </MenuList>
-            </Paper>
-          </ClickAwayListener>
-        </Popper>
+        {canCreate ? (
+          <Popper
+            anchorEl={createMenuAnchor}
+            open={Boolean(createMenuAnchor)}
+            placement="bottom-start"
+            sx={(theme) => ({
+              zIndex: theme.zIndex.modal,
+            })}
+          >
+            <ClickAwayListener onClickAway={handleCloseCreateMenu}>
+              <Paper
+                sx={(theme) => ({
+                  mt: theme.spacing(1),
+                  minWidth: 200,
+                  border: `1px solid ${theme.customTokens.borders.default}`,
+                  borderRadius: `${theme.customTokens.radius.md}px`,
+                  boxShadow: theme.shadows[0],
+                  overflow: "hidden",
+                })}
+              >
+                <MenuList autoFocusItem dense>
+                  {orderCreateOptions.map((option) => (
+                    <MenuItem
+                      key={option.value}
+                      onClick={() => handleCreateVariantSelect(option.value)}
+                    >
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </MenuList>
+              </Paper>
+            </ClickAwayListener>
+          </Popper>
+        ) : null}
       </Stack>
 
       <EnterpriseDataTable
@@ -221,7 +237,7 @@ export function OrdersListingPage() {
         emptyStateLabel="No orders are available."
         getRowActions={getRowActions}
         initialSort={{ key: "updatedDate", direction: "desc" }}
-        rows={filteredRows}
+        rows={canView ? filteredRows : []}
       />
 
       <OrderViewDetailsDialog

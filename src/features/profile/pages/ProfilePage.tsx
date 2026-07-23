@@ -43,7 +43,7 @@ export function ProfilePage() {
   };
 
   const handleSave = () => {
-    const nextUser = buildProfileFromValues(values, currentUser.accountRole);
+    const nextUser = buildProfileFromValues(values, currentUser);
     saveCurrentUser(nextUser);
     setCurrentUser(nextUser);
     setValues(buildProfileInitialValues(nextUser));
@@ -149,10 +149,10 @@ function buildProfileInitialValues(user: AuthenticatedUserProfile) {
 
 function buildProfileFromValues(
   values: Record<string, MasterFieldValue>,
-  accountRole: AuthenticatedUserProfile["accountRole"],
+  currentUser: AuthenticatedUserProfile,
 ): AuthenticatedUserProfile {
   return {
-    accountRole,
+    accountRole: currentUser.accountRole,
     address: getStringValue(values.address),
     age: getStringValue(values.age),
     approver: getStringValue(values.approver),
@@ -164,9 +164,11 @@ function buildProfileFromValues(
     email: getStringValue(values.email),
     firstName: getStringValue(values.firstName),
     gender: getStringValue(values.gender),
+    id: currentUser.id,
     lastName: getStringValue(values.lastName),
     phoneNo: getStringValue(values.phoneNo),
     pincode: getStringValue(values.pincode),
+    permissions: currentUser.permissions,
     remarks: getStringValue(values.remarks),
     role: getStringValue(values.role),
     state: getStringValue(values.state),

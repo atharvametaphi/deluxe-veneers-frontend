@@ -27,6 +27,9 @@ export function getFieldSx(
   const isReadOnly = state === "readOnly";
   const isFocus = state === "focus";
   const isHover = state === "hover";
+  const compactControlHeight = options?.large ? theme.spacing(5) : theme.spacing(4.5);
+  const compactFontSize = theme.typography.body2.fontSize ?? "0.875rem";
+  const compactLineHeight = theme.typography.body2.lineHeight ?? 1.43;
 
   const baseBorderColor = isError
     ? theme.palette.error.main
@@ -75,11 +78,14 @@ export function getFieldSx(
     },
     "& .MuiOutlinedInput-root": {
       borderRadius: `${theme.customTokens.radius.md}px`,
-      minHeight: isCompact
-        ? options?.large
-          ? theme.spacing(5)
-          : theme.spacing(4.5)
-        : undefined,
+      ...(isCompact
+        ? {
+            alignItems: "center",
+            boxSizing: "border-box",
+            height: compactControlHeight,
+            minHeight: compactControlHeight,
+          }
+        : {}),
       backgroundColor:
         isDisabled || isReadOnly
           ? theme.customTokens.surfaces.alt
@@ -118,15 +124,20 @@ export function getFieldSx(
       ...(isCompact
         ? {
             "& .MuiInputBase-input": {
-              fontSize: theme.typography.body2.fontSize,
-              paddingTop: theme.spacing(1),
-              paddingBottom: theme.spacing(1),
+              boxSizing: "border-box",
+              fontSize: compactFontSize,
+              height: "100%",
+              lineHeight: compactLineHeight,
+              paddingTop: 0,
+              paddingBottom: 0,
             },
             "&.MuiInputBase-multiline": {
+              alignItems: "flex-start",
+              height: "auto",
               minHeight: "auto",
             },
             "& textarea": {
-              fontSize: theme.typography.body2.fontSize,
+              fontSize: compactFontSize,
               paddingTop: theme.spacing(1),
               paddingBottom: theme.spacing(1),
             },
@@ -157,7 +168,7 @@ export function getFieldSx(
         borderRadius: `${theme.customTokens.radius.md}px`,
         transition: "background-color 9999s ease-out 0s",
       },
-      ...(options?.large
+      ...(options?.large && !isCompact
         ? {
             "& input": {
               paddingTop: theme.spacing(1.75),
