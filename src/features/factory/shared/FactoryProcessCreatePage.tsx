@@ -25,6 +25,7 @@ import {
   type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
+import { recordFormActionButtonSx } from "../../shared/buttonStyles";
 import { FactoryPageShell } from "./FactoryPageShell";
 import { buildFactoryInitialValues, flattenFactorySections, getFactoryPaths } from "./factoryUtils";
 import type { FactoryDefinition, FactoryRecord } from "./types";
@@ -70,7 +71,8 @@ const sourceColumnDefinitions: readonly SourceColumnDefinition[] = [
   { key: "width", keys: ["width"], label: "Width", minWidth: 120 },
   { key: "thickness", keys: ["thickness", "thickess"], label: "Thickness", minWidth: 120 },
   { key: "noOfSheets", keys: ["noOfSheets", "sampleSheets", "finishedSheets", "issuedLeaves"], label: "Quantity", minWidth: 130 },
-  { key: "sqm", keys: ["sqm", "issuedSqm", "finishedSqm"], label: "SQM", minWidth: 120 },
+  { key: "sqm", keys: ["sqm", "issuedSqm", "outputSqm", "consumedSqm", "consumeSqm", "finishedSqm"], label: "SQM", minWidth: 120 },
+  { key: "sqf", keys: ["sqf", "issuedSqf", "outputSqf", "consumedSqf", "consumeSqf", "finishedSqf"], label: "SQF", minWidth: 120 },
   { key: "amount", keys: ["amount"], label: "Amount", minWidth: 130 },
   { key: "remark", keys: ["remark"], label: "Remark", minWidth: 200 },
 ] as const;
@@ -108,9 +110,19 @@ const fieldValueAliases: Record<string, readonly string[]> = {
   itemName: ["itemName", "productName"],
   itemSubCategory: ["itemSubCategory", "subCategory"],
   noOfSheets: ["noOfSheets", "sampleSheets", "finishedSheets", "issuedLeaves"],
-  sqm: ["sqm", "issuedSqm", "finishedSqm"],
+  sqm: ["sqm", "issuedSqm", "outputSqm", "consumedSqm", "consumeSqm", "finishedSqm"],
+  sqf: ["sqf", "issuedSqf", "outputSqf", "consumedSqf", "consumeSqf", "finishedSqf"],
   thickness: ["thickness", "thickess"],
 };
+
+const SQM_TO_SQF = 10.7639;
+const areaConversionPairs = [
+  ["sqm", "sqf"],
+  ["consumedSqm", "consumedSqf"],
+  ["consumeSqm", "consumeSqf"],
+  ["issuedSqm", "issuedSqf"],
+  ["outputSqm", "outputSqf"],
+] as const satisfies readonly (readonly [sqmKey: string, sqfKey: string])[];
 
 const factoryCreateLineItemPresets: Partial<
   Record<string, readonly MasterFieldDefinition[]>
@@ -336,10 +348,9 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                         {renderEditableField({
                           column,
                           onChange: (value) =>
-                            setDraftValues((current) => ({
-                              ...current,
-                              [column.key]: value,
-                            })),
+                            setDraftValues((current) =>
+                              applyAreaValueChange(current, column.key, value),
+                            ),
                           theme,
                           value: draftValues[column.key] ?? "",
                         })}
@@ -361,6 +372,7 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
               disableElevation
               onClick={handleAddLineItem}
               startIcon={<Plus size={16} />}
+              sx={factoryCreateAddItemButtonSx}
               variant="contained"
             >
               Add New Item
@@ -415,10 +427,9 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                                 ? renderEditableField({
                                     column,
                                     onChange: (value) =>
-                                      setEditingValues((current) => ({
-                                        ...current,
-                                        [column.key]: value,
-                                      })),
+                                      setEditingValues((current) =>
+                                        applyAreaValueChange(current, column.key, value),
+                                      ),
                                     theme,
                                     value: editingValues[column.key] ?? "",
                                   })
@@ -466,16 +477,24 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
           sx={{
             display: "flex",
             justifyContent: "center",
-            gap: theme.spacing(1.5),
+            gap: theme.spacing(1),
             flexWrap: "wrap",
           }}
         >
-          <Button variant="outlined" onClick={() => navigate(paths.list)}>
+          <Button
+            type="button"
+            variant="outlined"
+            onClick={() => navigate(paths.list)}
+            sx={recordFormActionButtonSx}
+          >
             Cancel
           </Button>
 
           <Button
+            type="button"
             variant="contained"
+            disableElevation
+            sx={recordFormActionButtonSx}
             onClick={() => {
               setHasSubmitted(true);
               if (hasRequiredFieldErrors(metadataFields, formValues)) {
@@ -592,6 +611,38 @@ function createEmptyLineItemValues(fields: readonly MasterFieldDefinition[]) {
 
 function allValuesEmpty(values: Record<string, string>) {
   return Object.values(values).every((value) => value.trim().length === 0);
+}
+
+function applyAreaValueChange(
+  values: Record<string, string>,
+  key: string,
+  value: string,
+) {
+  const nextValues = {
+    ...values,
+    [key]: value,
+  };
+  const conversionPair = areaConversionPairs.find(
+    ([sqmKey, sqfKey]) => key === sqmKey || key === sqfKey,
+  );
+
+  if (!conversionPair) {
+    return nextValues;
+  }
+
+  const numericValue = Number.parseFloat(value);
+  if (!Number.isFinite(numericValue)) {
+    return nextValues;
+  }
+
+  const [sqmKey, sqfKey] = conversionPair;
+  if (key === sqmKey) {
+    nextValues[sqfKey] = (numericValue * SQM_TO_SQF).toFixed(3);
+  } else {
+    nextValues[sqmKey] = (numericValue / SQM_TO_SQF).toFixed(3);
+  }
+
+  return nextValues;
 }
 
 function getPreferredFieldValue(sourceRow: SourceRow | undefined, key: string) {
@@ -794,3 +845,40 @@ function getActionButtonSx(theme: Theme) {
     },
   } as const;
 }
+
+const factoryCreateActionButtonSx = {
+  alignItems: "center",
+  display: "inline-flex",
+  justifyContent: "center",
+  minHeight: 30,
+  minWidth: 66,
+  px: 1.35,
+  py: 0.5,
+  borderRadius: "12px",
+  fontSize: "0.75rem",
+  fontWeight: 700,
+  lineHeight: 1,
+  boxShadow: "none",
+  textTransform: "none",
+  "&.MuiButton-contained": {
+    boxShadow: "0 8px 18px rgba(143, 19, 22, 0.16)",
+  },
+  "&.MuiButton-contained:hover": {
+    boxShadow: "0 10px 20px rgba(143, 19, 22, 0.2)",
+  },
+  "& .MuiButton-endIcon, & .MuiButton-startIcon": {
+    alignItems: "center",
+    display: "inline-flex",
+    lineHeight: 0,
+    "& svg": {
+      height: 14,
+      width: 14,
+    },
+  },
+};
+
+const factoryCreateAddItemButtonSx = {
+  ...factoryCreateActionButtonSx,
+  borderRadius: "8px",
+  minWidth: 120,
+};

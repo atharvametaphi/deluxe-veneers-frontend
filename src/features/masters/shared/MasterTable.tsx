@@ -658,15 +658,29 @@ const headerIconButtonSx = {
   color: "common.white",
 };
 
-const paginationButtonSx = {
-  borderColor: "divider",
-  color: "primary.main",
-  minWidth: 40,
+const paginationButtonSx = (theme: Theme) => ({
+  minHeight: 32,
+  minWidth: 42,
+  px: theme.spacing(1.5),
+  borderRadius: `${theme.customTokens.radius.md}px`,
+  borderColor: theme.customTokens.borders.default,
+  color: theme.customTokens.navigation.activeText,
+  fontSize: theme.typography.caption.fontSize,
+  fontWeight: 700,
+  lineHeight: 1,
+  textTransform: "none",
+  boxShadow: "none",
   "&:hover": {
-    borderColor: "primary.main",
-    backgroundColor: "action.hover",
+    borderColor: theme.customTokens.brand.primary,
+    backgroundColor: theme.customTokens.navigation.hoverBackground,
+    boxShadow: "none",
   },
-};
+  "&.Mui-disabled": {
+    borderColor: theme.customTokens.borders.default,
+    color: theme.customTokens.neutrals[400],
+    backgroundColor: theme.customTokens.surfaces.alt,
+  },
+});
 
 const actionMenuItemSx = {
   color: "text.primary",
@@ -677,18 +691,28 @@ const actionMenuItemSx = {
 };
 
 function pageNumberButtonSx(active: boolean) {
-  return {
+  return (theme: Theme) => ({
+    minHeight: 32,
     minWidth: 40,
-    color: active ? "common.white" : "primary.main",
-    backgroundColor: active ? "primary.main" : "transparent",
-    borderColor: active ? "primary.main" : "divider",
+    borderRadius: `${theme.customTokens.radius.md}px`,
+    color: active
+      ? theme.customTokens.text.inverse
+      : theme.customTokens.navigation.activeText,
+    backgroundColor: active
+      ? theme.customTokens.brand.primary
+      : "transparent",
+    borderColor: active
+      ? theme.customTokens.brand.primary
+      : theme.customTokens.borders.default,
     boxShadow: "none",
     "&:hover": {
-      backgroundColor: active ? "primary.dark" : "action.hover",
-      borderColor: "primary.main",
+      backgroundColor: active
+        ? theme.customTokens.brand.primaryScale[800]
+        : theme.customTokens.navigation.hoverBackground,
+      borderColor: theme.customTokens.brand.primary,
       boxShadow: "none",
     },
-  };
+  });
 }
 
 const statusToggleValueMap: Record<string, boolean> = {

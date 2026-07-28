@@ -233,6 +233,42 @@ const cutRows = withAuditFields(createMasterRows("cut-master", [
   },
 ]));
 
+const gradeRows = withAuditFields(createMasterRows("grade-master", [
+  {
+    gradeName: "A",
+    remark: "Premium face-grade veneer and panel stock.",
+    createdEditedBy: "Atharva Patil",
+    updatedBy: "Neha Shah",
+    createdEditedDate: asDate("2026-04-18"),
+    updatedDate: asDate("2026-05-08"),
+  },
+  {
+    gradeName: "B",
+    remark: "Standard production-grade material.",
+    createdEditedBy: "Neha Shah",
+    updatedBy: "Rohit Jain",
+    createdEditedDate: asDate("2026-04-30"),
+    updatedDate: asDate("2026-05-21"),
+  },
+  {
+    gradeName: "Commercial",
+    remark: "Commercial utility grade for cost-sensitive orders.",
+    createdEditedBy: "Rohit Jain",
+    updatedBy: "Aditi Desai",
+    createdEditedDate: asDate("2026-05-14"),
+    updatedDate: asDate("2026-06-02"),
+  },
+  {
+    gradeName: "Reject",
+    status: "Inactive",
+    remark: "Inactive grade retained for historical stock records.",
+    createdEditedBy: "Aditi Desai",
+    updatedBy: "Atharva Patil",
+    createdEditedDate: asDate("2026-05-26"),
+    updatedDate: asDate("2026-06-09"),
+  },
+]));
+
 const customerRows = withAuditFields(createMasterRows("customer-master", [
   {
     customerName: "Vikram Mehta",
@@ -769,8 +805,21 @@ export const itemMasterDefinition: MasterDefinition = {
     { key: "category", label: "Category", type: "select", options: activeOptions(itemCategoryRows, "categoryName") },
     { key: "subCategory", label: "Sub Category", type: "select", options: activeOptions(itemSubCategoryRows, "itemSubCategory") },
     { key: "color", label: "Color", type: "select", options: activeOptions(colorRows, "colorName") },
-    { key: "gst", label: "GST", type: "select", options: activeOptions(gstRows, "gstPercentage") },
     { key: "hsn", label: "HSN", type: "select", options: activeOptions(hsnRows, "hsnCode") },
+    {
+      key: "gst",
+      label: "GST",
+      type: "select",
+      options: activeOptions(gstRows, "gstPercentage"),
+      readOnly: true,
+      autoFillFrom: {
+        rows: hsnRows,
+        sourceSlug: "hsn-master",
+        sourceKey: "hsn",
+        sourceMatchKey: "hsnCode",
+        sourceValueKey: "gstPercentage",
+      },
+    },
     { key: "remark", label: "Remark", type: "text" },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
@@ -855,6 +904,7 @@ export const colorMasterDefinition: MasterDefinition = {
 };
 
 export const cutMasterOptions = uniqueOptions(cutRows, "cutName");
+export const gradeMasterOptions = uniqueOptions(gradeRows, "gradeName");
 export const gstMasterOptions = uniqueOptions(gstRows, "gstPercentage");
 
 export const cutMasterDefinition: MasterDefinition = {
@@ -881,6 +931,32 @@ export const cutMasterDefinition: MasterDefinition = {
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
   rows: cutRows,
+};
+
+export const gradeMasterDefinition: MasterDefinition = {
+  slug: "grade-master",
+  title: "Grade Master",
+  gridColumns: 3,
+  columns: [
+    { key: "srNo", label: "Sr No" },
+    { key: "gradeName", label: "Grade Name" },
+    { key: "remark", label: "Remark" },
+    { key: "status", label: "Status" },
+    { key: "createdBy", label: "Created By" },
+    { key: "editedBy", label: "Edited By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
+  ],
+  filters: [
+    { key: "gradeName", label: "Grade Name", options: gradeMasterOptions },
+    { key: "status", label: "Status", options: statusOptions },
+  ],
+  fields: [
+    { key: "gradeName", label: "Grade Name", type: "text" },
+    { key: "remark", label: "Remark", type: "text" },
+    { key: "status", label: "Status", type: "select", options: statusOptions },
+  ],
+  rows: gradeRows,
 };
 
 export const customerMasterDefinition: MasterDefinition = {
@@ -1090,8 +1166,8 @@ export const warehouseLocationMasterDefinition: MasterDefinition = {
     },
     { key: "status", label: "Status", type: "select", options: statusOptions },
     { key: "address", label: "Address", type: "text" },
-    { key: "city", label: "City", type: "text" },
     { key: "pincode", label: "Pincode", type: "text" },
+    { key: "city", label: "City", type: "text" },
     { key: "state", label: "State", type: "select", options: uniqueOptions(warehouseRows, "state") },
     { key: "country", label: "Country", type: "select", options: uniqueOptions(warehouseRows, "country") },
     { key: "remark", label: "Remark", type: "text" },

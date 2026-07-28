@@ -26,6 +26,10 @@ import {
 } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
 import {
+  recordFormActionButtonSx,
+  recordViewActionButtonSx,
+} from "../../shared/buttonStyles";
+import {
   createOrderRecord,
   getCreateOrderFormFields,
   getOrderLineItems,
@@ -273,6 +277,7 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
                 <Button
                   onClick={() => navigate(paths.list)}
                   startIcon={<ChevronLeft size={16} />}
+                  sx={recordViewActionButtonSx}
                   variant="outlined"
                 >
                   Back
@@ -285,6 +290,7 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
                     }
                   }}
                   startIcon={<Pencil size={16} />}
+                  sx={recordViewActionButtonSx}
                   variant="contained"
                 >
                   Edit
@@ -293,13 +299,16 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
             ) : (
               <>
                 <Button
+                  type="button"
                   onClick={() => navigate(paths.list)}
+                  sx={recordFormActionButtonSx}
                   variant="outlined"
                 >
                   Cancel
                 </Button>
 
                 <Button
+                  type="button"
                   onClick={() => {
                     if (!canUseMode) {
                       return;
@@ -329,6 +338,7 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
                     navigate(paths.list);
                   }}
                   startIcon={<Save size={16} />}
+                  sx={recordFormActionButtonSx}
                   variant="contained"
                 >
                   Save

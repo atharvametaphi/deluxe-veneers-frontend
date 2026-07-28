@@ -18,6 +18,7 @@ import {
   type MasterFieldValue,
 } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
+import { recordFormActionButtonSx } from "../../shared/buttonStyles";
 import {
   UserPermissionMatrix,
   type UserPermissionFlags,
@@ -295,16 +296,19 @@ export function RolesPermissionsConfigurePage() {
             })}
           >
             <Button
-              disabled={isSaving}
+              type="button"
               onClick={() => navigate(paths.list)}
+              sx={recordFormActionButtonSx}
               variant="outlined"
             >
               Cancel
             </Button>
             <Button
+              type="button"
               disabled={isSaving}
               onClick={handleSave}
               startIcon={<Save size={16} />}
+              sx={recordFormActionButtonSx}
               variant="contained"
             >
               {isSaving ? "Saving" : "Save"}

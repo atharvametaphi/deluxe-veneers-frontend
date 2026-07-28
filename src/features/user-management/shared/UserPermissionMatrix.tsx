@@ -39,7 +39,7 @@ export function UserPermissionMatrix({
       })}
     >
       <Typography variant="h4" color="text.primary">
-        Access Configuration
+        Permissions
       </Typography>
 
       <Box

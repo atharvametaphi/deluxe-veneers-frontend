@@ -23,6 +23,7 @@ import {
   usePackingRecords,
 } from "../../packing/shared/packingStore";
 import { canAccessPermission } from "../../permissions";
+import { listingToolbarButtonSx } from "../../shared/buttonStyles";
 
 export function DispatchPage() {
   const theme = useTheme();
@@ -134,6 +135,7 @@ export function DispatchPage() {
                 }
               }}
               startIcon={<Truck size={16} />}
+              sx={listingToolbarButtonSx}
               variant="contained"
             >
               Create Dispatch

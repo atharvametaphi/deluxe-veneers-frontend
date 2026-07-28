@@ -344,12 +344,19 @@ export function Sidebar({
               overflowX: "hidden",
               pb: 1,
               scrollbarWidth: "thin",
+              scrollbarColor: `${theme.customTokens.brand.primary} transparent`,
               "&::-webkit-scrollbar": {
                 width: 6,
               },
+              "&::-webkit-scrollbar-track": {
+                backgroundColor: "transparent",
+              },
               "&::-webkit-scrollbar-thumb": {
-                backgroundColor: theme.customTokens.borders.default,
+                backgroundColor: theme.customTokens.brand.primary,
                 borderRadius: `${theme.customTokens.radius.pill}px`,
+              },
+              "&::-webkit-scrollbar-thumb:hover": {
+                backgroundColor: theme.customTokens.brand.primaryScale[800],
               },
             }}
           >
@@ -807,13 +814,11 @@ const navigationPermissionKeyById: Record<string, string> = {
   dispatch: "dispatch",
   orders: "placeOrder",
   packing: "packing",
-  "qc-done": "qcDone",
-  "qc-pending": "qcPending",
   "roles-permissions": "rolesPermissions",
   "user-management": "userManagement",
   "warehouse-a": "warehouseA",
   "warehouse-b": "warehouseB",
-  "warehouse-b-inspection": "qcPending",
+  "warehouse-b-inspection": "warehouseB",
   "warehouse-b-inventory": "warehouseB",
   "warehouse-c": "warehouseC",
   "warehouse-c-inventory": "warehouseC",
@@ -856,14 +861,9 @@ function canViewNavigationItem(
     return canAccessAnyAction(permissionKey, user);
   }
 
-  if (
-    itemId === "warehouse-b-factory" ||
-    itemId === "warehouse-c-factory" ||
-    itemId.endsWith("-factory")
-  ) {
-    return Object.values(factoryPermissionKeyBySlug).some((factoryKey) =>
-      canAccessAnyAction(factoryKey, user),
-    );
+  if (itemId.startsWith("factory-")) {
+    const factorySlug = itemId.replace(/^factory-/, "");
+    return canAccessAnyAction(factoryPermissionKeyBySlug[factorySlug], user);
   }
 
   if (itemId === "component-library") {

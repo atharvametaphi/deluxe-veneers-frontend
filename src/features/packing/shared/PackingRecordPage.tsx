@@ -24,6 +24,10 @@ import {
 } from "../../orders/shared/ordersStore";
 import { canAccessPermission } from "../../permissions";
 import {
+  recordFormActionButtonSx,
+  recordViewActionButtonSx,
+} from "../../shared/buttonStyles";
+import {
   createPackingEntry,
   getPackingPaths,
   packingOrderTypeOptions,
@@ -358,6 +362,7 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                 <Button
                   onClick={() => navigate(paths.list)}
                   startIcon={<ChevronLeft size={16} />}
+                  sx={recordViewActionButtonSx}
                   variant="outlined"
                 >
                   Back
@@ -371,6 +376,7 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                       }
                     }}
                     startIcon={<Pencil size={16} />}
+                    sx={recordViewActionButtonSx}
                     variant="contained"
                   >
                     Edit
@@ -380,13 +386,16 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
             ) : (
               <>
                 <Button
+                  type="button"
                   onClick={() => navigate(paths.list)}
+                  sx={recordFormActionButtonSx}
                   variant="outlined"
                 >
                   Cancel
                 </Button>
 
                 <Button
+                  type="button"
                   onClick={() => {
                     if (!canUseMode) {
                       return;
@@ -454,6 +463,7 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                     navigate(paths.list);
                   }}
                   startIcon={<Save size={16} />}
+                  sx={recordFormActionButtonSx}
                   variant="contained"
                 >
                   {mode === "add" ? "Submit" : "Save"}

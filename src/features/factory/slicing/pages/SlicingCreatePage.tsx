@@ -28,6 +28,7 @@ import {
   getFactoryPaths,
   slicingDefinition,
 } from "../../shared";
+import { recordFormActionButtonSx } from "../../../shared/buttonStyles";
 
 type SourceRow = {
   id: string;
@@ -58,12 +59,10 @@ type SlicingSourceSummary = {
   amount: string;
   cmt: string;
   color: string;
-  flitchCode: string;
   height: string;
   itemName: string;
   itemSubCategory: string;
   length: string;
-  logNoCode: string;
   remark: string;
   srNo: string;
   width: string;
@@ -80,10 +79,8 @@ type SlicingFormValues = {
 type SlicingLineItemValues = {
   character: string;
   color: string;
-  flitchSide: string;
   grade: string;
   itemName: string;
-  logNo: string;
   noOfLeaves: string;
   pattern: string;
   remark: string;
@@ -101,8 +98,6 @@ const sourceHeaderColumns: readonly HeaderColumn[] = [
   { key: "itemSubCategory", label: "Item Sub Category", minWidth: 170 },
   { key: "itemName", label: "Item Name", minWidth: 170 },
   { key: "color", label: "Color", minWidth: 150 },
-  { key: "logNoCode", label: "Log No Code", minWidth: 150 },
-  { key: "flitchCode", label: "Flitch Code", minWidth: 140 },
   { key: "length", label: "Length", minWidth: 120 },
   { key: "width", label: "Width", minWidth: 120 },
   { key: "height", label: "Height", minWidth: 120 },
@@ -125,21 +120,6 @@ const lineItemColumns: readonly LineItemColumn[] = [
     minWidth: 140,
     placeholder: "Enter Color",
     type: "text",
-  },
-  {
-    key: "logNo",
-    label: "Log No.",
-    minWidth: 150,
-    placeholder: "Enter Log No.",
-    type: "text",
-  },
-  {
-    key: "flitchSide",
-    label: "Flitch Side",
-    minWidth: 140,
-    options: ["1", "2", "3", "4"],
-    placeholder: "Select Flitch Side",
-    type: "select",
   },
   {
     key: "thickness",
@@ -486,6 +466,7 @@ export function SlicingCreatePage() {
               disableElevation
               onClick={handleAddLineItem}
               startIcon={<Plus size={16} />}
+              sx={factoryCreateAddItemButtonSx}
               variant="contained"
             >
               Add New Item
@@ -596,15 +577,26 @@ export function SlicingCreatePage() {
           sx={{
             display: "flex",
             justifyContent: "center",
-            gap: theme.spacing(1.5),
+            gap: theme.spacing(1),
             flexWrap: "wrap",
           }}
         >
-          <Button variant="outlined" onClick={() => navigate(paths.list)}>
+          <Button
+            type="button"
+            variant="outlined"
+            onClick={() => navigate(paths.list)}
+            sx={recordFormActionButtonSx}
+          >
             Cancel
           </Button>
 
-          <Button variant="contained" onClick={() => navigate(paths.list)}>
+          <Button
+            type="button"
+            variant="contained"
+            disableElevation
+            sx={recordFormActionButtonSx}
+            onClick={() => navigate(paths.list)}
+          >
             Submit
           </Button>
         </Box>
@@ -631,14 +623,6 @@ function FieldWrapper({
 }
 
 function buildSourceSummary(sourceRow?: SourceRow): SlicingSourceSummary {
-  const reference =
-    getStringValue(sourceRow, [
-      "itemSrNo",
-      "veneerSrNo",
-      "issueSrNo",
-      "inwardSrNo",
-      "palletNo",
-    ]) || "LOG-001";
   const length = getStringValue(sourceRow, ["length"]) || "3.20";
   const width = getStringValue(sourceRow, ["width"]) || "0.45";
   const height = getStringValue(sourceRow, ["thickness", "height"]) || "0.40";
@@ -651,8 +635,6 @@ function buildSourceSummary(sourceRow?: SourceRow): SlicingSourceSummary {
     itemName: getStringValue(sourceRow, ["itemName"]) || "Oak Veneer",
     color:
       getStringValue(sourceRow, ["color", "timberColor", "colour"]) || "Natural",
-    logNoCode: reference,
-    flitchCode: `FC${extractDigits(reference).slice(-3) || "13"}`,
     length,
     width,
     height,
@@ -671,8 +653,6 @@ function createDefaultLineItemValues(
   return {
     itemName: sourceSummary.itemName,
     color: sourceSummary.color,
-    logNo: sourceSummary.logNoCode,
-    flitchSide: "2",
     thickness:
       getStringValue(sourceRow, ["thickness", "height"]) || sourceSummary.height,
     noOfLeaves:
@@ -694,8 +674,6 @@ function createEmptyLineItemValues(): SlicingLineItemValues {
   return {
     itemName: "",
     color: "",
-    logNo: "",
-    flitchSide: "",
     thickness: "",
     noOfLeaves: "",
     character: "",
@@ -736,10 +714,6 @@ function getStringValue(sourceRow: SourceRow | undefined, keys: readonly string[
   }
 
   return "";
-}
-
-function extractDigits(value: string) {
-  return value.replace(/\D+/g, "");
 }
 
 function calculateCmt(length: string, width: string, height: string) {
@@ -805,6 +779,43 @@ function getActionButtonSx(theme: Theme) {
     },
   } as const;
 }
+
+const factoryCreateActionButtonSx = {
+  alignItems: "center",
+  display: "inline-flex",
+  justifyContent: "center",
+  minHeight: 30,
+  minWidth: 66,
+  px: 1.35,
+  py: 0.5,
+  borderRadius: "12px",
+  fontSize: "0.75rem",
+  fontWeight: 700,
+  lineHeight: 1,
+  boxShadow: "none",
+  textTransform: "none",
+  "&.MuiButton-contained": {
+    boxShadow: "0 8px 18px rgba(143, 19, 22, 0.16)",
+  },
+  "&.MuiButton-contained:hover": {
+    boxShadow: "0 10px 20px rgba(143, 19, 22, 0.2)",
+  },
+  "& .MuiButton-endIcon, & .MuiButton-startIcon": {
+    alignItems: "center",
+    display: "inline-flex",
+    lineHeight: 0,
+    "& svg": {
+      height: 14,
+      width: 14,
+    },
+  },
+};
+
+const factoryCreateAddItemButtonSx = {
+  ...factoryCreateActionButtonSx,
+  borderRadius: "8px",
+  minWidth: 120,
+};
 
 function renderEditableField({
   column,

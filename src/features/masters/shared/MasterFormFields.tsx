@@ -9,6 +9,7 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  MenuItem,
   Stack,
   TextField,
   Typography,
@@ -97,6 +98,8 @@ const requiredFieldKeys = new Set([
   "warehouseName",
 ]);
 
+const countryCodeOptions = ["+91", "+1", "+44", "+971", "+61"] as const;
+
 export function MasterFormFields({
   definition,
   onChange,
@@ -143,16 +146,24 @@ export function MasterFormFields({
             showRequiredErrors &&
             !fieldIsReadOnly &&
             isRequiredFieldEmpty(field, fieldValue);
+          const fieldValidationError =
+            showRequiredErrors && !fieldIsReadOnly
+              ? getFieldValidationError(field, fieldValue)
+              : "";
           const fieldState = fieldHasRequiredError
             ? "error"
-            : fieldIsReadOnly
-              ? "readOnly"
-              : "default";
+            : fieldValidationError
+              ? "error"
+              : fieldIsReadOnly
+                ? "readOnly"
+                : "default";
           const interactiveFieldState = fieldHasRequiredError
             ? "error"
-            : fieldIsReadOnly
-              ? "disabled"
-              : "default";
+            : fieldValidationError
+              ? "error"
+              : fieldIsReadOnly
+                ? "disabled"
+                : "default";
 
           return (
             <Stack
@@ -172,12 +183,69 @@ export function MasterFormFields({
                 {field.label}
               </Typography>
 
-              {field.type === "text" ? (
+              {field.type === "text" && isPhoneField(field) ? (
+                <Box
+                  sx={(currentTheme) => ({
+                    display: "grid",
+                    gap: currentTheme.spacing(1),
+                    gridTemplateColumns: "96px minmax(0, 1fr)",
+                  })}
+                >
+                  <TextField
+                    select
+                    value={getPhoneCountryCode(values, field.key)}
+                    onChange={(event) =>
+                      onChange(getPhoneCountryCodeKey(field.key), event.target.value)
+                    }
+                    sx={getCompactFieldSx(theme, fieldIsReadOnly ? "readOnly" : "default")}
+                    slotProps={{
+                      input: {
+                        readOnly: fieldIsReadOnly,
+                      },
+                    }}
+                  >
+                    {countryCodeOptions.map((countryCode) => (
+                      <MenuItem key={countryCode} value={countryCode}>
+                        {countryCode}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+
+                  <TextField
+                    fullWidth
+                    error={Boolean(fieldHasRequiredError || fieldValidationError)}
+                    helperText={fieldValidationError || field.helperText}
+                    placeholder={field.placeholder ?? `Enter ${field.label}`}
+                    value={typeof fieldValue === "string" ? fieldValue : ""}
+                    onChange={(event) =>
+                      onChange(
+                        field.key,
+                        normalizeTextInputValue(field, event.target.value),
+                      )
+                    }
+                    sx={getCompactFieldSx(theme, fieldState)}
+                    slotProps={{
+                      input: {
+                        readOnly: fieldIsReadOnly,
+                      },
+                    }}
+                  />
+                </Box>
+              ) : null}
+
+              {field.type === "text" && !isPhoneField(field) ? (
                 <TextField
                   fullWidth
+                  error={Boolean(fieldHasRequiredError || fieldValidationError)}
+                  helperText={fieldValidationError || field.helperText}
                   placeholder={field.placeholder ?? `Enter ${field.label}`}
                   value={typeof fieldValue === "string" ? fieldValue : ""}
-                  onChange={(event) => onChange(field.key, event.target.value)}
+                  onChange={(event) =>
+                    onChange(
+                      field.key,
+                      normalizeTextInputValue(field, event.target.value),
+                    )
+                  }
                   sx={getCompactFieldSx(theme, fieldState)}
                   slotProps={{
                     input: {
@@ -190,6 +258,8 @@ export function MasterFormFields({
               {field.type === "textarea" ? (
                 <TextField
                   fullWidth
+                  error={Boolean(fieldHasRequiredError || fieldValidationError)}
+                  helperText={fieldValidationError || field.helperText}
                   multiline
                   minRows={field.rows ?? 3}
                   placeholder={field.placeholder ?? `Enter ${field.label}`}
@@ -483,6 +553,53 @@ export function hasRequiredFieldErrors(
   );
 }
 
+export function hasFormFieldErrors(
+  fields: readonly MasterFieldDefinition[],
+  values: Record<string, MasterFieldValue>,
+) {
+  return fields.some((field) =>
+    isRequiredFieldEmpty(field, values[field.key] ?? null) ||
+    Boolean(getFieldValidationError(field, values[field.key] ?? null)),
+  );
+}
+
+function getFieldValidationError(
+  field: MasterFieldDefinition,
+  value: MasterFieldValue | null,
+) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return "";
+  }
+
+  const textValue = value.trim();
+
+  if (isEmailField(field)) {
+    if (!/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(textValue)) {
+      return "Enter a valid email address. Only letters, numbers, dot, underscore and hyphen are allowed.";
+    }
+  }
+
+  if (isPhoneField(field) && !/^\d+$/.test(textValue)) {
+    return "Phone number should contain numbers only.";
+  }
+
+  if (isPincodeField(field) && !/^\d{6}$/.test(textValue)) {
+    return "Pincode should be exactly 6 digits.";
+  }
+
+  if (isAgeField(field)) {
+    if (!/^\d+$/.test(textValue)) {
+      return "Age should be an integer.";
+    }
+
+    if (Number(textValue) > 100) {
+      return "Age should not exceed 100.";
+    }
+  }
+
+  return "";
+}
+
 function isRequiredFieldEmpty(
   field: MasterFieldDefinition,
   value: MasterFieldValue | null,
@@ -523,4 +640,80 @@ function isRequiredField(field: MasterFieldDefinition) {
     field.label.trim().endsWith("*") ||
     requiredFieldKeys.has(field.key)
   );
+}
+
+function normalizeTextInputValue(field: MasterFieldDefinition, value: string) {
+  if (isEmailField(field)) {
+    return value.replace(/[^A-Za-z0-9@._-]/g, "");
+  }
+
+  if (isPhoneField(field)) {
+    return value.replace(/\D/g, "").slice(0, 15);
+  }
+
+  if (isPincodeField(field)) {
+    return value.replace(/\D/g, "").slice(0, 6);
+  }
+
+  if (isAgeField(field)) {
+    const integerValue = value.replace(/\D/g, "").slice(0, 3);
+
+    if (!integerValue) {
+      return "";
+    }
+
+    return String(Math.min(Number(integerValue), 100));
+  }
+
+  return value;
+}
+
+function getNormalizedFieldKey(field: MasterFieldDefinition) {
+  return field.key.toLowerCase();
+}
+
+function getNormalizedFieldLabel(field: MasterFieldDefinition) {
+  return field.label.toLowerCase();
+}
+
+function isEmailField(field: MasterFieldDefinition) {
+  return getNormalizedFieldKey(field).includes("email");
+}
+
+function isPhoneField(field: MasterFieldDefinition) {
+  const key = getNormalizedFieldKey(field);
+  const label = getNormalizedFieldLabel(field);
+
+  return (
+    key.includes("phone") ||
+    key.includes("mobile") ||
+    label.includes("phone") ||
+    label.includes("mobile")
+  );
+}
+
+function isPincodeField(field: MasterFieldDefinition) {
+  const key = getNormalizedFieldKey(field);
+  const label = getNormalizedFieldLabel(field);
+
+  return key.includes("pincode") || label.includes("pincode");
+}
+
+function isAgeField(field: MasterFieldDefinition) {
+  return getNormalizedFieldKey(field) === "age" || getNormalizedFieldLabel(field) === "age";
+}
+
+function getPhoneCountryCodeKey(fieldKey: string) {
+  return `${fieldKey}CountryCode`;
+}
+
+function getPhoneCountryCode(
+  values: Record<string, MasterFieldValue>,
+  fieldKey: string,
+) {
+  const value = values[getPhoneCountryCodeKey(fieldKey)];
+
+  return typeof value === "string" && countryCodeOptions.includes(value as typeof countryCodeOptions[number])
+    ? value
+    : "+91";
 }

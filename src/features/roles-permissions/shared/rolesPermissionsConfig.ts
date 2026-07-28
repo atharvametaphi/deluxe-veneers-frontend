@@ -89,16 +89,6 @@ const rolePermissionSeedRows: readonly RolePermissionSeedRow[] = [
     permissions: defaultPermissions,
   },
   {
-    roleName: "QC TEAM",
-    department: "QC Team",
-    remark: "Quality approval and post-QC stock movement permissions.",
-    createdBy: "Neha Sharma",
-    createdDate: new Date("2026-03-25"),
-    updatedDate: new Date("2026-06-21"),
-    isActive: true,
-    permissions: defaultPermissions,
-  },
-  {
     roleName: "DISPATCH TEAM",
     department: "Dispatch Team",
     remark: "Packing dispatch preparation and outward execution access.",

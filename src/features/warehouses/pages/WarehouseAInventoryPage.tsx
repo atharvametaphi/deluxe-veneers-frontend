@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
-  Download,
   Eye,
   FileOutput,
   Pencil,
@@ -25,24 +24,41 @@ import {
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { MasterPageShell } from "../../masters/shared";
-import { getInventoryPaths } from "../../inventory/shared";
+import {
+  getInventoryPaths,
+  inventoryToolbarButtonSx,
+} from "../../inventory/shared";
 import { canAccessPermission } from "../../permissions";
 import {
   warehouseAInventoryConfigs,
   type WarehouseInventoryRow,
   type WarehouseAInventorySlug,
 } from "../shared/warehouseTableData";
+import {
+  getWarehouseQcStatus,
+  markWarehouseQcDone,
+  resolveWarehouseQcRows,
+  subscribeWarehouseQcStatusUpdates,
+} from "../shared/warehouseQcStore";
+
+type WarehouseAVisibleInventorySlug = Exclude<
+  WarehouseAInventorySlug,
+  "consumables"
+>;
 
 const warehouseATabs = [
   { label: "Veneer Blocks", value: "veneer-blocks" },
   { label: "Raw Veneer", value: "raw-veneer" },
   { label: "Plywood", value: "plywood" },
   { label: "MDF", value: "mdf" },
-  { label: "Consumables", value: "consumables" },
 ] as const satisfies readonly {
   label: string;
-  value: WarehouseAInventorySlug;
+  value: WarehouseAVisibleInventorySlug;
 }[];
+
+const visibleWarehouseAInventorySlugs = new Set<WarehouseAInventorySlug>(
+  warehouseATabs.map((tab) => tab.value),
+);
 
 export function WarehouseAInventoryPage() {
   return <WarehouseAInventoryModulePage />;
@@ -59,6 +75,7 @@ export function WarehouseAInventoryModulePage({
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState("");
+  const [qcStatusRevision, setQcStatusRevision] = useState(0);
   const activeInventory = getActiveWarehouseAInventory(
     searchParams.get("inventory"),
   );
@@ -66,25 +83,36 @@ export function WarehouseAInventoryModulePage({
   const canCreate = canAccessPermission("warehouseA", "create");
   const canEdit = canAccessPermission("warehouseA", "edit");
   const canView = canAccessPermission("warehouseA", "view");
-  const canCreateQcPending = canAccessPermission("qcPending", "create");
+  const resolvedRows = useMemo(
+    () => resolveWarehouseQcRows(activeConfig.rows),
+    [activeConfig.rows, qcStatusRevision],
+  );
+
+  useEffect(
+    () =>
+      subscribeWarehouseQcStatusUpdates(() =>
+        setQcStatusRevision((current) => current + 1),
+      ),
+    [],
+  );
+
   const filteredRows = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
     if (!normalizedSearch) {
-      return activeConfig.rows;
+      return resolvedRows;
     }
 
-    return activeConfig.rows.filter((row) =>
+    return resolvedRows.filter((row) =>
       Object.values(row).some((value) =>
         formatInventorySearchValue(value).includes(normalizedSearch),
       ),
     );
-  }, [activeConfig.rows, searchValue]);
+  }, [resolvedRows, searchValue]);
 
-  const rowActions = useMemo<
-    ReadonlyArray<EnterpriseTableAction<WarehouseInventoryRow>>
-  >(() => {
-    const actions: EnterpriseTableAction<WarehouseInventoryRow>[] = [
+  const getRowActions = useMemo(
+    () => (row: WarehouseInventoryRow) => {
+      const actions: EnterpriseTableAction<WarehouseInventoryRow>[] = [
       ...(canView
         ? [
             {
@@ -115,20 +143,24 @@ export function WarehouseAInventoryModulePage({
             },
           ]
         : []),
-    ];
+      ];
 
-    if (activeInventory !== "consumables" && canEdit && canCreateQcPending) {
-      actions.push({
-        id: "issue-for-qc",
-        label: "Issue for QC",
-        icon: BadgeCheck,
-        onSelect: (row) =>
-          navigate(`/qc/pending?inventory=${row.inventorySlug}`),
-      });
-    }
+      if (canEdit && getWarehouseQcStatus(row) !== "done") {
+        actions.push({
+          id: "mark-qc-done",
+          label: "Mark as QC Done",
+          icon: BadgeCheck,
+          onSelect: (selectedRow) => {
+            markWarehouseQcDone(selectedRow);
+            setQcStatusRevision((current) => current + 1);
+          },
+        });
+      }
 
-    return actions;
-  }, [activeInventory, canCreateQcPending, canEdit, canView, navigate]);
+      return actions;
+    },
+    [canEdit, canView, navigate],
+  );
 
   return (
     <MasterPageShell
@@ -194,26 +226,28 @@ export function WarehouseAInventoryModulePage({
                 to={getInventoryPaths(activeInventory, "issued", "warehouse-a").add}
                 startIcon={<Plus size={16} />}
                 variant="contained"
+                sx={inventoryToolbarButtonSx}
               >
                 Add Stock
               </Button>
             ) : null}
 
-            <Button variant="outlined" startIcon={<FileOutput size={16} />}>
+            <Button
+              variant="outlined"
+              startIcon={<FileOutput size={16} />}
+              sx={inventoryToolbarButtonSx}
+            >
               Export
             </Button>
 
-            <Button variant="outlined" startIcon={<Download size={16} />}>
-              Download
-            </Button>
           </Stack>
         </Stack>
 
         <EnterpriseDataTable
           key={activeInventory}
-          actions={rowActions}
           columns={activeConfig.columns}
           defaultRowsPerPage={10}
+          getRowActions={getRowActions}
           initialSort={{ key: "inwardDate", direction: "desc" }}
           rows={canView ? filteredRows : []}
         />
@@ -225,7 +259,9 @@ export function WarehouseAInventoryModulePage({
 function getActiveWarehouseAInventory(
   value: string | null,
 ): WarehouseAInventorySlug {
-  return value && value in warehouseAInventoryConfigs
+  return value &&
+    value in warehouseAInventoryConfigs &&
+    visibleWarehouseAInventorySlugs.has(value as WarehouseAInventorySlug)
     ? (value as WarehouseAInventorySlug)
     : "veneer-blocks";
 }

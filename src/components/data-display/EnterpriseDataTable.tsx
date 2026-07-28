@@ -15,6 +15,7 @@ import {
 import {
   Box,
   Button,
+  Chip,
   Checkbox,
   IconButton,
   Menu,
@@ -927,11 +928,24 @@ function paginationButtonSx(theme: Theme) {
   return {
     borderColor: theme.customTokens.borders.default,
     color: theme.customTokens.navigation.activeText,
-    minWidth: 40,
-    px: 1.25,
+    minHeight: 32,
+    minWidth: 42,
+    px: theme.spacing(1.5),
+    borderRadius: `${theme.customTokens.radius.md}px`,
+    fontSize: theme.typography.caption.fontSize,
+    fontWeight: 700,
+    lineHeight: 1,
+    textTransform: "none",
+    boxShadow: "none",
     "&:hover": {
       borderColor: theme.customTokens.brand.primary,
       backgroundColor: theme.customTokens.navigation.hoverBackground,
+      boxShadow: "none",
+    },
+    "&.Mui-disabled": {
+      borderColor: theme.customTokens.borders.default,
+      color: theme.customTokens.neutrals[400],
+      backgroundColor: theme.customTokens.surfaces.alt,
     },
   };
 }
@@ -941,7 +955,9 @@ function pageNumberButtonSx(
   active: boolean,
 ) {
   return {
+    minHeight: 32,
     minWidth: 40,
+    borderRadius: `${theme.customTokens.radius.md}px`,
     color: active
       ? theme.customTokens.text.inverse
       : theme.customTokens.navigation.activeText,
@@ -997,6 +1013,10 @@ function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
   onStatusChange: EnterpriseDataTableProps<Row>["onStatusChange"],
   theme: Theme,
 ) {
+  if (column.key === "qcStatus") {
+    return renderQcStatusChip(row[column.key], theme);
+  }
+
   const toggleState = getEnterpriseStatusToggleState(column, row[column.key]);
 
   if (toggleState === null) {
@@ -1025,6 +1045,33 @@ function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
           }));
         });
       }}
+    />
+  );
+}
+
+function renderQcStatusChip(value: EnterpriseTableCellValue, theme: Theme) {
+  const normalizedValue = formatEnterpriseValue(value).trim().toLowerCase();
+  const isDone = normalizedValue === "done" || normalizedValue === "qc done";
+  const label = isDone ? "Done" : "Pending";
+  const palette = isDone
+    ? theme.customTokens.semanticScale.success
+    : theme.customTokens.semanticScale.warning;
+
+  return (
+    <Chip
+      label={label}
+      size="small"
+      sx={{
+        minWidth: 76,
+        borderRadius: theme.customTokens.radius.pill,
+        border: `1px solid ${palette[300]}`,
+        backgroundColor: palette[100],
+        color: palette[800],
+        fontSize: theme.typography.caption.fontSize,
+        fontWeight: 700,
+        height: 24,
+      }}
+      variant="outlined"
     />
   );
 }

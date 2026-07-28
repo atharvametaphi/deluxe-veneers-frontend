@@ -84,8 +84,6 @@ export const departmentAccessSections: readonly DepartmentAccessSection[] = [
       { key: "cnc-fluting", label: "CNC / Fluting" },
       { key: "embossing", label: "Embossing" },
       { key: "marquetry", label: "Marquetry" },
-      { key: "sample-sheets", label: "Sample Sheets" },
-      { key: "export-oem", label: "Export / OEM" },
     ],
   },
   {
@@ -138,8 +136,6 @@ const departmentMasterSeedRows: readonly DepartmentMasterSeedRow[] = [
       "cnc-fluting",
       "embossing",
       "marquetry",
-      "sample-sheets",
-      "export-oem",
       "packing",
     ],
   },

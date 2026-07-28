@@ -12,6 +12,7 @@ import {
   type MasterFieldValue,
 } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
+import { recordFormActionButtonSx } from "../../shared/buttonStyles";
 import {
   buildRolePermissionInitialValues,
   createRolePermissionRecord,
@@ -148,8 +149,9 @@ export function RolesPermissionsAddPage() {
             })}
           >
             <Button
+              type="button"
               onClick={() => navigate(paths.list)}
-              disabled={isSaving}
+              sx={recordFormActionButtonSx}
               variant="outlined"
             >
               Cancel
@@ -157,9 +159,11 @@ export function RolesPermissionsAddPage() {
 
             {canCreateRole ? (
               <Button
+                type="button"
                 disabled={isSaving}
                 onClick={handleSave}
                 startIcon={<Save size={16} />}
+                sx={recordFormActionButtonSx}
                 variant="contained"
               >
                 Save

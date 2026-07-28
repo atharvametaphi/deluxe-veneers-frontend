@@ -22,6 +22,7 @@ import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inpu
 import { getCurrentUser } from "../../auth";
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
+import { recordFormActionButtonSx } from "../../shared/buttonStyles";
 import {
   getUserManagementPaths,
   getUserManagementSearchValues,
@@ -350,16 +351,19 @@ export function UserManagementListing() {
           })}
         >
           <Button
-            disabled={isChangingPassword}
+            type="button"
             onClick={handleClosePasswordDialog}
+            sx={recordFormActionButtonSx}
             variant="outlined"
           >
             Cancel
           </Button>
 
           <Button
+            type="button"
             disabled={isChangingPassword}
             onClick={handleChangePassword}
+            sx={recordFormActionButtonSx}
             variant="contained"
           >
             Save

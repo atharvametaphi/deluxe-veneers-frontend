@@ -160,6 +160,27 @@ let theme = createTheme({
         },
       },
     },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          alignItems: "center",
+          justifyContent: "center",
+          lineHeight: 1,
+          textAlign: "center",
+          verticalAlign: "middle",
+        },
+        startIcon: {
+          alignItems: "center",
+          display: "inline-flex",
+          lineHeight: 0,
+        },
+        endIcon: {
+          alignItems: "center",
+          display: "inline-flex",
+          lineHeight: 0,
+        },
+      },
+    },
   },
 });
 

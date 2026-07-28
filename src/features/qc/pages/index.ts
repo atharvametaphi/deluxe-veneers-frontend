@@ -1,1 +1,0 @@
-export { QcModulePage } from "./QcModulePage";

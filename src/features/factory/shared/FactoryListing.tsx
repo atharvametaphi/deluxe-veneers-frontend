@@ -239,12 +239,6 @@ function getFactoryNextProcessActions<Row extends FactoryRecord>(
     ].filter((action) => canAccessPermission(action.permissionKey, "create"));
   }
 
-  if (slug === "sample-sheets") {
-    return [createFactoryIssueAction<Row>("Finishing", navigate)].filter((action) =>
-      canAccessPermission(action.permissionKey, "create"),
-    );
-  }
-
   const issuedFor = typeof row.issuedFor === "string" ? row.issuedFor.trim() : "";
 
   if (!issuedFor || !(issuedFor in factoryNextProcessRouteMap)) {
@@ -279,7 +273,7 @@ function getIssueRoutePermissionKey(route: string) {
   const permissionKeyByRoute: Record<string, string> = {
     "/dispatch": "dispatch",
     "/packing": "packing",
-    "/qc/pending": "qcPending",
+    "/warehouse-b?section=inspection": "warehouseB",
   };
 
   return permissionKeyByRoute[route];
@@ -290,13 +284,11 @@ const factoryNextProcessRouteMap: Record<string, string> = {
   Dispatch: "/dispatch",
   Drying: "/factory/drying",
   Embossing: "/factory/embossing",
-  "Export / OEM": "/factory/export-oem",
   Finishing: "/factory/finishing",
   Grouping: "/factory/grouping",
-  Inspection: "/qc/pending",
+  Inspection: "/warehouse-b?section=inspection",
   Marquetry: "/factory/marquetry",
   Packing: "/packing",
   Pressing: "/factory/pressing",
-  "Sample Sheets": "/factory/sample-sheets",
   Splicing: "/factory/splicing",
 };

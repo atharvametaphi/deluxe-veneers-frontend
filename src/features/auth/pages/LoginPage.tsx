@@ -490,11 +490,19 @@ export function LoginPage() {
             pt: 1,
           }}
         >
-          <Button variant="outlined" onClick={handleCloseForgotPassword}>
+          <Button
+            type="button"
+            variant="outlined"
+            onClick={handleCloseForgotPassword}
+          >
             Cancel
           </Button>
 
-          <Button variant="contained" onClick={handleForgotPasswordAction}>
+          <Button
+            type="button"
+            variant="contained"
+            onClick={handleForgotPasswordAction}
+          >
             {forgotPasswordPrimaryLabel}
           </Button>
         </DialogActions>
@@ -598,11 +606,19 @@ export function LoginPage() {
             pt: 1,
           }}
         >
-          <Button variant="outlined" onClick={handleCloseResetPassword}>
+          <Button
+            type="button"
+            variant="outlined"
+            onClick={handleCloseResetPassword}
+          >
             Cancel
           </Button>
 
-          <Button variant="contained" onClick={handleResetPasswordAction}>
+          <Button
+            type="button"
+            variant="contained"
+            onClick={handleResetPasswordAction}
+          >
             Reset Password
           </Button>
         </DialogActions>

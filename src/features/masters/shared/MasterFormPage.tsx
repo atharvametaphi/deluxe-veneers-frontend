@@ -7,7 +7,11 @@ import {
   canAccessPermission,
   getMasterPermissionKey,
 } from "../../permissions";
-import { MasterFormFields, hasRequiredFieldErrors } from "./MasterFormFields";
+import {
+  recordFormActionButtonSx,
+  recordViewActionButtonSx,
+} from "../../shared/buttonStyles";
+import { MasterFormFields, hasFormFieldErrors } from "./MasterFormFields";
 import { MasterPageShell } from "./MasterPageShell";
 import { MasterSectionCard } from "./MasterSectionCard";
 import type { MasterDefinition, MasterFieldValue, MasterRecord } from "./types";
@@ -102,7 +106,7 @@ export function MasterFormPage({
 
     setHasSubmitted(true);
 
-    if (mode === "add" && hasRequiredFieldErrors(definition.fields, values)) {
+    if (hasFormFieldErrors(definition.fields, values)) {
       return;
     }
 
@@ -124,6 +128,38 @@ export function MasterFormPage({
     navigate(paths.list);
   };
 
+  const handleFieldChange = (key: string, value: MasterFieldValue) => {
+    setValues((current) => {
+      const nextValues = {
+        ...current,
+        [key]: value,
+      };
+
+      definition.fields.forEach((field) => {
+        const autoFillConfig = field.autoFillFrom;
+
+        if (!autoFillConfig || autoFillConfig.sourceKey !== key) {
+          return;
+        }
+
+        if (typeof value !== "string") {
+          nextValues[field.key] = "";
+          return;
+        }
+
+        const matchedRow = autoFillConfig.rows.find(
+          (row) => String(row[autoFillConfig.sourceMatchKey] ?? "") === value,
+        );
+
+        nextValues[field.key] = matchedRow
+          ? String(matchedRow[autoFillConfig.sourceValueKey] ?? "")
+          : "";
+      });
+
+      return nextValues;
+    });
+  };
+
   return (
     <MasterPageShell
       breadcrumbs={[
@@ -141,14 +177,9 @@ export function MasterFormPage({
         >
           <MasterFormFields
             definition={definition}
-            onChange={(key, value) =>
-              setValues((current) => ({
-                ...current,
-                [key]: value,
-              }))
-            }
+            onChange={handleFieldChange}
             readOnly={mode === "view"}
-            showRequiredErrors={mode === "add" && hasSubmitted}
+            showRequiredErrors={mode !== "view" && hasSubmitted}
             values={values}
           />
 
@@ -166,6 +197,7 @@ export function MasterFormPage({
                   variant="outlined"
                   startIcon={<ChevronLeft size={16} />}
                   onClick={() => navigate(paths.list)}
+                  sx={recordViewActionButtonSx}
                 >
                   Back
                 </Button>
@@ -174,6 +206,7 @@ export function MasterFormPage({
                   <Button
                     variant="contained"
                     startIcon={<Pencil size={16} />}
+                    sx={recordViewActionButtonSx}
                     onClick={() => {
                       if (row) {
                         navigate(paths.edit(row.id));
@@ -187,16 +220,20 @@ export function MasterFormPage({
             ) : (
               <>
                 <Button
+                  type="button"
                   variant="outlined"
                   onClick={() => navigate(paths.list)}
+                  sx={recordFormActionButtonSx}
                 >
                   Cancel
                 </Button>
 
                 <Button
+                  type="button"
                   variant="contained"
                   startIcon={<Save size={16} />}
                   onClick={handleSave}
+                  sx={recordFormActionButtonSx}
                 >
                   Save
                 </Button>

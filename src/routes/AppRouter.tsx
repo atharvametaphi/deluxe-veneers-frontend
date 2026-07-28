@@ -15,7 +15,6 @@ import { masterRoutes } from "../features/masters";
 import { ordersRoutes } from "../features/orders";
 import { packingRoutes } from "../features/packing";
 import { ProfilePage } from "../features/profile";
-import { QcModulePage } from "../features/qc";
 import { rolesPermissionsRoutes } from "../features/roles-permissions";
 import { userManagementRoutes } from "../features/user-management";
 import { DynamicWarehousePage, WarehousesPage } from "../features/warehouses";
@@ -66,18 +65,6 @@ const router = createBrowserRouter([
       {
         path: "warehouses/:warehouseSlug",
         Component: DynamicWarehousePage,
-      },
-      {
-        path: "qc",
-        element: <Navigate replace to="/qc/pending?inventory=veneer-blocks" />,
-      },
-      {
-        path: "qc/pending",
-        element: <QcModulePage stage="pending" />,
-      },
-      {
-        path: "qc/done",
-        element: <QcModulePage stage="done" />,
       },
       ...ordersRoutes,
       {

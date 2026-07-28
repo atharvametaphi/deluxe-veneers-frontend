@@ -32,6 +32,10 @@ import {
 } from "../../packing/shared/packingStore";
 import { canAccessPermission } from "../../permissions";
 import { orderTypeOptions } from "../../orders/shared/ordersStore";
+import {
+  recordFormActionButtonSx,
+  recordViewActionButtonSx,
+} from "../../shared/buttonStyles";
 
 interface DispatchItemRow {
   id: string;
@@ -393,6 +397,7 @@ export function DispatchCreatePage({
                 <Button
                   onClick={() => navigate("/dispatch")}
                   startIcon={<ChevronLeft size={16} />}
+                  sx={recordViewActionButtonSx}
                   variant="outlined"
                 >
                   Back
@@ -402,6 +407,7 @@ export function DispatchCreatePage({
                   <Button
                     onClick={() => navigate(`/dispatch/edit/${sourceRecord.id}`)}
                     startIcon={<Pencil size={16} />}
+                    sx={recordViewActionButtonSx}
                     variant="contained"
                   >
                     Edit
@@ -411,13 +417,16 @@ export function DispatchCreatePage({
             ) : (
               <>
                 <Button
+                  type="button"
                   onClick={() => navigate("/dispatch")}
+                  sx={recordFormActionButtonSx}
                   variant="outlined"
                 >
                   Cancel
                 </Button>
 
                 <Button
+                  type="button"
                   onClick={() => {
                     if (!canUseMode) {
                       return;
@@ -450,6 +459,7 @@ export function DispatchCreatePage({
                     navigate("/dispatch");
                   }}
                   startIcon={<Save size={16} />}
+                  sx={recordFormActionButtonSx}
                   variant="contained"
                 >
                   {mode === "add" ? "Submit" : "Save"}

@@ -19,12 +19,6 @@ import {
   ViewEmbossingPage,
 } from "./embossing";
 import {
-  AddExportOemPage,
-  EditExportOemPage,
-  ExportOemListPage,
-  ViewExportOemPage,
-} from "./export-oem";
-import {
   AddFinishingPage,
   EditFinishingPage,
   FinishingListPage,
@@ -48,12 +42,6 @@ import {
   PressingListPage,
   ViewPressingPage,
 } from "./pressing";
-import {
-  AddSampleSheetsPage,
-  EditSampleSheetsPage,
-  SampleSheetsListPage,
-  ViewSampleSheetsPage,
-} from "./sample-sheets";
 import {
   AddSlicingPage,
   EditSlicingPage,
@@ -112,14 +100,4 @@ export const factoryRoutes: RouteObject[] = [
   { path: "factory/marquetry/add", Component: AddMarquetryPage },
   { path: "factory/marquetry/edit/:id", Component: EditMarquetryPage },
   { path: "factory/marquetry/view/:id", Component: ViewMarquetryPage },
-
-  { path: "factory/sample-sheets", Component: SampleSheetsListPage },
-  { path: "factory/sample-sheets/add", Component: AddSampleSheetsPage },
-  { path: "factory/sample-sheets/edit/:id", Component: EditSampleSheetsPage },
-  { path: "factory/sample-sheets/view/:id", Component: ViewSampleSheetsPage },
-
-  { path: "factory/export-oem", Component: ExportOemListPage },
-  { path: "factory/export-oem/add", Component: AddExportOemPage },
-  { path: "factory/export-oem/edit/:id", Component: EditExportOemPage },
-  { path: "factory/export-oem/view/:id", Component: ViewExportOemPage },
 ];

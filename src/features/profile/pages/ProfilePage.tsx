@@ -10,10 +10,13 @@ import {
   saveCurrentUser,
   type AuthenticatedUserProfile,
 } from "../../auth";
+import { recordFormActionButtonSx } from "../../shared/buttonStyles";
+import { fetchRolePermissionRows } from "../../roles-permissions/shared/rolesPermissionsApi";
 import {
   MasterFormFields,
   MasterPageShell,
   MasterSectionCard,
+  hasFormFieldErrors,
   type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
@@ -27,10 +30,45 @@ export function ProfilePage() {
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildProfileInitialValues(currentUser),
   );
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [roleOptions, setRoleOptions] = useState<string[]>([]);
+  const profileFields = useMemo(
+    () => withProfileRoleOptions(userManagementFormFields, roleOptions, currentUser.role),
+    [currentUser.role, roleOptions],
+  );
 
   useEffect(() => {
     setValues(buildProfileInitialValues(currentUser));
   }, [currentUser]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    fetchRolePermissionRows()
+      .then((rows) => {
+        if (!ignore) {
+          setRoleOptions(
+            Array.from(
+              new Set(
+                rows
+                  .filter((role) => role.isActive !== false)
+                  .map((role) => role.roleName.trim())
+                  .filter(Boolean),
+              ),
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setRoleOptions([]);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const displayName = useMemo(() => getUserDisplayName(currentUser), [currentUser]);
   const initials = useMemo(() => getUserInitials(displayName), [displayName]);
@@ -43,6 +81,12 @@ export function ProfilePage() {
   };
 
   const handleSave = () => {
+    setHasSubmitted(true);
+
+    if (hasFormFieldErrors(profileFields, values)) {
+      return;
+    }
+
     const nextUser = buildProfileFromValues(values, currentUser);
     saveCurrentUser(nextUser);
     setCurrentUser(nextUser);
@@ -92,7 +136,7 @@ export function ProfilePage() {
 
           <MasterFormFields
             definition={{
-              fields: userManagementFormFields as MasterFieldDefinition[],
+              fields: profileFields as MasterFieldDefinition[],
               gridColumns: 4,
             }}
             onChange={(key, value) =>
@@ -101,6 +145,7 @@ export function ProfilePage() {
                 [key]: value,
               }))
             }
+            showRequiredErrors={hasSubmitted}
             values={values}
           />
 
@@ -112,13 +157,20 @@ export function ProfilePage() {
               flexWrap: "wrap",
             })}
           >
-            <Button onClick={handleCancel} variant="outlined">
+            <Button
+              type="button"
+              onClick={handleCancel}
+              sx={recordFormActionButtonSx}
+              variant="outlined"
+            >
               Cancel
             </Button>
 
             <Button
+              type="button"
               onClick={handleSave}
               startIcon={<Save size={16} />}
+              sx={recordFormActionButtonSx}
               variant="contained"
             >
               Save
@@ -179,6 +231,29 @@ function buildProfileFromValues(
 
 function getStringValue(value: MasterFieldValue | undefined) {
   return typeof value === "string" ? value : "";
+}
+
+function withProfileRoleOptions(
+  fields: readonly MasterFieldDefinition[],
+  roleOptions: readonly string[],
+  currentRole?: string,
+) {
+  const options = Array.from(
+    new Set(
+      [...roleOptions, currentRole ?? ""]
+        .map((option) => option.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  return fields.map((field) =>
+    field.key === "role"
+      ? {
+          ...field,
+          options,
+        }
+      : field,
+  );
 }
 
 function closeProfilePage(navigate: ReturnType<typeof useNavigate>) {

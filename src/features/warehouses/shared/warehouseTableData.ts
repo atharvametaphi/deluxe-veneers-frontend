@@ -5,7 +5,7 @@ import {
   plywoodDefinition,
   rawVeneerDefinition,
   veneerBlocksDefinition,
-} from "../../inventory/shared";
+} from "../../inventory/shared/inventoryDefinitions";
 
 export type WarehousePageId = "warehouse-a" | "warehouse-b" | "warehouse-c";
 export type WarehouseInventorySlug =
@@ -45,9 +45,13 @@ export type WarehouseInventoryRow = {
   totalUnits: string;
   availableUnits: string;
   totalSqm: string;
+  totalSqf: string;
   availableSqm: string;
+  availableSqf: string;
   currency: string;
   amount: string;
+  consumables?: string;
+  qcStatus: string;
   remark: string;
   status?: string;
   veneerSrNo: string;
@@ -67,6 +71,7 @@ export type WarehouseInventoryRow = {
   totalNoOfSheets: string;
   avSheets: string;
   avSqm: string;
+  avSqf: string;
   plywoodType: string;
   mdfType: string;
 };
@@ -89,24 +94,24 @@ export type WarehouseAInventoryConfig = WarehouseInventoryTabConfig & {
 
 const warehouseBaseColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
   [
-    { key: "inwardSrNo", label: "Inward Sr No" },
-    { key: "inwardType", label: "Inward Type" },
     { key: "inwardDate", label: "Inward Date" },
     { key: "invoiceNo", label: "Invoice No" },
-    { key: "referenceSrNo", label: "Item / Veneer Sr No" },
     { key: "supplierName", label: "Supplier Name" },
     { key: "supplierItemName", label: "Supplier Item Name" },
-    { key: "itemName", label: "Item Name" },
+    { key: "supplierCode", label: "Supplier Code" },
     { key: "subCategory", label: "Sub Category" },
+    { key: "itemName", label: "Item Name" },
+    { key: "mdfType", label: "MDF Type" },
     { key: "color", label: "Color" },
-    { key: "palletNo", label: "Pallet No" },
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
     { key: "thickness", label: "Thickness" },
-    { key: "totalUnits", label: "Total No of Sheets / Leaves" },
-    { key: "availableUnits", label: "Available No of Sheets / Leaves" },
-    { key: "totalSqm", label: "Total SQM" },
-    { key: "availableSqm", label: "Available SQM" },
+    { key: "noOfLeaves", label: "No of Leaves" },
+    { key: "totalNoOfSheets", label: "No of Sheets" },
+    { key: "totalSqm", label: "SQM" },
+    { key: "totalSqf", label: "SQF" },
+    { key: "cutName", label: "Cut" },
+    { key: "grade", label: "Grade" },
     { key: "currency", label: "Currency" },
     { key: "amount", label: "Amount" },
     { key: "remark", label: "Remark" },
@@ -115,133 +120,100 @@ const warehouseBaseColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow
 const warehouseBColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
   [...warehouseBaseColumns, { key: "status", label: "Status" }];
 
+const withQcStatusColumn = (
+  columns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[],
+): readonly EnterpriseTableColumn<WarehouseInventoryRow>[] => {
+  const remarkIndex = columns.findIndex((column) => column.key === "remark");
+  const consumablesColumn: EnterpriseTableColumn<WarehouseInventoryRow> = {
+    key: "consumables",
+    label: "Consumables",
+  };
+  const qcColumn: EnterpriseTableColumn<WarehouseInventoryRow> = {
+    key: "qcStatus",
+    label: "QC Status",
+  };
+
+  if (remarkIndex === -1) {
+    return [...columns, consumablesColumn, qcColumn];
+  }
+
+  return [
+    ...columns.slice(0, remarkIndex),
+    consumablesColumn,
+    qcColumn,
+    ...columns.slice(remarkIndex),
+  ];
+};
+
 const warehouseAVeneerColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
   [
-    { key: "inwardSrNo", label: "Inward Sr No" },
     { key: "inwardDate", label: "Inward Date" },
     { key: "invoiceNo", label: "Invoice No" },
-    { key: "veneerSrNo", label: "Veneer Sr No" },
     { key: "supplierName", label: "Supplier Name" },
     { key: "supplierItemName", label: "Supplier Item Name" },
     { key: "supplierCode", label: "Supplier Code" },
     { key: "subCategory", label: "Sub Category" },
     { key: "itemName", label: "Item Name" },
-    { key: "timberCode", label: "Timber Code" },
-    { key: "logCode", label: "Log Code" },
-    { key: "bundleNumber", label: "Bundle Number" },
-    { key: "palletNumber", label: "Pallet Number" },
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
     { key: "thickness", label: "Thickness" },
     { key: "noOfLeaves", label: "No of Leaves" },
-    { key: "totalSqm", label: "Total SQM" },
-    { key: "processName", label: "Process Name" },
-    { key: "processColor", label: "Process Color" },
-    { key: "cutName", label: "Cut Name" },
-    { key: "seriesName", label: "Series Name" },
+    { key: "totalSqm", label: "SQM" },
+    { key: "totalSqf", label: "SQF" },
+    { key: "cutName", label: "Cut" },
     { key: "grade", label: "Grade" },
     { key: "currency", label: "Currency" },
     { key: "amount", label: "Amount" },
-    { key: "expenseAmount", label: "Expense Amount" },
     { key: "remark", label: "Remark" },
   ];
 
 const warehouseARawProductionColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
-  warehouseAVeneerColumns.filter(
-    (column) =>
-      column.key !== "invoiceNo" &&
-      column.key !== "supplierName" &&
-      column.key !== "supplierItemName" &&
-      column.key !== "supplierCode",
-  );
+  warehouseAVeneerColumns;
 
 const warehouseBRawVeneerColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
-  [
-    { key: "invoiceNo", label: "Invoice No" },
-    { key: "veneerSrNo", label: "Veneer Sr No" },
-    { key: "category", label: "Category" },
-    { key: "subCategory", label: "Sub Category" },
-    { key: "supplierName", label: "Supplier Name" },
-    { key: "supplierItemName", label: "Supplier Item Name" },
-    { key: "supplierCode", label: "Supplier Code" },
-    { key: "itemName", label: "Item Name" },
-    { key: "timberCode", label: "Timber Code" },
-    { key: "logCode", label: "Log Code" },
-    { key: "bundleNumber", label: "Bundle Number" },
-    { key: "palletNumber", label: "Pallet Number" },
-    { key: "length", label: "Length" },
-    { key: "width", label: "Width" },
-    { key: "thickness", label: "Thickness" },
-    { key: "noOfLeaves", label: "No of Leaves" },
-    { key: "totalSqm", label: "Total SQM" },
-    { key: "processName", label: "Process Name" },
-    { key: "processColor", label: "Process Color" },
-    { key: "cutName", label: "Cut Name" },
-    { key: "seriesName", label: "Series Name" },
-    { key: "grade", label: "Grade" },
-    { key: "currency", label: "Currency" },
-    { key: "amount", label: "Amount" },
-    { key: "expenseAmount", label: "Expense Amount" },
-    { key: "remark", label: "Remark" },
-  ];
+  warehouseAVeneerColumns;
 
 const warehouseBRawProductionColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
-  warehouseBRawVeneerColumns.filter(
-    (column) =>
-      column.key !== "invoiceNo" &&
-      column.key !== "supplierName" &&
-      column.key !== "supplierItemName" &&
-      column.key !== "supplierCode",
-  );
+  warehouseBRawVeneerColumns;
 
 const warehouseAPlywoodColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
   [
-    { key: "inwardSrNo", label: "Inward Sr No" },
     { key: "inwardDate", label: "Inward Date" },
     { key: "invoiceNo", label: "Invoice No" },
-    { key: "itemSrNo", label: "Item Sr No" },
     { key: "supplierName", label: "Supplier Name" },
     { key: "supplierItemName", label: "Supplier Item Name" },
-    { key: "itemName", label: "Item Name" },
+    { key: "supplierCode", label: "Supplier Code" },
     { key: "subCategory", label: "Sub Category" },
+    { key: "itemName", label: "Item Name" },
     { key: "color", label: "Color" },
-    { key: "plywoodType", label: "Plywood Type" },
-    { key: "palletNumber", label: "Pallet No" },
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
     { key: "thickness", label: "Thickness" },
-    { key: "totalNoOfSheets", label: "Total No of Sheets" },
-    { key: "avSheets", label: "Av Sheets" },
-    { key: "totalSqm", label: "Total SQM" },
-    { key: "avSqm", label: "Av SQM" },
-    { key: "currency", label: "Currency" },
+    { key: "totalNoOfSheets", label: "No of Sheets" },
+    { key: "totalSqm", label: "SQM" },
+    { key: "totalSqf", label: "SQF" },
     { key: "amount", label: "Amount" },
-    { key: "expenseAmount", label: "Expense Amount" },
     { key: "remark", label: "Remark" },
   ];
 
 const warehouseAMdfColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
   [
-    { key: "inwardSrNo", label: "Inward Sr No" },
     { key: "inwardDate", label: "Inward Date" },
     { key: "invoiceNo", label: "Invoice No" },
-    { key: "mdfSrNo", label: "MDF Sr No" },
-    { key: "supplierItemName", label: "Supplier Item Name" },
     { key: "supplierName", label: "Supplier Name" },
+    { key: "supplierItemName", label: "Supplier Item Name" },
+    { key: "supplierCode", label: "Supplier Code" },
     { key: "itemName", label: "Item Name" },
     { key: "mdfType", label: "MDF Type" },
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
     { key: "thickness", label: "Thickness" },
-    { key: "totalNoOfSheets", label: "No of Sheets" },
-    { key: "avSheets", label: "Av Sheets" },
-    { key: "totalSqm", label: "Total SQM" },
-    { key: "avSqm", label: "Av SQM" },
-    { key: "palletNumber", label: "Pallet No" },
+    { key: "noOfLeaves", label: "No of Leaves" },
+    { key: "totalSqm", label: "SQM" },
+    { key: "totalSqf", label: "SQF" },
     { key: "currency", label: "Currency" },
     { key: "amount", label: "Amount" },
-    { key: "expenseAmount", label: "Expense Amount" },
-    { key: "remark", label: "Remark" },
+    { key: "remark", label: "Remarks" },
   ];
 
 const warehouseAConsumablesColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
@@ -256,6 +228,10 @@ const warehouseAConsumablesColumns: readonly EnterpriseTableColumn<WarehouseInve
     { key: "amount", label: "Amount" },
     { key: "remark", label: "Remark" },
   ];
+
+const warehouseAVeneerColumnsWithQc = withQcStatusColumn(warehouseAVeneerColumns);
+const warehouseAPlywoodColumnsWithQc = withQcStatusColumn(warehouseAPlywoodColumns);
+const warehouseAMdfColumnsWithQc = withQcStatusColumn(warehouseAMdfColumns);
 
 const processNames = [
   "Slicing Ready",
@@ -279,6 +255,13 @@ const veneerSubCategories = [
   "Architectural Panel",
   "Structural Panel",
 ] as const;
+const warehouseConsumables = [
+  "Phenolic Resin",
+  "Melamine Glue",
+  "Edge Tape",
+  "Sanding Belt",
+  "Packing Strap",
+] as const;
 
 function pickCycledValue<const TValue extends string>(
   values: readonly TValue[],
@@ -300,6 +283,15 @@ function formatAmount(value: number) {
   }).format(value);
 }
 
+const SQM_TO_SQF = 10.7639;
+
+function formatSqfFromSqm(value: string) {
+  const numericValue = Number.parseFloat(String(value).replace(/,/g, ""));
+  return Number.isFinite(numericValue)
+    ? (numericValue * SQM_TO_SQF).toFixed(3)
+    : "";
+}
+
 function buildExpenseAmount(amount: string, multiplier: number) {
   return formatAmount(parseAmount(amount) * multiplier);
 }
@@ -315,6 +307,8 @@ function normalizeRawVeneerRow(
   const totalUnits = String(row.noOfLeavesSheets ?? "");
   const totalSqm = String(row.totalSqm ?? "");
   const approvalStatus = String(row.approvalStatus ?? "");
+  const availableSqm = approvalStatus === "Approved" ? totalSqm : "0.000";
+  const qcStatus = approvalStatus === "Approved" ? "done" : "pending";
 
   return {
     id: `${idPrefix}-${String(row.id ?? "")}`,
@@ -340,9 +334,13 @@ function normalizeRawVeneerRow(
     availableUnits:
       approvalStatus === "Approved" ? totalUnits : `Hold ${totalUnits}`,
     totalSqm,
-    availableSqm: approvalStatus === "Approved" ? totalSqm : "0.000",
+    totalSqf: formatSqfFromSqm(totalSqm),
+    availableSqm,
+    availableSqf: formatSqfFromSqm(availableSqm),
     currency: String(row.currency ?? ""),
     amount: String(row.amount ?? ""),
+    consumables: "",
+    qcStatus,
     remark: String(row.remark ?? ""),
     status:
       approvalStatus === "Approved"
@@ -360,13 +358,14 @@ function normalizeRawVeneerRow(
     noOfLeaves: totalUnits,
     processName: "",
     processColor: String(row.timberColor ?? ""),
-    cutName: "",
+    cutName: String(row.cutName ?? row.cut ?? row.subCategory ?? ""),
     seriesName: "",
-    grade: "",
+    grade: String(row.grade ?? ""),
     expenseAmount: "",
     totalNoOfSheets: "",
     avSheets: "",
     avSqm: "",
+    avSqf: "",
     plywoodType: "",
     mdfType: "",
   };
@@ -377,6 +376,10 @@ function normalizeStockRow(
   idPrefix: string,
   status = "QC Done",
 ): WarehouseInventoryRow {
+  const totalSqm = String(row.totalSqm ?? "");
+  const availableSqm = String(row.availableSqm ?? "");
+  const qcStatus = status === "QC Done" ? "done" : "pending";
+
   return {
     id: `${idPrefix}-${String(row.id ?? "")}`,
     inventoryRecordId: String(row.id ?? ""),
@@ -393,7 +396,7 @@ function normalizeStockRow(
     referenceSrNo: String(row.itemSrNo ?? ""),
     supplierName: String(row.supplierName ?? ""),
     supplierItemName: String(row.supplierItemName ?? ""),
-    supplierCode: "",
+    supplierCode: String(row.supplierCode ?? ""),
     itemName: String(row.itemName ?? ""),
     subCategory: String(row.subCategory ?? ""),
     unitName: "",
@@ -404,10 +407,14 @@ function normalizeStockRow(
     thickness: String(row.thickness ?? ""),
     totalUnits: String(row.totalNoOfSheets ?? ""),
     availableUnits: String(row.availableNoOfSheets ?? ""),
-    totalSqm: String(row.totalSqm ?? ""),
-    availableSqm: String(row.availableSqm ?? ""),
+    totalSqm,
+    totalSqf: formatSqfFromSqm(totalSqm),
+    availableSqm,
+    availableSqf: formatSqfFromSqm(availableSqm),
     currency: String(row.currency ?? ""),
     amount: String(row.amount ?? ""),
+    consumables: "",
+    qcStatus,
     remark: String(row.remark ?? ""),
     status,
     veneerSrNo: "",
@@ -417,16 +424,17 @@ function normalizeStockRow(
     logCode: "",
     bundleNumber: "",
     palletNumber: String(row.palletNo ?? ""),
-    noOfLeaves: "",
+    noOfLeaves: String(row.noOfLeavesSheets ?? row.totalNoOfSheets ?? ""),
     processName: "",
     processColor: String(row.color ?? ""),
-    cutName: "",
+    cutName: String(row.cutName ?? row.cut ?? row.subCategory ?? ""),
     seriesName: "",
-    grade: "",
+    grade: String(row.grade ?? ""),
     expenseAmount: "",
     totalNoOfSheets: String(row.totalNoOfSheets ?? ""),
     avSheets: String(row.availableNoOfSheets ?? ""),
-    avSqm: String(row.availableSqm ?? ""),
+    avSqm: availableSqm,
+    avSqf: formatSqfFromSqm(availableSqm),
     plywoodType: String(row.plywoodType ?? ""),
     mdfType: String(row.plywoodType ?? ""),
   };
@@ -467,6 +475,7 @@ function mapWarehouseVeneerRow(
     seriesName: pickCycledValue(seriesNames, index),
     grade: pickCycledValue(grades, index),
     expenseAmount: buildExpenseAmount(base.amount, 0.075),
+    consumables: pickCycledValue(warehouseConsumables, index),
     status: options?.status ?? base.status ?? "",
   };
 }
@@ -501,6 +510,9 @@ function mapWarehousePlywoodRow(
     palletNumber: base.palletNo,
     expenseAmount: buildExpenseAmount(base.amount, 0.0825),
     plywoodType: String(row.plywoodType ?? ""),
+    consumables: pickCycledValue(warehouseConsumables, index + 1),
+    qcStatus: index % 3 === 0 ? "done" : "pending",
+    status: index % 3 === 0 ? "QC Done" : "QC Pending",
   };
 }
 
@@ -518,6 +530,9 @@ function mapWarehouseMdfRow(
     palletNumber: base.palletNo,
     expenseAmount: buildExpenseAmount(base.amount, 0.08),
     mdfType: String(row.plywoodType ?? ""),
+    consumables: pickCycledValue(warehouseConsumables, index + 2),
+    qcStatus: index % 3 === 0 ? "done" : "pending",
+    status: index % 3 === 0 ? "QC Done" : "QC Pending",
   };
 }
 
@@ -548,9 +563,13 @@ function mapWarehouseConsumableRow(
     totalUnits: String(row.quantity ?? ""),
     availableUnits: String(row.availableQuantity ?? ""),
     totalSqm: "",
+    totalSqf: "",
     availableSqm: "",
+    availableSqf: "",
     currency: String(row.currency ?? ""),
     amount: String(row.amount ?? ""),
+    consumables: String(row.itemName ?? ""),
+    qcStatus: "",
     remark: String(row.remark ?? ""),
     status: "",
     veneerSrNo: "",
@@ -570,6 +589,7 @@ function mapWarehouseConsumableRow(
     totalNoOfSheets: "",
     avSheets: "",
     avSqm: "",
+    avSqf: "",
     plywoodType: "",
     mdfType: "",
   };
@@ -683,22 +703,22 @@ export const warehouseAInventoryConfigs: Record<
 > = {
   "veneer-blocks": {
     title: "Veneer Blocks",
-    columns: warehouseAVeneerColumns,
+    columns: warehouseAVeneerColumnsWithQc,
     rows: warehouseAVeneerBlockRows,
   },
   "raw-veneer": {
     title: "Raw Veneer",
-    columns: warehouseAVeneerColumns,
+    columns: warehouseAVeneerColumnsWithQc,
     rows: warehouseARawPurchaseRows,
   },
   plywood: {
     title: "Plywood",
-    columns: warehouseAPlywoodColumns,
+    columns: warehouseAPlywoodColumnsWithQc,
     rows: warehouseAPlywoodRows,
   },
   mdf: {
     title: "MDF",
-    columns: warehouseAMdfColumns,
+    columns: warehouseAMdfColumnsWithQc,
     rows: warehouseAMdfRows,
   },
   consumables: {
@@ -714,12 +734,12 @@ export const warehouseRawVeneerTabConfigs: Record<
 > = {
   purchase: {
     title: "Purchase",
-    columns: warehouseAVeneerColumns,
+    columns: warehouseAVeneerColumnsWithQc,
     rows: warehouseARawPurchaseRows,
   },
   production: {
     title: "Production",
-    columns: warehouseARawProductionColumns,
+    columns: withQcStatusColumn(warehouseARawProductionColumns),
     rows: warehouseARawProductionRows,
   },
 };
@@ -745,23 +765,99 @@ export const warehouseBRawVeneerTabConfigs: Record<
   },
 };
 
+export const warehouseBInspectionConfigs: Record<
+  "pending" | "done",
+  WarehouseInventoryTabConfig
+> = {
+  pending: {
+    title: "Veneer Blocks",
+    columns: warehouseAVeneerColumns,
+    rows: cloneWarehouseInspectionRows(
+      takeWarehouseInspectionRows(
+        warehouseAInventoryConfigs["veneer-blocks"].rows,
+        0,
+        10,
+      ),
+      "Inspection Pending",
+    ),
+  },
+  done: {
+    title: "Veneer Blocks",
+    columns: warehouseAVeneerColumns,
+    rows: cloneWarehouseInspectionRows(
+      takeWarehouseInspectionRows(
+        warehouseAInventoryConfigs["veneer-blocks"].rows,
+        10,
+        20,
+      ),
+      "Inspection Done",
+    ),
+  },
+};
+
+export const warehouseBInventoryConfigs: Record<
+  WarehouseInventorySlug,
+  WarehouseInventoryTabConfig
+> = {
+  "veneer-blocks": {
+    title: "Veneer Blocks",
+    columns: warehouseAVeneerColumns,
+    rows: veneerBlockRows,
+  },
+  "raw-veneer": {
+    title: "Raw Veneer",
+    columns: warehouseAVeneerColumns,
+    rows: warehouseBRawAllRows,
+  },
+  plywood: {
+    title: "Plywood",
+    columns: warehouseAPlywoodColumns,
+    rows: plywoodRows,
+  },
+  mdf: {
+    title: "MDF",
+    columns: warehouseAMdfColumns,
+    rows: mdfRows,
+  },
+};
+
+function takeWarehouseInspectionRows(
+  rows: readonly WarehouseInventoryRow[],
+  start: number,
+  end: number,
+) {
+  const windowedRows = rows.slice(start, end);
+
+  return windowedRows.length > 0 ? windowedRows : rows.slice(0, 10);
+}
+
+function cloneWarehouseInspectionRows(
+  rows: readonly WarehouseInventoryRow[],
+  status: "Inspection Pending" | "Inspection Done",
+) {
+  return rows.map((row) => ({
+    ...row,
+    status,
+  }));
+}
+
 export const warehouseCInventoryConfigs: Record<
   WarehouseCInventorySlug,
   WarehouseInventoryTabConfig
 > = {
   "raw-veneer": {
     title: "Raw Veneer",
-    columns: warehouseBaseColumns,
+    columns: warehouseAVeneerColumns,
     rows: rawRows.filter((row) => row.status === "QC Done").slice(4, 6),
   },
   plywood: {
     title: "Plywood",
-    columns: warehouseBaseColumns,
+    columns: warehouseAPlywoodColumns,
     rows: plywoodRows.slice(4, 8),
   },
   mdf: {
     title: "MDF",
-    columns: warehouseBaseColumns,
+    columns: warehouseAMdfColumns,
     rows: mdfRows.slice(4, 7),
   },
 };

@@ -1,6 +1,7 @@
 import type { MasterFieldValue } from "../../masters/shared";
 import {
   buildDefaultUserPermissions,
+  type UserPermissionFlags,
   userManagementDetails,
   type UserManagementDetail,
   type UserManagementRecord,
@@ -59,6 +60,7 @@ export async function createUserManagementRecord(
 export async function updateUserManagementRecord(
   id: string,
   values: Record<string, MasterFieldValue>,
+  permissions?: Record<string, UserPermissionFlags>,
 ) {
   const records = getUserStore();
   const recordIndex = records.findIndex((row) => row.id === id);
@@ -67,7 +69,12 @@ export async function updateUserManagementRecord(
     throw new Error("User record not found.");
   }
 
-  const updatedRecord = buildUserDetailFromValues(values, records[recordIndex], id);
+  const updatedRecord = buildUserDetailFromValues(
+    values,
+    records[recordIndex],
+    id,
+    permissions,
+  );
   records[recordIndex] = updatedRecord;
   saveUserStore(records);
 
@@ -135,6 +142,7 @@ function buildUserDetailFromValues(
   values: Record<string, MasterFieldValue>,
   existingRecord: UserManagementDetail | undefined,
   id: string,
+  permissions?: Record<string, UserPermissionFlags>,
 ): UserManagementDetail {
   const isActive = getBooleanValue(values.isActive, existingRecord?.isActive ?? true);
   const now = new Date();
@@ -156,7 +164,8 @@ function buildUserDetailFromValues(
     id,
     isActive,
     lastName: getStringValue(values.lastName, existingRecord?.lastName),
-    permissions: existingRecord?.permissions ?? buildDefaultUserPermissions(),
+    permissions:
+      permissions ?? existingRecord?.permissions ?? buildDefaultUserPermissions(),
     phoneNo: getStringValue(values.phoneNo, existingRecord?.phoneNo),
     pincode: getStringValue(values.pincode, existingRecord?.pincode),
     remarks: getStringValue(values.remarks, existingRecord?.remarks),

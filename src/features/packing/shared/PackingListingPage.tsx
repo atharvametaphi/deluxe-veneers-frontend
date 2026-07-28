@@ -18,6 +18,7 @@ import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessT
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
+import { listingToolbarButtonSx } from "../../shared/buttonStyles";
 import {
   getPackingPaths,
   packingListingColumns,
@@ -171,6 +172,7 @@ export function PackingListingPage() {
           {canCreatePacking ? (
             <Button
               onClick={() => navigate(paths.add())}
+              sx={listingToolbarButtonSx}
               startIcon={<PackageOpen size={16} />}
               variant="contained"
             >

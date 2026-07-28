@@ -97,11 +97,11 @@ export function InventoryListing<Row extends InventoryRecord>({
       }
       breadcrumbs={[
         { label: "Warehouse B", to: getWarehouseBRootPath() },
+        { label: activeTab === "history" ? "History" : "Inventory" },
         {
           label: definition.title,
           to: getWarehouseBInventoryPath(definition.slug),
         },
-        { label: "Inventory" },
       ]}
       processTabs={
         <ModuleProcessTabs

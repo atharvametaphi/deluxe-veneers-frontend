@@ -1,5 +1,5 @@
 import { Button, Stack } from "@mui/material";
-import { Download, FileOutput } from "lucide-react";
+import { FileOutput } from "lucide-react";
 
 export function FactoryToolbar() {
   return (
@@ -13,9 +13,6 @@ export function FactoryToolbar() {
         Export
       </Button>
 
-      <Button variant="outlined" startIcon={<Download size={16} />}>
-        Download
-      </Button>
     </Stack>
   );
 }

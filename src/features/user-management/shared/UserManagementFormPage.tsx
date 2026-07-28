@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 
@@ -7,18 +7,24 @@ import {
   MasterFormFields,
   MasterPageShell,
   MasterSectionCard,
-  hasRequiredFieldErrors,
+  hasFormFieldErrors,
   type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
-import { fetchRolePermissionRows } from "../../roles-permissions/shared/rolesPermissionsApi";
 import {
+  recordFormActionButtonSx,
+  recordViewActionButtonSx,
+} from "../../shared/buttonStyles";
+import { UserPermissionMatrix } from "./UserPermissionMatrix";
+import {
+  buildDefaultUserPermissions,
   buildUserManagementInitialValues,
   getUserManagementPaths,
   userManagementFormFields,
   userManagementViewFields,
   type UserManagementDetail,
+  type UserPermissionFlags,
 } from "./userManagementConfig";
 import {
   createUserManagementRecord,
@@ -46,49 +52,25 @@ export function UserManagementFormPage({
   const baseFields =
     mode === "view" ? userManagementViewFields : userManagementFormFields;
   const [row, setRow] = useState<UserManagementDetail | undefined>();
-  const [roleOptions, setRoleOptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(mode !== "add");
   const [isSaving, setIsSaving] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [notFound, setNotFound] = useState(false);
+  const [activeEditTab, setActiveEditTab] = useState<"basic" | "permissions">(
+    "basic",
+  );
   const activeFields = useMemo(
-    () => withUserRoleOptions(baseFields, roleOptions, row?.role),
-    [baseFields, roleOptions, row?.role],
+    () => baseFields as MasterFieldDefinition[],
+    [baseFields],
   );
 
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     buildUserManagementInitialValues(baseFields),
   );
-
-  useEffect(() => {
-    let ignore = false;
-
-    fetchRolePermissionRows()
-      .then((rows) => {
-        if (!ignore) {
-          setRoleOptions(
-            Array.from(
-              new Set(
-                rows
-                  .filter((role) => role.isActive !== false)
-                  .map((role) => role.roleName.trim())
-                  .filter(Boolean),
-              ),
-            ),
-          );
-        }
-      })
-      .catch(() => {
-        if (!ignore) {
-          setRoleOptions([]);
-        }
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const [permissions, setPermissions] = useState<
+    Record<string, UserPermissionFlags>
+  >(() => buildDefaultUserPermissions());
 
   useEffect(() => {
     let ignore = false;
@@ -100,6 +82,8 @@ export function UserManagementFormPage({
       if (mode === "add") {
         setRow(undefined);
         setValues(buildUserManagementInitialValues(baseFields));
+        setPermissions(buildDefaultUserPermissions());
+        setActiveEditTab("basic");
         setIsLoading(false);
         return;
       }
@@ -117,6 +101,8 @@ export function UserManagementFormPage({
         if (!ignore) {
           setRow(nextRow);
           setValues(buildUserManagementInitialValues(baseFields, nextRow));
+          setPermissions(nextRow.permissions ?? buildDefaultUserPermissions());
+          setActiveEditTab("basic");
         }
       } catch (error) {
         if (!ignore) {
@@ -167,7 +153,7 @@ export function UserManagementFormPage({
 
     setHasSubmitted(true);
 
-    if (mode === "add" && hasRequiredFieldErrors(activeFields, values)) {
+    if (hasFormFieldErrors(activeFields, values)) {
       return;
     }
 
@@ -178,7 +164,7 @@ export function UserManagementFormPage({
       if (mode === "add") {
         await createUserManagementRecord(values);
       } else if (mode === "edit" && params.id) {
-        await updateUserManagementRecord(params.id, values);
+        await updateUserManagementRecord(params.id, values, permissions);
       }
 
       navigate(paths.list);
@@ -220,21 +206,77 @@ export function UserManagementFormPage({
               Loading user details...
             </Typography>
           ) : canUseMode ? (
-          <MasterFormFields
-            definition={{
-              fields: activeFields as MasterFieldDefinition[],
-              gridColumns: 4,
-            }}
-            onChange={(key, value) =>
-              setValues((current) => ({
-                ...current,
-                [key]: value,
-              }))
-            }
-            readOnly={mode === "view"}
-            showRequiredErrors={mode === "add" && hasSubmitted}
-            values={values}
-          />
+            <>
+              {mode === "edit" ? (
+                <Tabs
+                  value={activeEditTab}
+                  onChange={(_, value: "basic" | "permissions") =>
+                    setActiveEditTab(value)
+                  }
+                  sx={(theme) => ({
+                    minHeight: theme.spacing(4.5),
+                    borderBottom: `1px solid ${theme.customTokens.borders.divider}`,
+                    "& .MuiTab-root": {
+                      minHeight: theme.spacing(4.5),
+                      px: theme.spacing(1.5),
+                      py: theme.spacing(1),
+                      color: theme.customTokens.navigation.inactiveText,
+                      fontSize: theme.typography.body2.fontSize,
+                      fontWeight: 700,
+                      textTransform: "none",
+                    },
+                    "& .MuiTab-root.Mui-selected": {
+                      color: theme.customTokens.navigation.activeText,
+                    },
+                    "& .MuiTabs-indicator": {
+                      backgroundColor: theme.customTokens.navigation.activeIndicator,
+                    },
+                  })}
+                >
+                  <Tab label="Basic Details" value="basic" />
+                  <Tab label="Permissions" value="permissions" />
+                </Tabs>
+              ) : null}
+
+              {mode === "edit" && activeEditTab === "permissions" ? (
+                <UserPermissionMatrix
+                  onToggle={(itemKey, action, checked) =>
+                    setPermissions((current) => {
+                      const currentPermissions = current[itemKey] ?? {
+                        create: false,
+                        edit: false,
+                        view: false,
+                      };
+
+                      return {
+                        ...current,
+                        [itemKey]: {
+                          ...currentPermissions,
+                          [action]: checked,
+                        },
+                      };
+                    })
+                  }
+                  permissions={permissions}
+                />
+              ) : (
+                <MasterFormFields
+                  definition={{
+                    fields: activeFields,
+                    gridColumns: 4,
+                  }}
+                  onChange={(key, value) =>
+                    setValues((current) => ({
+                      ...current,
+                      [key]: value,
+                    }))
+                  }
+                  readOnly={mode === "view"}
+                  showRequiredErrors={mode !== "view" && hasSubmitted}
+                  values={values}
+                />
+              )}
+            </>
           ) : null}
 
           <Box
@@ -250,6 +292,7 @@ export function UserManagementFormPage({
                 <Button
                   onClick={() => navigate(paths.list)}
                   startIcon={<ChevronLeft size={16} />}
+                  sx={recordViewActionButtonSx}
                   variant="outlined"
                 >
                   Back
@@ -259,6 +302,7 @@ export function UserManagementFormPage({
                   <Button
                     onClick={() => navigate(paths.edit(row.id))}
                     startIcon={<Pencil size={16} />}
+                    sx={recordViewActionButtonSx}
                     variant="contained"
                   >
                     Edit
@@ -268,17 +312,20 @@ export function UserManagementFormPage({
             ) : (
               <>
                 <Button
-                  disabled={isSaving}
+                  type="button"
                   onClick={() => navigate(paths.list)}
+                  sx={recordFormActionButtonSx}
                   variant="outlined"
                 >
                   Cancel
                 </Button>
 
                 <Button
+                  type="button"
                   disabled={isLoading || isSaving}
                   onClick={handleSave}
                   startIcon={<Save size={16} />}
+                  sx={recordFormActionButtonSx}
                   variant="contained"
                 >
                   {isSaving ? "Saving" : "Save"}
@@ -289,28 +336,5 @@ export function UserManagementFormPage({
         </Stack>
       </MasterSectionCard>
     </MasterPageShell>
-  );
-}
-
-function withUserRoleOptions(
-  fields: readonly MasterFieldDefinition[],
-  roleOptions: readonly string[],
-  currentRole?: string,
-) {
-  const options = Array.from(
-    new Set(
-      [...roleOptions, currentRole ?? ""]
-        .map((option) => option.trim())
-        .filter(Boolean),
-    ),
-  );
-
-  return fields.map((field) =>
-    field.key === "role"
-      ? {
-          ...field,
-          options,
-        }
-      : field,
   );
 }

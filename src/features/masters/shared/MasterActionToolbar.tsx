@@ -1,5 +1,5 @@
 import { Button, Stack } from "@mui/material";
-import { Download, FileOutput, Plus } from "lucide-react";
+import { FileOutput, Plus } from "lucide-react";
 import { Link as RouterLink } from "react-router";
 
 interface MasterActionToolbarProps {
@@ -29,9 +29,6 @@ export function MasterActionToolbar({
         Export
       </Button>
 
-      <Button variant="outlined" startIcon={<Download size={16} />}>
-        Download
-      </Button>
     </Stack>
   );
 }

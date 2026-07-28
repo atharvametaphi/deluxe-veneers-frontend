@@ -23,6 +23,7 @@ import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessT
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
+import { getListingToolbarButtonSx } from "../../shared/buttonStyles";
 import {
   cancelOrderRecord,
   orderCreateOptions,
@@ -187,7 +188,10 @@ export function OrdersListingPage() {
             onClick={(event: MouseEvent<HTMLElement>) =>
               setCreateMenuAnchor(event.currentTarget)
             }
-            sx={{ alignSelf: { xs: "flex-start", md: "center" } }}
+            sx={(currentTheme) => ({
+              ...getListingToolbarButtonSx(currentTheme),
+              alignSelf: { xs: "flex-start", md: "center" },
+            })}
             variant="contained"
           >
             Create Order

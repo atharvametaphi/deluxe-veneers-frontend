@@ -178,6 +178,13 @@ const warehouseAAddStockTableConfigs: Record<
       type: "text",
     },
     {
+      key: "consumables",
+      label: "Consumables",
+      minWidth: 170,
+      placeholder: "Enter Consumables",
+      type: "text",
+    },
+    {
       key: "remark",
       label: "Remark",
       minWidth: 180,
@@ -270,6 +277,13 @@ const warehouseAAddStockTableConfigs: Record<
       label: "Amount",
       minWidth: 130,
       placeholder: "Enter Amount",
+      type: "text",
+    },
+    {
+      key: "consumables",
+      label: "Consumables",
+      minWidth: 170,
+      placeholder: "Enter Consumables",
       type: "text",
     },
     {
@@ -368,6 +382,13 @@ const warehouseAAddStockTableConfigs: Record<
       type: "text",
     },
     {
+      key: "consumables",
+      label: "Consumables",
+      minWidth: 170,
+      placeholder: "Enter Consumables",
+      type: "text",
+    },
+    {
       key: "remarks",
       label: "Remarks",
       minWidth: 180,
@@ -452,6 +473,13 @@ const warehouseAAddStockTableConfigs: Record<
       label: "Amount",
       minWidth: 130,
       placeholder: "Enter Amount",
+      type: "text",
+    },
+    {
+      key: "consumables",
+      label: "Consumables",
+      minWidth: 170,
+      placeholder: "Enter Consumables",
       type: "text",
     },
     {
@@ -687,7 +715,8 @@ export function WarehouseAAddStockLineItems({
         <Button
           disableElevation
           onClick={handleAddLineItem}
-          startIcon={<Plus size={16} />}
+          startIcon={<Plus size={14} />}
+          sx={getAddItemButtonSx(theme)}
           variant="contained"
         >
           Add Item
@@ -865,6 +894,28 @@ function getActionButtonSx(theme: Theme) {
     color: theme.customTokens.navigation.activeText,
     "&:hover": {
       backgroundColor: theme.customTokens.navigation.hoverBackground,
+    },
+  } as const;
+}
+
+function getAddItemButtonSx(theme: Theme) {
+  return {
+    minHeight: 34,
+    px: theme.spacing(2),
+    borderRadius: `${theme.customTokens.radius.md}px`,
+    backgroundColor: theme.customTokens.brand.primary,
+    color: theme.customTokens.text.inverse,
+    fontSize: theme.typography.caption.fontSize,
+    fontWeight: 700,
+    lineHeight: 1,
+    textTransform: "none",
+    boxShadow: "none",
+    "& .MuiButton-startIcon": {
+      mr: theme.spacing(0.75),
+    },
+    "&:hover": {
+      backgroundColor: theme.customTokens.brand.primaryScale[800],
+      boxShadow: "none",
     },
   } as const;
 }

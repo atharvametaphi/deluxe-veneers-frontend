@@ -25,6 +25,7 @@ import {
 type AddStockWorkspaceTab = "item-details" | "invoice-details";
 
 type InvoiceDetailValues = {
+  additionalCharges: string;
   cgstPercentage: string;
   gstPercentage: string;
   gstValue: string;
@@ -41,6 +42,7 @@ const workspaceTabs = [
 ] as const satisfies readonly { label: string; value: AddStockWorkspaceTab }[];
 
 const defaultInvoiceDetailValues: InvoiceDetailValues = {
+  additionalCharges: "",
   cgstPercentage: "",
   gstPercentage: "",
   gstValue: "",
@@ -97,11 +99,12 @@ export function WarehouseAAddStockWorkspace({
   };
 
   const handleCalculateInvoice = () => {
+    const additionalCharges = parseNumber(invoiceDetailValues.additionalCharges);
     const totalItemAmount = parseNumber(effectiveTotalItemAmount);
     const gstPercentage = parseNumber(invoiceDetailValues.gstPercentage);
     const effectiveGstPercentage = gstPercentage > 0 ? gstPercentage : 0;
     const gstValue = totalItemAmount * (effectiveGstPercentage / 100);
-    const invoiceValue = totalItemAmount + gstValue;
+    const invoiceValue = totalItemAmount + gstValue + additionalCharges;
 
     setInvoiceDetailValues((current) => ({
       ...current,
@@ -214,6 +217,18 @@ export function WarehouseAAddStockWorkspace({
                   readOnly: true,
                 },
               }}
+            />
+          </InvoiceField>
+
+          <InvoiceField label="Additional Charges">
+            <TextField
+              fullWidth
+              placeholder="Enter Additional Charges"
+              value={invoiceDetailValues.additionalCharges}
+              onChange={(event) =>
+                handleInvoiceFieldChange("additionalCharges", event.target.value)
+              }
+              sx={getCompactFieldSx(theme)}
             />
           </InvoiceField>
 

@@ -43,6 +43,12 @@ import {
   ViewGSTMasterPage,
 } from "./gst-master";
 import {
+  AddGradeMasterPage,
+  EditGradeMasterPage,
+  GradeMasterListPage,
+  ViewGradeMasterPage,
+} from "./grade-master";
+import {
   AddHSNMasterPage,
   EditHSNMasterPage,
   HSNMasterListPage,
@@ -121,6 +127,11 @@ export const masterRoutes: RouteObject[] = [
   { path: "masters/customer-master/add", Component: AddCustomerMasterPage },
   { path: "masters/customer-master/edit/:id", Component: EditCustomerMasterPage },
   { path: "masters/customer-master/view/:id", Component: ViewCustomerMasterPage },
+
+  { path: "masters/grade-master", Component: GradeMasterListPage },
+  { path: "masters/grade-master/add", Component: AddGradeMasterPage },
+  { path: "masters/grade-master/edit/:id", Component: EditGradeMasterPage },
+  { path: "masters/grade-master/view/:id", Component: ViewGradeMasterPage },
 
   { path: "masters/gst-master", Component: GSTMasterListPage },
   { path: "masters/gst-master/add", Component: AddGSTMasterPage },

@@ -36,6 +36,13 @@ export interface MasterFieldDefinition {
   key: string;
   label: string;
   type: MasterFieldType;
+  autoFillFrom?: {
+    rows: MasterRecord[];
+    sourceSlug?: string;
+    sourceKey: string;
+    sourceMatchKey: string;
+    sourceValueKey: string;
+  };
   helperText?: string;
   options?: string[];
   placeholder?: string;

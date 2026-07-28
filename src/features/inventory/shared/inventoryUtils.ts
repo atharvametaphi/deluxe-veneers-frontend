@@ -156,9 +156,7 @@ function getInventoryRecordQuery(
 ) {
   const params = new URLSearchParams();
 
-  if (warehouse !== "warehouse-b") {
-    params.set("warehouse", warehouse);
-  }
+  params.set("warehouse", warehouse);
 
   if (warehouse === "warehouse-b" && tab === "history") {
     params.set("tab", "history");
