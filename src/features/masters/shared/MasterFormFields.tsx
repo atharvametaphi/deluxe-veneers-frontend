@@ -517,6 +517,17 @@ export function MasterFormFields({
                     <Button
                       variant="outlined"
                       onClick={() => fileInputRefs.current[field.key]?.click()}
+                      sx={{
+                        borderRadius: `${theme.customTokens.radius.md}px`,
+                        boxShadow: "none",
+                        height: theme.spacing(4.5),
+                        minHeight: theme.spacing(4.5),
+                        px: 1.5,
+                        textTransform: "none",
+                        "&:hover": {
+                          boxShadow: "none",
+                        },
+                      }}
                     >
                       Upload
                     </Button>

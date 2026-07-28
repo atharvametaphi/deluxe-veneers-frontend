@@ -14,7 +14,12 @@ import {
 import { MasterFormFields, hasFormFieldErrors } from "./MasterFormFields";
 import { MasterPageShell } from "./MasterPageShell";
 import { MasterSectionCard } from "./MasterSectionCard";
-import type { MasterDefinition, MasterFieldValue, MasterRecord } from "./types";
+import type {
+  MasterDefinition,
+  MasterFieldDefinition,
+  MasterFieldValue,
+  MasterRecord,
+} from "./types";
 import {
   buildMasterInitialValues,
   getMasterPageTitle,
@@ -30,6 +35,36 @@ interface MasterFormPageProps {
     row?: MasterRecord;
     values: Record<string, MasterFieldValue>;
   }) => void;
+}
+
+const remarkField: MasterFieldDefinition = {
+  key: "remark",
+  label: "Remark",
+  type: "text",
+};
+
+function hasRemarkField(fields: readonly MasterFieldDefinition[]) {
+  return fields.some((field) => {
+    const key = field.key.toLowerCase();
+    const label = field.label.toLowerCase();
+
+    return key === "remark" || key === "remarks" || label === "remark";
+  });
+}
+
+function getMasterFormDefinitionForMode(
+  definition: MasterDefinition,
+  mode: "add" | "edit" | "view",
+): MasterDefinition {
+  const fields =
+    mode === "add"
+      ? definition.fields.filter((field) => field.key !== "status")
+      : definition.fields;
+
+  return {
+    ...definition,
+    fields: hasRemarkField(fields) ? fields : [...fields, remarkField],
+  };
 }
 
 export function MasterFormPage({
@@ -58,6 +93,7 @@ export function MasterFormPage({
     buildMasterInitialValues(definition, row),
   );
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const formDefinition = getMasterFormDefinitionForMode(definition, mode);
 
   useEffect(() => {
     setValues(buildMasterInitialValues(definition, row));
@@ -106,7 +142,7 @@ export function MasterFormPage({
 
     setHasSubmitted(true);
 
-    if (hasFormFieldErrors(definition.fields, values)) {
+    if (hasFormFieldErrors(formDefinition.fields, values)) {
       return;
     }
 
@@ -135,7 +171,7 @@ export function MasterFormPage({
         [key]: value,
       };
 
-      definition.fields.forEach((field) => {
+      formDefinition.fields.forEach((field) => {
         const autoFillConfig = field.autoFillFrom;
 
         if (!autoFillConfig || autoFillConfig.sourceKey !== key) {
@@ -176,7 +212,7 @@ export function MasterFormPage({
           })}
         >
           <MasterFormFields
-            definition={definition}
+            definition={formDefinition}
             onChange={handleFieldChange}
             readOnly={mode === "view"}
             showRequiredErrors={mode !== "view" && hasSubmitted}
