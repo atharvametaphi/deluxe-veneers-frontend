@@ -7,9 +7,10 @@ import {
   TextField,
   useTheme,
 } from "@mui/material";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Link as RouterLink } from "react-router";
 
+import { getListingToolbarButtonSx } from "../../shared/buttonStyles";
 import {
   canAccessAnyAction,
   canAccessPermission,
@@ -101,7 +102,11 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
             component={RouterLink}
             to={paths.add}
             variant="contained"
-            sx={{ alignSelf: { xs: "flex-start", md: "center" } }}
+            startIcon={<Plus size={14} />}
+            sx={{
+              ...getListingToolbarButtonSx(theme),
+              alignSelf: { xs: "flex-start", md: "center" },
+            }}
           >
             {addButtonLabel}
           </Button>

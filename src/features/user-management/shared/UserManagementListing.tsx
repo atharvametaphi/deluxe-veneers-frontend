@@ -22,7 +22,10 @@ import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inpu
 import { getCurrentUser } from "../../auth";
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
-import { recordFormActionButtonSx } from "../../shared/buttonStyles";
+import {
+  listingToolbarButtonSx,
+  recordFormActionButtonSx,
+} from "../../shared/buttonStyles";
 import {
   getUserManagementPaths,
   getUserManagementSearchValues,
@@ -253,6 +256,7 @@ export function UserManagementListing() {
         {canCreate ? (
           <Button
             component={RouterLink}
+            sx={listingToolbarButtonSx}
             to={paths.add}
             variant="contained"
           >

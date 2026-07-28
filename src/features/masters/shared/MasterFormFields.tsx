@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Eye, X } from "lucide-react";
 import {
+  getCountries,
+  getCountryCallingCode,
+  type CountryCode,
+} from "libphonenumber-js";
+import {
   Box,
   Button,
   Checkbox,
@@ -98,7 +103,38 @@ const requiredFieldKeys = new Set([
   "warehouseName",
 ]);
 
-const countryCodeOptions = ["+91", "+1", "+44", "+971", "+61"] as const;
+const countryNameFormatter = new Intl.DisplayNames(["en"], { type: "region" });
+
+const countryCodeOptions = Array.from(
+  getCountries()
+    .reduce((countryGroups, country) => {
+      const code = `+${getCountryCallingCode(country)}`;
+      const countries = countryGroups.get(code) ?? [];
+
+      countries.push(getCountryName(country));
+      countryGroups.set(code, countries);
+
+      return countryGroups;
+    }, new Map<string, string[]>())
+    .entries(),
+)
+  .map(([code, countries]) => {
+    const sortedCountries = countries.sort((first, second) =>
+      first.localeCompare(second),
+    );
+    const firstCountry = sortedCountries[0] ?? code;
+    const displayCountries =
+      sortedCountries.length > 2
+        ? `${sortedCountries.slice(0, 2).join(" / ")} +${sortedCountries.length - 2}`
+        : sortedCountries.join(" / ");
+
+    return {
+      code,
+      label: displayCountries,
+      sortLabel: firstCountry,
+    };
+  })
+  .sort((first, second) => first.sortLabel.localeCompare(second.sortLabel));
 
 export function MasterFormFields({
   definition,
@@ -188,25 +224,106 @@ export function MasterFormFields({
                   sx={(currentTheme) => ({
                     display: "grid",
                     gap: currentTheme.spacing(1),
-                    gridTemplateColumns: "96px minmax(0, 1fr)",
+                    gridTemplateColumns: "92px minmax(0, 1fr)",
                   })}
                 >
                   <TextField
+                    disabled={fieldIsReadOnly}
                     select
                     value={getPhoneCountryCode(values, field.key)}
                     onChange={(event) =>
                       onChange(getPhoneCountryCodeKey(field.key), event.target.value)
                     }
-                    sx={getCompactFieldSx(theme, fieldIsReadOnly ? "readOnly" : "default")}
+                    sx={[
+                      getCompactFieldSx(
+                        theme,
+                        fieldIsReadOnly ? "readOnly" : "default",
+                      ),
+                      {
+                        "& .MuiSelect-select": {
+                          alignItems: "center",
+                          boxSizing: "border-box",
+                          display: "flex",
+                          height: "100%",
+                          justifyContent: "flex-start",
+                          lineHeight: 1,
+                          minHeight: "0 !important",
+                          paddingLeft: `${theme.spacing(1.5)} !important`,
+                          paddingRight: `${theme.spacing(3.5)} !important`,
+                          paddingTop: "0 !important",
+                          paddingBottom: "0 !important",
+                        },
+                        "& .MuiSelect-icon": {
+                          right: theme.spacing(1),
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                        },
+                      },
+                    ]}
                     slotProps={{
                       input: {
                         readOnly: fieldIsReadOnly,
                       },
+                      select: {
+                        MenuProps: {
+                          anchorOrigin: {
+                            horizontal: "left",
+                            vertical: "bottom",
+                          },
+                          MenuListProps: {
+                            dense: true,
+                            sx: {
+                              py: 0.5,
+                            },
+                          },
+                          PaperProps: {
+                            sx: {
+                              border: `1px solid ${theme.customTokens.borders.default}`,
+                              borderRadius: `${theme.customTokens.radius.md}px`,
+                              boxShadow: "none",
+                              maxHeight: 240,
+                              mt: 0.5,
+                              overflowY: "auto",
+                              scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
+                              scrollbarWidth: "thin",
+                              width: 280,
+                              "&::-webkit-scrollbar": {
+                                width: 6,
+                              },
+                              "&::-webkit-scrollbar-track": {
+                                backgroundColor: theme.customTokens.surfaces.alt,
+                                borderRadius: 999,
+                              },
+                              "&::-webkit-scrollbar-thumb": {
+                                backgroundColor: theme.customTokens.brand.primary,
+                                borderRadius: 999,
+                              },
+                              "&::-webkit-scrollbar-thumb:hover": {
+                                backgroundColor:
+                                  theme.customTokens.brand.primaryScale[800],
+                              },
+                            },
+                          },
+                          transformOrigin: {
+                            horizontal: "left",
+                            vertical: "top",
+                          },
+                          variant: "menu",
+                        },
+                        renderValue: (selected) => String(selected),
+                      },
                     }}
                   >
                     {countryCodeOptions.map((countryCode) => (
-                      <MenuItem key={countryCode} value={countryCode}>
-                        {countryCode}
+                      <MenuItem
+                        key={countryCode.code}
+                        value={countryCode.code}
+                        sx={(theme) => ({
+                          fontSize: theme.typography.body2.fontSize,
+                          minHeight: 32,
+                        })}
+                      >
+                        {countryCode.code} - {countryCode.label}
                       </MenuItem>
                     ))}
                   </TextField>
@@ -707,13 +824,17 @@ function getPhoneCountryCodeKey(fieldKey: string) {
   return `${fieldKey}CountryCode`;
 }
 
+function getCountryName(country: CountryCode) {
+  return countryNameFormatter.of(country) ?? country;
+}
+
 function getPhoneCountryCode(
   values: Record<string, MasterFieldValue>,
   fieldKey: string,
 ) {
   const value = values[getPhoneCountryCodeKey(fieldKey)];
 
-  return typeof value === "string" && countryCodeOptions.includes(value as typeof countryCodeOptions[number])
+  return typeof value === "string" && countryCodeOptions.some((option) => option.code === value)
     ? value
     : "+91";
 }

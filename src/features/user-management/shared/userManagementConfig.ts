@@ -91,7 +91,6 @@ export const userManagementColumns: readonly EnterpriseTableColumn<UserManagemen
     { key: "lastName", label: "Last Name" },
     { key: "userName", label: "User Name" },
     { key: "department", label: "Department" },
-    { key: "role", label: "Role" },
     { key: "statusLabel", label: "Status" },
     { key: "email", label: "Email" },
     { key: "phoneNo", label: "Phone No" },
@@ -175,7 +174,6 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
     label: "Masters",
     items: [
       { key: "colorMaster", label: "Color Master" },
-      { key: "consumablesMaster", label: "Consumables Master" },
       { key: "currencyMaster", label: "Currency Master" },
       { key: "cutMaster", label: "Cut Master" },
       { key: "customerMaster", label: "Customer Master" },
@@ -230,11 +228,6 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
     id: "dispatch",
     label: "Dispatch",
     items: [{ key: "dispatch", label: "Dispatch" }],
-  },
-  {
-    id: "tools",
-    label: "Tools",
-    items: [{ key: "componentLibrary", label: "Component Library" }],
   },
 ];
 

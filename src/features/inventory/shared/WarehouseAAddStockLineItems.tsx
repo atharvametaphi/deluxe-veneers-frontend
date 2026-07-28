@@ -18,8 +18,6 @@ import type { Theme } from "@mui/material/styles";
 import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 
 import {
-  consumableCategoryOptions,
-  consumableMasterOptions,
   cutMasterOptions,
   itemSubCategoryMasterOptions,
   unitMasterOptions,
@@ -502,17 +500,15 @@ const warehouseAAddStockTableConfigs: Record<
       key: "subCategory",
       label: "Consumable Category",
       minWidth: 180,
-      options: consumableCategoryOptions,
-      placeholder: "Select Consumable Category",
-      type: "select",
+      placeholder: "Enter Consumable Category",
+      type: "text",
     },
     {
       key: "itemName",
       label: "Consumable Name",
       minWidth: 180,
-      options: consumableMasterOptions,
-      placeholder: "Select Consumable Name",
-      type: "select",
+      placeholder: "Enter Consumable Name",
+      type: "text",
     },
     {
       key: "unitName",

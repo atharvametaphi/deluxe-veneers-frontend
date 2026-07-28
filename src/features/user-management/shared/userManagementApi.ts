@@ -47,9 +47,15 @@ export async function fetchUserManagementDetail(id: string) {
 
 export async function createUserManagementRecord(
   values: Record<string, MasterFieldValue>,
+  permissions?: Record<string, UserPermissionFlags>,
 ) {
   const records = getUserStore();
-  const detail = buildUserDetailFromValues(values, undefined, createUserId(records));
+  const detail = buildUserDetailFromValues(
+    values,
+    undefined,
+    createUserId(records),
+    permissions,
+  );
 
   records.unshift(detail);
   saveUserStore(records);

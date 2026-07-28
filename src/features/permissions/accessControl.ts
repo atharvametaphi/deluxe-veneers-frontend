@@ -6,7 +6,6 @@ import type { UserPermissionAction } from "../user-management/shared/userManagem
 
 export const masterPermissionKeyBySlug: Record<string, string> = {
   "color-master": "colorMaster",
-  "consumables-master": "consumablesMaster",
   "currency-master": "currencyMaster",
   "cut-master": "cutMaster",
   "customer-master": "customerMaster",

@@ -57,7 +57,7 @@ export function UserManagementFormPage({
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [notFound, setNotFound] = useState(false);
-  const [activeEditTab, setActiveEditTab] = useState<"basic" | "permissions">(
+  const [activeTab, setActiveTab] = useState<"basic" | "permissions">(
     "basic",
   );
   const activeFields = useMemo(
@@ -83,7 +83,7 @@ export function UserManagementFormPage({
         setRow(undefined);
         setValues(buildUserManagementInitialValues(baseFields));
         setPermissions(buildDefaultUserPermissions());
-        setActiveEditTab("basic");
+        setActiveTab("basic");
         setIsLoading(false);
         return;
       }
@@ -102,7 +102,7 @@ export function UserManagementFormPage({
           setRow(nextRow);
           setValues(buildUserManagementInitialValues(baseFields, nextRow));
           setPermissions(nextRow.permissions ?? buildDefaultUserPermissions());
-          setActiveEditTab("basic");
+          setActiveTab("basic");
         }
       } catch (error) {
         if (!ignore) {
@@ -162,7 +162,7 @@ export function UserManagementFormPage({
 
     try {
       if (mode === "add") {
-        await createUserManagementRecord(values);
+        await createUserManagementRecord(values, permissions);
       } else if (mode === "edit" && params.id) {
         await updateUserManagementRecord(params.id, values, permissions);
       }
@@ -207,38 +207,36 @@ export function UserManagementFormPage({
             </Typography>
           ) : canUseMode ? (
             <>
-              {mode === "edit" ? (
-                <Tabs
-                  value={activeEditTab}
-                  onChange={(_, value: "basic" | "permissions") =>
-                    setActiveEditTab(value)
-                  }
-                  sx={(theme) => ({
+              <Tabs
+                value={activeTab}
+                onChange={(_, value: "basic" | "permissions") =>
+                  setActiveTab(value)
+                }
+                sx={(theme) => ({
+                  minHeight: theme.spacing(4.5),
+                  borderBottom: `1px solid ${theme.customTokens.borders.divider}`,
+                  "& .MuiTab-root": {
                     minHeight: theme.spacing(4.5),
-                    borderBottom: `1px solid ${theme.customTokens.borders.divider}`,
-                    "& .MuiTab-root": {
-                      minHeight: theme.spacing(4.5),
-                      px: theme.spacing(1.5),
-                      py: theme.spacing(1),
-                      color: theme.customTokens.navigation.inactiveText,
-                      fontSize: theme.typography.body2.fontSize,
-                      fontWeight: 700,
-                      textTransform: "none",
-                    },
-                    "& .MuiTab-root.Mui-selected": {
-                      color: theme.customTokens.navigation.activeText,
-                    },
-                    "& .MuiTabs-indicator": {
-                      backgroundColor: theme.customTokens.navigation.activeIndicator,
-                    },
-                  })}
-                >
-                  <Tab label="Basic Details" value="basic" />
-                  <Tab label="Permissions" value="permissions" />
-                </Tabs>
-              ) : null}
+                    px: theme.spacing(1.5),
+                    py: theme.spacing(1),
+                    color: theme.customTokens.navigation.inactiveText,
+                    fontSize: theme.typography.body2.fontSize,
+                    fontWeight: 700,
+                    textTransform: "none",
+                  },
+                  "& .MuiTab-root.Mui-selected": {
+                    color: theme.customTokens.navigation.activeText,
+                  },
+                  "& .MuiTabs-indicator": {
+                    backgroundColor: theme.customTokens.navigation.activeIndicator,
+                  },
+                })}
+              >
+                <Tab label="Basic Details" value="basic" />
+                <Tab label="Permissions" value="permissions" />
+              </Tabs>
 
-              {mode === "edit" && activeEditTab === "permissions" ? (
+              {activeTab === "permissions" ? (
                 <UserPermissionMatrix
                   onToggle={(itemKey, action, checked) =>
                     setPermissions((current) => {
@@ -258,6 +256,7 @@ export function UserManagementFormPage({
                     })
                   }
                   permissions={permissions}
+                  readOnly={mode === "view"}
                 />
               ) : (
                 <MasterFormFields

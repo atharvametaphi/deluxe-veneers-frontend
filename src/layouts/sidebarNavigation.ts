@@ -173,13 +173,6 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) => matchesPath(location, "/masters/color-master"),
       },
       {
-        id: "consumables-master",
-        label: "Consumables",
-        to: "/masters/consumables-master",
-        match: (location) =>
-          matchesPath(location, "/masters/consumables-master"),
-      },
-      {
         id: "currency-master",
         label: "Currency",
         to: "/masters/currency-master",
