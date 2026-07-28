@@ -312,7 +312,11 @@ export function OrderLineItemsTable({
                     </TableCell>
                   ))}
                   {!readOnly ? (
-                    <TableCell sx={(theme) => getHeaderCellSx(theme, actionsColumnWidth, "center")}>
+                    <TableCell
+                      sx={(theme) =>
+                        getActionHeaderCellSx(theme, actionsColumnWidth)
+                      }
+                    >
                       Actions
                     </TableCell>
                   ) : null}
@@ -360,7 +364,12 @@ export function OrderLineItemsTable({
                         </TableCell>
                       ))}
                       {!readOnly ? (
-                        <TableCell align="center" sx={(theme) => getBodyCellSx(theme)}>
+                        <TableCell
+                          align="center"
+                          sx={(theme) =>
+                            getActionBodyCellSx(theme, actionsColumnWidth, index)
+                          }
+                        >
                           <Stack
                             direction="row"
                             justifyContent="center"
@@ -505,6 +514,35 @@ function getBodyCellSx(theme: Theme, textAlign: "left" | "center" = "left") {
     textAlign,
     verticalAlign: "middle",
     whiteSpace: "nowrap",
+  } as const;
+}
+
+function getActionHeaderCellSx(theme: Theme, minWidth: number) {
+  return {
+    ...getHeaderCellSx(theme, minWidth, "center"),
+    position: "sticky" as const,
+    right: 0,
+    zIndex: 3,
+    boxShadow: `-1px 0 0 ${theme.customTokens.brand.primaryScale[800]}`,
+  } as const;
+}
+
+function getActionBodyCellSx(
+  theme: Theme,
+  minWidth: number,
+  rowIndex: number,
+) {
+  return {
+    ...getBodyCellSx(theme, "center"),
+    position: "sticky" as const,
+    right: 0,
+    zIndex: 1,
+    minWidth,
+    backgroundColor:
+      rowIndex % 2 === 0
+        ? theme.customTokens.surfaces.surface
+        : theme.customTokens.surfaces.alt,
+    boxShadow: `-1px 0 0 ${theme.customTokens.borders.default}`,
   } as const;
 }
 

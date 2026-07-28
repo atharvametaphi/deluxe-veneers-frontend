@@ -403,13 +403,13 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                           {column.label}
                         </TableCell>
                       ))}
-                      <TableCell sx={getHeaderCellSx(theme, 120)}>
+                      <TableCell sx={getActionHeaderCellSx(theme, 120)}>
                         Action
                       </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {lineItems.map((row) => {
+                    {lineItems.map((row, rowIndex) => {
                       const isEditing = editingRowId === row.id;
 
                       return (
@@ -436,7 +436,10 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                                 : renderReadOnlyCell(row.values[column.key] ?? "", theme)}
                             </TableCell>
                           ))}
-                          <TableCell align="center" sx={getBodyCellSx(theme)}>
+                          <TableCell
+                            align="center"
+                            sx={getActionBodyCellSx(theme, 120, rowIndex)}
+                          >
                             <Stack
                               direction="row"
                               justifyContent="center"
@@ -815,6 +818,35 @@ function getBodyCellSx(theme: Theme) {
     py: theme.spacing(1),
     verticalAlign: "top",
     whiteSpace: "nowrap",
+  } as const;
+}
+
+function getActionHeaderCellSx(theme: Theme, minWidth: number) {
+  return {
+    ...getHeaderCellSx(theme, minWidth),
+    position: "sticky" as const,
+    right: 0,
+    zIndex: 3,
+    boxShadow: `-1px 0 0 ${theme.customTokens.brand.primaryScale[800]}`,
+  } as const;
+}
+
+function getActionBodyCellSx(
+  theme: Theme,
+  minWidth: number,
+  rowIndex: number,
+) {
+  return {
+    ...getBodyCellSx(theme),
+    position: "sticky" as const,
+    right: 0,
+    zIndex: 1,
+    minWidth,
+    backgroundColor:
+      rowIndex % 2 === 0
+        ? theme.customTokens.surfaces.surface
+        : theme.customTokens.surfaces.alt,
+    boxShadow: `-1px 0 0 ${theme.customTokens.borders.default}`,
   } as const;
 }
 

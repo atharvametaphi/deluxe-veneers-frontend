@@ -295,6 +295,14 @@ export function DynamicFormTableShowcase() {
                           fontSize: theme.typography.caption.fontSize,
                           fontWeight: 700,
                           py: theme.spacing(1.5),
+                          ...(column.key === "action"
+                            ? {
+                                position: "sticky" as const,
+                                right: 0,
+                                zIndex: 3,
+                                boxShadow: `-1px 0 0 ${theme.customTokens.brand.primaryScale[800]}`,
+                              }
+                            : {}),
                         })}
                       >
                         {column.label}
@@ -437,7 +445,20 @@ export function DynamicFormTableShowcase() {
                         />
                       </TableCell>
 
-                      <TableCell align="center">
+                      <TableCell
+                        align="center"
+                        sx={(theme) => ({
+                          position: "sticky",
+                          right: 0,
+                          zIndex: 1,
+                          minWidth: 92,
+                          backgroundColor:
+                            index % 2 === 0
+                              ? theme.customTokens.surfaces.surface
+                              : theme.customTokens.surfaces.alt,
+                          boxShadow: `-1px 0 0 ${theme.customTokens.borders.default}`,
+                        })}
+                      >
                         <IconButton
                           aria-label={`Delete row ${index + 1}`}
                           onClick={() => removeRow(row.id)}
