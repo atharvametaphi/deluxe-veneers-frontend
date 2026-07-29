@@ -140,6 +140,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   const [filterMenuAnchor, setFilterMenuAnchor] = useState<HTMLElement | null>(
     null,
   );
+  const [filterMenuWidth, setFilterMenuWidth] = useState(240);
   const [filterSearch, setFilterSearch] = useState("");
   const [activeFilterColumn, setActiveFilterColumn] = useState<
     (keyof Row & string) | null
@@ -160,6 +161,33 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     () => getEnterpriseDisplayColumns(columns),
     [columns],
   );
+  const filterValueOptions = useMemo(() => {
+    if (!activeFilterColumn) {
+      return [];
+    }
+
+    const normalizedSearch = filterSearch.trim().toLowerCase();
+
+    return Array.from(
+      new Set(
+        rows
+          .map((row) => formatEnterpriseValue(row[activeFilterColumn]).trim())
+          .filter(Boolean),
+      ),
+    )
+      .filter(
+        (value) =>
+          !normalizedSearch ||
+          value.toLowerCase().includes(normalizedSearch),
+      )
+      .sort((first, second) =>
+        first.localeCompare(second, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        }),
+      )
+      .slice(0, 100);
+  }, [activeFilterColumn, filterSearch, rows]);
 
   useEffect(() => {
     setSortConfig(initialSort);
@@ -271,9 +299,13 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     columnKey: keyof Row & string,
     event: MouseEvent<HTMLButtonElement>,
   ) => {
+    const anchorElement =
+      event.currentTarget.closest("th") ?? event.currentTarget;
+
     setActiveFilterColumn(columnKey);
     setFilterSearch(filters[columnKey] ?? "");
-    setFilterMenuAnchor(event.currentTarget);
+    setFilterMenuWidth(anchorElement.getBoundingClientRect().width);
+    setFilterMenuAnchor(anchorElement as HTMLElement);
   };
 
   const handleFilterSearchChange = (value: string) => {
@@ -296,6 +328,21 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     });
 
     setPage(1);
+  };
+
+  const handleFilterValueSelect = (value: string) => {
+    if (!activeFilterColumn) {
+      return;
+    }
+
+    setFilterSearch(value);
+    setFilters((current) => ({
+      ...current,
+      [activeFilterColumn]: value,
+    }));
+    setPage(1);
+    setFilterMenuAnchor(null);
+    setActiveFilterColumn(null);
   };
 
   const handleToggleRowSelection = (rowId: string) => {
@@ -786,6 +833,8 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
           setFilterMenuAnchor(null);
           setActiveFilterColumn(null);
         }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
         MenuListProps={{ dense: true }}
         PaperProps={{
           sx: {
@@ -793,7 +842,8 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
             borderRadius: `${theme.customTokens.radius.md}px`,
             boxShadow: "none",
             mt: 1,
-            width: 240,
+            overflowX: "hidden",
+            width: filterMenuWidth,
           },
         }}
       >
@@ -849,6 +899,74 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
               },
             }}
           />
+        </Box>
+
+        <Box
+          sx={{
+            borderTop: `1px solid ${theme.customTokens.borders.default}`,
+            maxHeight: 224,
+            overflowX: "hidden",
+            overflowY: "auto",
+            py: theme.spacing(0.5),
+            scrollbarWidth: "thin",
+            scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
+            "&::-webkit-scrollbar": {
+              width: 6,
+            },
+            "&::-webkit-scrollbar-track": {
+              backgroundColor: theme.customTokens.surfaces.alt,
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: theme.customTokens.brand.primary,
+              borderRadius: theme.customTokens.radius.pill,
+            },
+          }}
+        >
+          {filterValueOptions.length > 0 ? (
+            filterValueOptions.map((option) => {
+              const selected = option === filters[activeFilterColumn ?? ""];
+
+              return (
+                <MenuItem
+                  key={option}
+                  selected={selected}
+                  onClick={() => handleFilterValueSelect(option)}
+                  sx={{
+                    color: theme.customTokens.text.primary,
+                    fontSize: theme.typography.body2.fontSize,
+                    minHeight: 32,
+                    overflow: "hidden",
+                    px: theme.spacing(1.5),
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    "&.Mui-selected": {
+                      backgroundColor: theme.customTokens.navigation.activeBackground,
+                      color: theme.customTokens.navigation.activeText,
+                      fontWeight: 700,
+                    },
+                    "&.Mui-selected:hover, &:hover": {
+                      backgroundColor: theme.customTokens.navigation.hoverBackground,
+                      color: theme.customTokens.navigation.activeText,
+                    },
+                  }}
+                >
+                  {option}
+                </MenuItem>
+              );
+            })
+          ) : (
+            <MenuItem
+              disabled
+              sx={{
+                color: theme.customTokens.text.secondary,
+                fontSize: theme.typography.caption.fontSize,
+                minHeight: 32,
+                px: theme.spacing(1.5),
+              }}
+            >
+              No values found
+            </MenuItem>
+          )}
         </Box>
       </Menu>
     </>
@@ -1196,7 +1314,52 @@ function getEnterpriseDisplayColumns<Row extends EnterpriseTableRow>(
     }
   });
 
-  return displayColumns;
+  return orderEnterpriseDisplayColumns(displayColumns);
+}
+
+function orderEnterpriseDisplayColumns<Row extends EnterpriseTableRow>(
+  columns: readonly EnterpriseDisplayTableColumn<Row>[],
+) {
+  const remarkColumns = columns.filter(isEnterpriseRemarkColumn);
+  const statusColumns = columns.filter(isEnterpriseStatusColumn);
+  const createdColumns = columns.filter((column) => column.audit?.type === "created");
+  const updatedColumns = columns.filter((column) => column.audit?.type === "updated");
+  const trailingColumnKeys = new Set(
+    [...remarkColumns, ...statusColumns, ...createdColumns, ...updatedColumns].map(
+      (column) => column.key,
+    ),
+  );
+
+  return [
+    ...columns.filter((column) => !trailingColumnKeys.has(column.key)),
+    ...remarkColumns,
+    ...statusColumns,
+    ...createdColumns,
+    ...updatedColumns,
+  ];
+}
+
+function isEnterpriseRemarkColumn<Row extends EnterpriseTableRow>(
+  column: EnterpriseTableColumn<Row>,
+) {
+  const normalizedLabel = normalizeColumnIdentifier(column.label);
+  const normalizedKey = normalizeColumnIdentifier(column.key);
+
+  return (
+    normalizedLabel === "remark" ||
+    normalizedLabel === "remarks" ||
+    normalizedKey === "remark" ||
+    normalizedKey === "remarks"
+  );
+}
+
+function isEnterpriseStatusColumn<Row extends EnterpriseTableRow>(
+  column: EnterpriseTableColumn<Row>,
+) {
+  const normalizedLabel = normalizeColumnIdentifier(column.label);
+  const normalizedKey = normalizeColumnIdentifier(column.key);
+
+  return normalizedLabel === "status" || normalizedKey === "status";
 }
 
 function isSerialNumberColumn<Row extends EnterpriseTableRow>(

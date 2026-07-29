@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -19,6 +18,7 @@ import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
+import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import {
   MasterFormFields,
   MasterSectionCard,
@@ -690,20 +690,12 @@ function InventoryItemDetailsInput({
 
   if (field.type === "select" && field.options && field.options.length > 0) {
     return (
-      <TextField
-        fullWidth
-        select
-        size="small"
+      <ErpSelectField
         value={fieldValue}
-        onChange={(event) => onChange(event.target.value)}
-        sx={inventoryItemDetailsInputSx}
-      >
-        {field.options.map((option) => (
-          <MenuItem key={option} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </TextField>
+        onChange={onChange}
+        options={field.options}
+        size="dense"
+      />
     );
   }
 

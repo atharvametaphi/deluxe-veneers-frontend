@@ -9,9 +9,7 @@ import {
 import {
   Box,
   Button,
-  MenuItem,
   Stack,
-  TextField,
   Typography,
   useTheme,
 } from "@mui/material";
@@ -24,7 +22,7 @@ import {
   type EnterpriseTableColumn,
 } from "../../../components/data-display/EnterpriseDataTable";
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
-import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
+import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import {
   InventoryPageShell,
   inventoryToolbarButtonSx,
@@ -71,6 +69,20 @@ type WarehouseBInventorySlug =
   | "veneer-blocks";
 type WarehouseBInspectionTab = "pending" | "done";
 type WarehouseBInspectionSlug = "veneer-blocks";
+
+const rawVeneerTabSelectOptions = ["All", "Purchase", "Production"] as const;
+
+const rawVeneerTabValueByLabel = {
+  All: "all",
+  Production: "production",
+  Purchase: "purchase",
+} satisfies Record<(typeof rawVeneerTabSelectOptions)[number], WarehouseBRawVeneerTab>;
+
+const rawVeneerTabLabelByValue: Record<WarehouseBRawVeneerTab, string> = {
+  all: "All",
+  production: "Production",
+  purchase: "Purchase",
+};
 
 const warehouseBInventoryTabs = [
   { label: "Veneer Blocks", value: "veneer-blocks" },
@@ -504,43 +516,33 @@ export function WarehouseBInventoryModulePage({
             />
 
             {activeSection === "inventory" && activeInventory === "raw-veneer" ? (
-              <TextField
-                select
-                value={activeRawVeneerTab}
-                onChange={(event) => {
-                  const selectedRawTab = event.target.value as WarehouseBRawVeneerTab;
+              <Box sx={{ width: { xs: "100%", sm: 140 } }}>
+                <ErpSelectField
+                  value={rawVeneerTabLabelByValue[activeRawVeneerTab]}
+                  onChange={(value) => {
+                    const selectedRawTab =
+                      rawVeneerTabValueByLabel[
+                        value as keyof typeof rawVeneerTabValueByLabel
+                      ] ?? "all";
 
-                  setSearchParams(
-                    {
-                      section: "inventory",
-                      inventory: activeInventory,
-                      ...(selectedRawTab === "all"
-                        ? {}
-                        : { rawTab: selectedRawTab }),
-                      ...(activeProcessTab === "history"
-                        ? { tab: "history" }
-                        : {}),
-                    },
-                    { replace: true },
-                  );
-                }}
-                sx={[
-                  getCompactFieldSx(theme),
-                  {
-                    width: { xs: "100%", sm: 140 },
-                    "& .MuiSelect-select": {
-                      alignItems: "center",
-                      display: "flex",
-                      minHeight: 0,
-                      py: theme.spacing(0.75),
-                    },
-                  },
-                ]}
-              >
-                <MenuItem value="all">All</MenuItem>
-                <MenuItem value="purchase">Purchase</MenuItem>
-                <MenuItem value="production">Production</MenuItem>
-              </TextField>
+                    setSearchParams(
+                      {
+                        section: "inventory",
+                        inventory: activeInventory,
+                        ...(selectedRawTab === "all"
+                          ? {}
+                          : { rawTab: selectedRawTab }),
+                        ...(activeProcessTab === "history"
+                          ? { tab: "history" }
+                          : {}),
+                      },
+                      { replace: true },
+                    );
+                  }}
+                  options={rawVeneerTabSelectOptions}
+                  size="dense"
+                />
+              </Box>
             ) : null}
           </Stack>
 

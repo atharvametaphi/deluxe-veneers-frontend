@@ -10,6 +10,7 @@ import {
 const USER_MANAGEMENT_STORAGE_KEY = "deluxe-veneers-user-management-records";
 const USER_PASSWORD_STORAGE_KEY = "deluxe-veneers-user-management-passwords";
 const SYSTEM_USER_NAME = "Atharva Patil";
+const DEFAULT_USER_PASSWORD = "admin";
 
 type StoredUserManagementDetail = Omit<
   UserManagementDetail,
@@ -102,6 +103,12 @@ export async function changeUserPassword(id: string, password: string) {
   }
 
   const passwordStore = getPasswordStore();
+  const currentPassword = passwordStore[id] ?? DEFAULT_USER_PASSWORD;
+
+  if (normalizedPassword === currentPassword) {
+    throw new Error("New password cannot be the old password.");
+  }
+
   passwordStore[id] = normalizedPassword;
   savePasswordStore(passwordStore);
 
@@ -296,7 +303,17 @@ function getStringValue(value: MasterFieldValue | undefined, fallback = "") {
 }
 
 function getBooleanValue(value: MasterFieldValue | undefined, fallback: boolean) {
-  return typeof value === "boolean" ? value : fallback;
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return ["active", "enabled", "true", "yes"].includes(
+      value.trim().toLowerCase(),
+    );
+  }
+
+  return fallback;
 }
 
 function getDateValue(value: MasterFieldValue | undefined, fallback?: Date) {

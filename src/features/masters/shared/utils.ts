@@ -83,10 +83,24 @@ function getDefaultFieldValue(
   }
 
   if (field.type === "checkbox" || field.type === "toggle") {
-    return typeof value === "boolean" ? value : false;
+    return getBooleanFieldValue(value);
   }
 
   return typeof value === "string" ? value : "";
+}
+
+function getBooleanFieldValue(value: MasterRecord[string]) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return ["active", "enabled", "true", "yes"].includes(
+      value.trim().toLowerCase(),
+    );
+  }
+
+  return false;
 }
 
 export function getMasterPaths(slug: string) {

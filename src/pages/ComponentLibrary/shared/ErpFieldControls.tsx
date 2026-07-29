@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Box,
+  ClickAwayListener,
   IconButton,
-  Menu,
+  InputAdornment,
   MenuItem,
+  Paper,
+  Popper,
   Popover,
   Stack,
   TextField,
@@ -583,7 +586,7 @@ export function ErpSelectField({
   onChange,
   options,
   placeholder: _placeholder,
-  searchable = false,
+  searchable = true,
   size = "regular",
   state = "default",
   value,
@@ -613,210 +616,283 @@ export function ErpSelectField({
     }
   }, [open]);
 
+  const openSelectMenu = (anchor: HTMLElement) => {
+    if (state === "disabled" || state === "readOnly") {
+      return;
+    }
+
+    if (!open) {
+      setSearchText(value);
+    }
+
+    setAnchorEl(anchor);
+  };
+
+  const fieldSearchValue = open ? searchText : value;
+
   return (
-    <Stack
-      sx={{
-        width: "100%",
-        gap: theme.spacing(0.75),
-      }}
-    >
-      <Box
-        component="button"
-        onClick={(event) => {
-          if (state !== "disabled" && state !== "readOnly") {
-            setAnchorEl(event.currentTarget);
-          }
-        }}
+    <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
+      <Stack
         sx={{
-          appearance: "none",
+          position: "relative",
           width: "100%",
-          textAlign: "left",
-          border: `1px solid ${styles.borderColor}`,
-          borderRadius: `${theme.customTokens.radius.md}px`,
-          backgroundColor: styles.backgroundColor,
-          boxShadow: styles.boxShadow,
-          boxSizing: "border-box",
-          color: styles.color,
-          cursor: styles.cursor,
-          height: metrics.controlHeight,
-          minHeight: metrics.controlHeight,
-          px: theme.spacing(1.5),
-          py: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: theme.spacing(1),
-          "&:hover": {
-            borderColor:
-              state === "disabled" || state === "readOnly" || state === "error"
-                ? styles.borderColor
-                : theme.customTokens.borders.hover,
-            backgroundColor:
-              state === "disabled" || state === "readOnly"
-                ? styles.backgroundColor
-                : theme.customTokens.surfaces.surface,
-          },
+          gap: theme.spacing(0.75),
         }}
-        type="button"
       >
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <FieldValue
-            size={size}
-            theme={theme}
-            value={value}
+        {shouldSearchOptions ? (
+          <TextField
+            fullWidth
+            disabled={state === "disabled"}
+            value={fieldSearchValue}
+            onChange={(event) => {
+              if (!open) {
+                setAnchorEl(event.currentTarget);
+              }
+
+              setSearchText(event.target.value);
+            }}
+            onClick={(event) => {
+              openSelectMenu(event.currentTarget);
+            }}
+            onFocus={(event) => {
+              if (!open) {
+                openSelectMenu(event.currentTarget);
+                event.currentTarget.select();
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setAnchorEl(null);
+                return;
+              }
+
+              if (event.key === "Enter" && visibleOptions[0]) {
+                event.preventDefault();
+                onChange(visibleOptions[0]);
+                setAnchorEl(null);
+              }
+            }}
+            slotProps={{
+              input: {
+                readOnly: state === "readOnly",
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <ChevronDown
+                      color={
+                        state === "disabled" || state === "readOnly"
+                          ? theme.palette.text.disabled
+                          : theme.customTokens.navigation.activeText
+                      }
+                      size={size === "dense" ? 14 : theme.customTokens.iconSizes.sm}
+                      style={{
+                        transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                        transition: "transform 160ms ease",
+                      }}
+                    />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                height: metrics.controlHeight,
+                minHeight: metrics.controlHeight,
+                borderRadius: `${theme.customTokens.radius.md}px`,
+                backgroundColor: styles.backgroundColor,
+                boxShadow: styles.boxShadow,
+                color: styles.color,
+                cursor: styles.cursor,
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: styles.borderColor,
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor:
+                    state === "disabled" ||
+                    state === "readOnly" ||
+                    state === "error"
+                      ? styles.borderColor
+                      : theme.customTokens.borders.hover,
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  borderColor: styles.borderColor,
+                  borderWidth: 1,
+                },
+              },
+              "& .MuiInputBase-input": {
+                fontSize:
+                  size === "dense"
+                    ? theme.typography.caption.fontSize
+                    : theme.typography.body2.fontSize,
+                py: 0,
+              },
+            }}
           />
-        </Box>
-
-        <ChevronDown
-          color={
-            state === "disabled" || state === "readOnly"
-              ? theme.palette.text.disabled
-              : theme.customTokens.navigation.activeText
-          }
-          size={size === "dense" ? 14 : theme.customTokens.iconSizes.sm}
-          style={{
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 160ms ease",
-          }}
-        />
-      </Box>
-
-      {helperText ? (
-        <Typography variant="caption" sx={{ color: styles.helperColor }}>
-          {helperText}
-        </Typography>
-      ) : null}
-
-      <Menu
-        anchorEl={anchorEl}
-        open={open}
-        onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-        slotProps={{
-          list: {
-            sx: {
-              maxHeight: theme.spacing(38),
-              overflowY: "auto",
+        ) : (
+          <Box
+            component="button"
+            onClick={(event) => openSelectMenu(event.currentTarget)}
+            sx={{
+              appearance: "none",
+              width: "100%",
+              textAlign: "left",
+              border: `1px solid ${styles.borderColor}`,
+              borderRadius: `${theme.customTokens.radius.md}px`,
+              backgroundColor: styles.backgroundColor,
+              boxShadow: styles.boxShadow,
+              boxSizing: "border-box",
+              color: styles.color,
+              cursor: styles.cursor,
+              height: metrics.controlHeight,
+              minHeight: metrics.controlHeight,
+              px: theme.spacing(1.5),
               py: 0,
-              scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
-              scrollbarWidth: "thin",
-              "&::-webkit-scrollbar": {
-                width: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: theme.spacing(1),
+              "&:hover": {
+                borderColor:
+                  state === "disabled" || state === "readOnly" || state === "error"
+                    ? styles.borderColor
+                    : theme.customTokens.borders.hover,
+                backgroundColor:
+                  state === "disabled" || state === "readOnly"
+                    ? styles.backgroundColor
+                    : theme.customTokens.surfaces.surface,
               },
-              "&::-webkit-scrollbar-track": {
-                backgroundColor: theme.customTokens.surfaces.alt,
-                borderRadius: 999,
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: theme.customTokens.brand.primary,
-                borderRadius: 999,
-              },
-              "&::-webkit-scrollbar-thumb:hover": {
-                backgroundColor: theme.customTokens.brand.primaryScale[800],
-              },
-            },
-          },
-          paper: {
-            sx: {
+            }}
+            type="button"
+          >
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <FieldValue
+                size={size}
+                theme={theme}
+                value={value}
+              />
+            </Box>
+
+            <ChevronDown
+              color={
+                state === "disabled" || state === "readOnly"
+                  ? theme.palette.text.disabled
+                  : theme.customTokens.navigation.activeText
+              }
+              size={size === "dense" ? 14 : theme.customTokens.iconSizes.sm}
+              style={{
+                transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 160ms ease",
+              }}
+            />
+          </Box>
+        )}
+
+        {helperText ? (
+          <Typography variant="caption" sx={{ color: styles.helperColor }}>
+            {helperText}
+          </Typography>
+        ) : null}
+
+        <Popper
+          anchorEl={anchorEl}
+          open={open}
+          placement="bottom-start"
+          sx={{ zIndex: theme.zIndex.modal }}
+        >
+          <Paper
+            sx={{
               mt: theme.spacing(0.75),
-              minWidth: anchorEl ? anchorEl.clientWidth : theme.spacing(30),
+              width: anchorEl ? anchorEl.clientWidth : theme.spacing(30),
               maxHeight: theme.spacing(30),
               border: `1px solid ${theme.customTokens.borders.default}`,
               borderRadius: `${theme.customTokens.radius.md}px`,
               backgroundColor: theme.customTokens.surfaces.surface,
               boxShadow: "none",
               overflow: "hidden",
-            },
-          },
-        }}
-      >
-        {shouldSearchOptions ? (
-          <Box
-            sx={{
-              backgroundColor: theme.customTokens.surfaces.surface,
-              p: theme.spacing(1),
-              position: "sticky",
-              top: 0,
-              zIndex: 1,
             }}
           >
-            <TextField
-              autoFocus
-              fullWidth
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => event.stopPropagation()}
+            <Box
+              role="listbox"
               sx={{
-                "& .MuiInputBase-root": {
-                  borderRadius: `${theme.customTokens.radius.md}px`,
-                  height: theme.spacing(4),
+                maxHeight: theme.spacing(30),
+                overflowY: "auto",
+                overflowX: "hidden",
+                py: 0,
+                scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
+                scrollbarWidth: "thin",
+                "&::-webkit-scrollbar": {
+                  width: 6,
                 },
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: theme.customTokens.borders.default,
+                "&::-webkit-scrollbar-track": {
+                  backgroundColor: theme.customTokens.surfaces.alt,
+                  borderRadius: 999,
                 },
-                "& .MuiInputBase-input": {
-                  fontSize: theme.typography.caption.fontSize,
-                  py: 0,
-                },
-              }}
-            />
-          </Box>
-        ) : null}
-
-        {visibleOptions.map((option) => {
-          const selected = option === value;
-
-          return (
-            <MenuItem
-              key={option}
-              selected={selected}
-              onClick={() => {
-                onChange(option);
-                setAnchorEl(null);
-              }}
-              sx={{
-                minHeight: metrics.menuItemHeight,
-                fontSize:
-                  size === "dense"
-                    ? theme.typography.caption.fontSize
-                    : theme.typography.body2.fontSize,
-                "&.Mui-selected": {
+                "&::-webkit-scrollbar-thumb": {
                   backgroundColor: theme.customTokens.brand.primary,
-                  color: theme.customTokens.text.inverse,
+                  borderRadius: 999,
                 },
-                "&.Mui-selected:hover": {
-                  backgroundColor: theme.customTokens.brand.secondary,
-                },
-                "&:hover": {
-                  backgroundColor: selected
-                    ? theme.customTokens.brand.secondary
-                    : theme.customTokens.navigation.hoverBackground,
+                "&::-webkit-scrollbar-thumb:hover": {
+                  backgroundColor: theme.customTokens.brand.primaryScale[800],
                 },
               }}
             >
-              {option}
-            </MenuItem>
-          );
-        })}
+              {visibleOptions.map((option) => {
+                const selected = option === value;
 
-        {visibleOptions.length === 0 ? (
-          <MenuItem
-            disabled
-            sx={{
-              minHeight: metrics.menuItemHeight,
-              fontSize:
-                size === "dense"
-                  ? theme.typography.caption.fontSize
-                  : theme.typography.body2.fontSize,
-            }}
-          >
-            No options found
-          </MenuItem>
-        ) : null}
-      </Menu>
-    </Stack>
+                return (
+                  <MenuItem
+                    key={option}
+                    selected={selected}
+                    onClick={() => {
+                      onChange(option);
+                      setAnchorEl(null);
+                    }}
+                    sx={{
+                      minHeight: metrics.menuItemHeight,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontSize:
+                        size === "dense"
+                          ? theme.typography.caption.fontSize
+                          : theme.typography.body2.fontSize,
+                      "&.Mui-selected": {
+                        backgroundColor: theme.customTokens.brand.primary,
+                        color: theme.customTokens.text.inverse,
+                      },
+                      "&.Mui-selected:hover": {
+                        backgroundColor: theme.customTokens.brand.secondary,
+                      },
+                      "&:hover": {
+                        backgroundColor: selected
+                          ? theme.customTokens.brand.secondary
+                          : theme.customTokens.navigation.hoverBackground,
+                      },
+                    }}
+                  >
+                    {option}
+                  </MenuItem>
+                );
+              })}
+
+              {visibleOptions.length === 0 ? (
+                <MenuItem
+                  disabled
+                  sx={{
+                    minHeight: metrics.menuItemHeight,
+                    fontSize:
+                      size === "dense"
+                        ? theme.typography.caption.fontSize
+                        : theme.typography.body2.fontSize,
+                  }}
+                >
+                  No options found
+                </MenuItem>
+              ) : null}
+            </Box>
+          </Paper>
+        </Popper>
+      </Stack>
+    </ClickAwayListener>
   );
 }
 
@@ -832,8 +908,10 @@ function getVisibleSelectOptions({
   value: string;
 }) {
   const normalizedQuery = query.trim().toLowerCase();
-  const source = normalizedQuery
-    ? options.filter((option) => option.toLowerCase().includes(normalizedQuery))
+  const normalizedValue = value.trim().toLowerCase();
+  const effectiveQuery = normalizedQuery === normalizedValue ? "" : normalizedQuery;
+  const source = effectiveQuery
+    ? options.filter((option) => option.toLowerCase().includes(effectiveQuery))
     : options;
   const visibleOptions = source.slice(0, limit);
 

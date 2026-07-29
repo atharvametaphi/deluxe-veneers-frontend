@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useImperativeHandle, useState } from "react";
 import {
   Box,
   Button,
@@ -25,30 +25,34 @@ interface SupplierContactPerson {
   phoneNumber: string;
 }
 
+export interface SupplierContactPersonTableHandle {
+  validate: () => boolean;
+}
+
+interface SupplierContactPersonTableProps {
+  contacts: SupplierContactPerson[];
+  onChange: (contacts: SupplierContactPerson[]) => void;
+}
+
 const contactColumns: Array<{
   key: keyof SupplierContactPerson;
   label: string;
-  placeholder: string;
 }> = [
   {
     key: "contactPersonName",
     label: "Contact Person Name",
-    placeholder: "Enter Contact Person Name",
   },
   {
     key: "email",
     label: "Email",
-    placeholder: "Enter Email",
   },
   {
     key: "phoneNumber",
     label: "Phone Number",
-    placeholder: "Enter Phone Number",
   },
   {
     key: "designation",
     label: "Designation",
-    placeholder: "Enter Designation",
   },
 ];
 
@@ -59,24 +63,77 @@ const emptyContact: SupplierContactPerson = {
   phoneNumber: "",
 };
 
-export function SupplierContactPersonTable() {
+function getContactValidationErrors(contact: SupplierContactPerson) {
+  const errors = {} as Partial<Record<keyof SupplierContactPerson, string>>;
+
+  contactColumns.forEach((column) => {
+    if (!contact[column.key].trim()) {
+      errors[column.key] = `${column.label} is required.`;
+    }
+  });
+
+  if (
+    contact.email.trim() &&
+    !/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(contact.email.trim())
+  ) {
+    errors.email = "Please enter a valid email.";
+  }
+
+  if (contact.phoneNumber.trim() && !/^\d{1,10}$/.test(contact.phoneNumber.trim())) {
+    errors.phoneNumber = "Phone number should contain up to 10 digits.";
+  }
+
+  return errors;
+}
+
+function hasContactValidationErrors(
+  errors: Partial<Record<keyof SupplierContactPerson, string>>,
+) {
+  return Object.values(errors).some(Boolean);
+}
+
+export const SupplierContactPersonTable = forwardRef<
+  SupplierContactPersonTableHandle,
+  SupplierContactPersonTableProps
+>(function SupplierContactPersonTable({ contacts, onChange }, ref) {
   const theme = useTheme();
   const [draftContact, setDraftContact] =
     useState<SupplierContactPerson>(emptyContact);
-  const [contacts, setContacts] = useState<SupplierContactPerson[]>([]);
+  const [draftErrors, setDraftErrors] = useState<
+    Partial<Record<keyof SupplierContactPerson, string>>
+  >({});
+  const [tableError, setTableError] = useState("");
 
-  const canAddContact = Object.values(draftContact).some(
-    (value) => value.trim().length > 0,
+  const canAddContact = Object.values(draftContact).some((value) =>
+    value.trim(),
   );
 
   const handleAddContact = () => {
-    if (!canAddContact) {
+    const errors = getContactValidationErrors(draftContact);
+
+    setDraftErrors(errors);
+
+    if (hasContactValidationErrors(errors)) {
       return;
     }
 
-    setContacts((current) => [...current, draftContact]);
+    onChange([...contacts, draftContact]);
     setDraftContact(emptyContact);
+    setDraftErrors({});
+    setTableError("");
   };
+
+  useImperativeHandle(ref, () => ({
+    validate: () => {
+      if (contacts.length > 0) {
+        setTableError("");
+        return true;
+      }
+
+      setTableError("Add at least one contact person.");
+      return false;
+    },
+  }), [contacts.length]);
 
   return (
     <Stack
@@ -87,6 +144,12 @@ export function SupplierContactPersonTable() {
       <Typography variant="h3" color="text.primary">
         Contact Person Details
       </Typography>
+
+      {tableError ? (
+        <Typography variant="caption" color="error">
+          {tableError}
+        </Typography>
+      ) : null}
 
       <Box
         sx={{
@@ -143,11 +206,16 @@ export function SupplierContactPersonTable() {
                 <TableCell key={column.key}>
                   <TextField
                     fullWidth
+                    error={Boolean(draftErrors[column.key])}
+                    helperText={draftErrors[column.key] ?? ""}
                     value={draftContact[column.key]}
                     onChange={(event) =>
                       setDraftContact((current) => ({
                         ...current,
-                        [column.key]: event.target.value,
+                        [column.key]:
+                          column.key === "phoneNumber"
+                            ? event.target.value.replace(/\D/g, "").slice(0, 10)
+                            : event.target.value,
                       }))
                     }
                     sx={getCompactFieldSx(theme, "default")}
@@ -177,8 +245,8 @@ export function SupplierContactPersonTable() {
                   <IconButton
                     aria-label="Remove contact person"
                     onClick={() =>
-                      setContacts((current) =>
-                        current.filter((_, contactIndex) => contactIndex !== index),
+                      onChange(
+                        contacts.filter((_, contactIndex) => contactIndex !== index),
                       )
                     }
                     size="small"
@@ -196,4 +264,4 @@ export function SupplierContactPersonTable() {
       </Box>
     </Stack>
   );
-}
+});

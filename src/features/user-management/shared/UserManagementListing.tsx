@@ -151,6 +151,24 @@ export function UserManagementListing() {
     setPasswordError("");
   };
 
+  const handlePasswordValueChange = (
+    value: string,
+    setter: (nextValue: string) => void,
+  ) => {
+    if (!isAllowedPasswordValue(value)) {
+      setPasswordError(
+        "Only letters, numbers, underscores, and @ are allowed.",
+      );
+      return;
+    }
+
+    setter(value);
+
+    if (passwordError === "Only letters, numbers, underscores, and @ are allowed.") {
+      setPasswordError("");
+    }
+  };
+
   const handleChangePassword = async () => {
     if (!passwordDialogUser) {
       return;
@@ -158,6 +176,11 @@ export function UserManagementListing() {
 
     if (!newPassword.trim()) {
       setPasswordError("Enter new password.");
+      return;
+    }
+
+    if (!isAllowedPasswordValue(newPassword) || !isAllowedPasswordValue(confirmPassword)) {
+      setPasswordError("Only letters, numbers, underscores, and @ are allowed.");
       return;
     }
 
@@ -171,9 +194,7 @@ export function UserManagementListing() {
 
     try {
       await changeUserPassword(passwordDialogUser.id, newPassword);
-      setPasswordSuccessMessage(
-        `Password changed for ${passwordDialogUser.firstName} ${passwordDialogUser.lastName}.`,
-      );
+      setPasswordSuccessMessage("Password changed successfully.");
       setPasswordDialogUser(null);
       setNewPassword("");
       setConfirmPassword("");
@@ -303,12 +324,6 @@ export function UserManagementListing() {
           })}
         >
           <Stack spacing={1.5}>
-            {passwordDialogUser ? (
-              <Alert severity="info">
-                {passwordDialogUser.firstName} {passwordDialogUser.lastName}
-              </Alert>
-            ) : null}
-
             {passwordError ? (
               <Alert severity="error">{passwordError}</Alert>
             ) : null}
@@ -318,7 +333,9 @@ export function UserManagementListing() {
               label="New Password"
               type="password"
               value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
+              onChange={(event) =>
+                handlePasswordValueChange(event.target.value, setNewPassword)
+              }
               sx={(currentTheme) => getCompactFieldSx(currentTheme)}
             />
 
@@ -326,7 +343,9 @@ export function UserManagementListing() {
               label="Confirm Password"
               type="password"
               value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={(event) =>
+                handlePasswordValueChange(event.target.value, setConfirmPassword)
+              }
               sx={(currentTheme) => getCompactFieldSx(currentTheme)}
             />
           </Stack>
@@ -378,4 +397,8 @@ function isCurrentUserRow(row: UserManagementRecord) {
 
 function isSuperAdminRole(role: string) {
   return role.trim().toLowerCase() === "super admin";
+}
+
+function isAllowedPasswordValue(value: string) {
+  return /^[A-Za-z0-9_@]*$/.test(value);
 }

@@ -101,6 +101,7 @@ const requiredFieldKeys = new Set([
   "department",
   "departmentName",
   "email",
+  "emailAddress",
   "firstName",
   "gstPercentage",
   "hsnCode",
@@ -108,9 +109,16 @@ const requiredFieldKeys = new Set([
   "itemName",
   "itemSubCategory",
   "lastName",
+  "address",
+  "city",
+  "country",
   "phoneNo",
+  "phoneNumber",
+  "pincode",
   "role",
   "roleName",
+  "state",
+  "mobileNumber",
   "supplierName",
   "transporterId",
   "transporterName",
@@ -170,11 +178,23 @@ export function MasterFormFields({
   const createdPreviewUrlsRef = useRef<Set<string>>(new Set());
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const fields = getOrderedFormFields(definition.fields);
+  const selectedCountry = getLocationValue(definition.fields, values, "country");
+  const selectedState = getLocationValue(definition.fields, values, "state");
   const handleFieldChange = (
     field: MasterFieldDefinition,
     value: MasterFieldValue,
   ) => {
     onChange(field.key, value);
+
+    if (isCountryField(field)) {
+      clearDependentLocationFields(definition.fields, onChange, ["state", "city"]);
+      return;
+    }
+
+    if (isStateField(field)) {
+      clearDependentLocationFields(definition.fields, onChange, ["city"]);
+      return;
+    }
 
     if (!isPincodeField(field) || typeof value !== "string") {
       return;
@@ -219,7 +239,14 @@ export function MasterFormFields({
         }
 
         if (key === "state") {
-          return [key, await loadLocationStateOptions()] as const;
+          return [key, await loadLocationStateOptions(selectedCountry)] as const;
+        }
+
+        if (key === "city") {
+          return [
+            key,
+            await loadLocationCityOptions(selectedCountry, selectedState),
+          ] as const;
         }
 
         return [key, await loadLocationCityOptions()] as const;
@@ -238,7 +265,7 @@ export function MasterFormFields({
     return () => {
       ignore = true;
     };
-  }, [definition.fields]);
+  }, [definition.fields, selectedCountry, selectedState]);
 
   return (
     <>
@@ -488,9 +515,9 @@ export function MasterFormFields({
                       ? locationSearchVisibleOptionLimit
                       : undefined
                   }
-                  onChange={(value) => onChange(field.key, value)}
+                  onChange={(value) => handleFieldChange(field, value)}
                   options={getSelectOptions(field, locationOptions)}
-                  searchable={isLocationField(field)}
+                  searchable
                   state={interactiveFieldState}
                   value={typeof fieldValue === "string" ? fieldValue : ""}
                 />
@@ -705,7 +732,14 @@ export function MasterFormFields({
                           ? "Enabled"
                           : "Disabled"
                     }
-                    sx={{ m: 0 }}
+                    sx={(theme) => ({
+                      m: 0,
+                      gap: theme.spacing(1),
+                      "& .MuiFormControlLabel-label": {
+                        color: theme.customTokens.text.primary,
+                        fontSize: theme.typography.body2.fontSize,
+                      },
+                    })}
                   />
                 </Box>
               ) : null}
@@ -977,7 +1011,49 @@ function isStatusField(field: MasterFieldDefinition) {
 function isLocationField(field: MasterFieldDefinition) {
   const key = getNormalizedFieldKey(field);
 
-  return key === "city" || key === "state" || key === "country";
+  return (
+    key === "city" ||
+    key === "state" ||
+    key === "country" ||
+    key === "areaofoperation"
+  );
+}
+
+function isCountryField(field: MasterFieldDefinition) {
+  return getNormalizedFieldKey(field) === "country";
+}
+
+function isStateField(field: MasterFieldDefinition) {
+  return getNormalizedFieldKey(field) === "state";
+}
+
+function getLocationValue(
+  fields: readonly MasterFieldDefinition[],
+  values: Record<string, MasterFieldValue>,
+  key: "country" | "state",
+) {
+  const field = fields.find(
+    (currentField) => getNormalizedFieldKey(currentField) === key,
+  );
+  const value = field ? values[field.key] : "";
+
+  return typeof value === "string" ? value : "";
+}
+
+function clearDependentLocationFields(
+  fields: readonly MasterFieldDefinition[],
+  onChange: (key: string, value: MasterFieldValue) => void,
+  keys: Array<"state" | "city">,
+) {
+  keys.forEach((key) => {
+    const field = fields.find(
+      (currentField) => getNormalizedFieldKey(currentField) === key,
+    );
+
+    if (field) {
+      onChange(field.key, "");
+    }
+  });
 }
 
 function isPincodeOrLocationField(field: MasterFieldDefinition) {
@@ -1066,7 +1142,7 @@ function getSelectOptions(
     return locationOptions.state ?? [];
   }
 
-  if (key === "city") {
+  if (key === "city" || key === "areaofoperation") {
     return locationOptions.city ?? [];
   }
 
@@ -1112,16 +1188,16 @@ function getToggleCheckedValue(
   field: MasterFieldDefinition,
   value: MasterFieldValue | null,
 ) {
-  if (!isStatusField(field)) {
-    return Boolean(value);
-  }
-
   if (typeof value === "boolean") {
     return value;
   }
 
   if (typeof value === "string") {
     return ["active", "enabled", "true"].includes(value.trim().toLowerCase());
+  }
+
+  if (!isStatusField(field)) {
+    return Boolean(value);
   }
 
   return false;

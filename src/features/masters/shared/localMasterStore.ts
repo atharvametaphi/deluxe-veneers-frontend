@@ -167,10 +167,21 @@ function buildLocalMasterRecord(
   };
 
   definition.fields.forEach((field) => {
-    nextRecord[field.key] = toTextValue(values[field.key] ?? "");
+    const nextValue = toTextValue(values[field.key] ?? "");
+
+    if (field.key === "status" && nextValue === "") {
+      nextRecord[field.key] = "Active";
+      return;
+    }
+
+    nextRecord[field.key] = nextValue;
   });
 
   return nextRecord;
+}
+
+function getStatusText(checked: boolean) {
+  return checked ? "Active" : "Inactive";
 }
 
 export function buildLocalMasterDefinition(
@@ -241,6 +252,34 @@ export function updateLocalMasterRecord(
     [definition.slug]: currentRows
       .map((record) => (record.id === row.id ? nextRecord : record))
       .map(serializeMasterRecord),
+  });
+
+  return nextRecord;
+}
+
+export function updateLocalMasterStatus(
+  definition: MasterDefinition,
+  row: MasterRecord,
+  checked: boolean,
+) {
+  const storedRecords = readStoredMasterRecords();
+  const currentRows = (storedRecords[definition.slug] ?? []).map(parseMasterRecord);
+  const currentUser = getCurrentUser();
+  const userDisplayName = getUserDisplayName(currentUser);
+  const nextRecord: MasterRecord = {
+    ...row,
+    status: getStatusText(checked),
+    editedBy: userDisplayName,
+    updatedDate: new Date(),
+  };
+  const hasStoredRecord = currentRows.some((record) => record.id === row.id);
+  const nextRows = hasStoredRecord
+    ? currentRows.map((record) => (record.id === row.id ? nextRecord : record))
+    : [...currentRows, nextRecord];
+
+  writeStoredMasterRecords({
+    ...storedRecords,
+    [definition.slug]: nextRows.map(serializeMasterRecord),
   });
 
   return nextRecord;

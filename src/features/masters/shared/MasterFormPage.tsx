@@ -33,7 +33,9 @@ import {
 } from "./utils";
 
 interface MasterFormPageProps {
+  additionalValues?: Record<string, MasterFieldValue>;
   afterFields?: ReactNode;
+  beforeSave?: () => boolean;
   definition: MasterDefinition;
   mode: "add" | "edit" | "view";
   onSave?: (context: {
@@ -75,7 +77,9 @@ function getMasterFormDefinitionForMode(
 }
 
 export function MasterFormPage({
+  additionalValues,
   afterFields,
+  beforeSave,
   definition,
   mode,
   onSave,
@@ -154,29 +158,40 @@ export function MasterFormPage({
 
     setHasSubmitted(true);
 
-    if (hasFormFieldErrors(formDefinition.fields, values)) {
+    const canSaveAdditionalContent = beforeSave?.() ?? true;
+
+    if (
+      hasFormFieldErrors(formDefinition.fields, values) ||
+      !canSaveAdditionalContent
+    ) {
       return;
     }
+
+    const valuesToSave = {
+      ...values,
+      ...(additionalValues ?? {}),
+      ...(mode === "add" && !values.status ? { status: "Active" } : {}),
+    };
 
     const saveContext = row
       ? {
           definition: localDefinition,
           mode,
           row,
-          values,
+          values: valuesToSave,
         }
       : {
           definition: localDefinition,
           mode,
-          values,
+          values: valuesToSave,
         };
 
     if (onSave) {
       onSave(saveContext);
     } else if (row) {
-      updateLocalMasterRecord(localDefinition, row, values);
+      updateLocalMasterRecord(localDefinition, row, valuesToSave);
     } else {
-      createLocalMasterRecord(localDefinition, values);
+      createLocalMasterRecord(localDefinition, valuesToSave);
     }
 
     navigate(paths.list);

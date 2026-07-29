@@ -17,8 +17,11 @@ import {
 } from "../../permissions";
 import { MasterPageShell } from "./MasterPageShell";
 import { MasterTable } from "./MasterTable";
-import { buildLocalMasterDefinition } from "./localMasterStore";
-import type { MasterDefinition } from "./types";
+import {
+  buildLocalMasterDefinition,
+  updateLocalMasterStatus,
+} from "./localMasterStore";
+import type { MasterDefinition, MasterRecord } from "./types";
 import { formatMasterValue, getMasterPaths } from "./utils";
 
 interface MasterListingPageProps {
@@ -54,6 +57,10 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
   }, [localDefinition.rows, searchValue]);
 
   const addButtonLabel = `Add ${localDefinition.title.replace(/ Master$/, "")}`;
+
+  const handleStatusChange = (row: MasterRecord, checked: boolean) => {
+    updateLocalMasterStatus(localDefinition, row, checked);
+  };
 
   return (
     <MasterPageShell
@@ -112,6 +119,7 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
           columns={localDefinition.columns}
           getEditPath={paths.edit}
           getViewPath={paths.view}
+          onStatusChange={handleStatusChange}
           rows={canView ? filteredRows : []}
         />
       </Stack>
