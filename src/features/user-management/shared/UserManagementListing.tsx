@@ -10,7 +10,7 @@ import {
   TextField,
   useTheme,
 } from "@mui/material";
-import { Eye, KeyRound, Pencil } from "lucide-react";
+import { Eye, KeyRound, Pencil, Plus } from "lucide-react";
 import { Link as RouterLink, useNavigate } from "react-router";
 
 import {
@@ -264,6 +264,7 @@ export function UserManagementListing() {
         {canCreate ? (
           <Button
             component={RouterLink}
+            startIcon={<Plus size={14} />}
             sx={listingToolbarButtonSx}
             to={paths.add}
             variant="contained"

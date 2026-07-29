@@ -15,6 +15,7 @@ export function WarehouseLocationMasterListPage() {
 export function AddWarehouseLocationMasterPage() {
   return (
     <MasterFormPage
+      cancelTo="/masters/warehouse-location-master"
       definition={buildWarehouseLocationMasterDefinition()}
       mode="add"
       onSave={({ values }) => {

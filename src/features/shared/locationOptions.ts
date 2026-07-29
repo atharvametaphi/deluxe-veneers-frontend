@@ -1,4 +1,5 @@
-const locationVisibleOptionLimit = 2000;
+const locationVisibleOptionLimit = 6000;
+const defaultLocationCountryName = "India";
 
 interface CountryRecord {
   isoCode: string;
@@ -21,8 +22,6 @@ let countryRecordsCache: CountryRecord[] | null = null;
 let stateRecordsCache: StateRecord[] | null = null;
 let cityRecordsCache: CityRecord[] | null = null;
 let countryOptionsCache: string[] | null = null;
-let stateOptionsCache: string[] | null = null;
-let cityOptionsCache: string[] | null = null;
 let locationModulePromise: Promise<typeof import("country-state-city")> | null =
   null;
 const stateOptionsByCountryCache = new Map<string, string[]>();
@@ -137,14 +136,10 @@ export async function loadLocationCountryOptions() {
 }
 
 export async function loadLocationStateOptions(countryName?: string) {
-  const country = await findCountryByName(countryName);
+  const country = await findCountryByName(countryName || defaultLocationCountryName);
 
   if (!country) {
-    stateOptionsCache ??= sortUniqueOptions(
-      (await loadStateRecords()).map((state) => state.name),
-    );
-
-    return stateOptionsCache;
+    return [];
   }
 
   const cachedOptions = stateOptionsByCountryCache.get(country.isoCode);
@@ -168,7 +163,7 @@ export async function loadLocationCityOptions(
   countryName?: string,
   stateName?: string,
 ) {
-  const country = await findCountryByName(countryName);
+  const country = await findCountryByName(countryName || defaultLocationCountryName);
   const normalizedStateName = normalizeLocationName(stateName);
   const cacheKey = [
     country?.isoCode ?? "all-countries",
@@ -199,30 +194,7 @@ export async function loadLocationCityOptions(
     return options;
   }
 
-  if (normalizedStateName) {
-    const matchingStateScopes = new Set(
-      (await loadStateRecords())
-        .filter(
-          (state) => normalizeLocationName(state.name) === normalizedStateName,
-        )
-        .map((state) => `${state.countryCode}:${state.isoCode}`),
-    );
-    const options = sortUniqueOptions(
-      cityRecords
-        .filter((city) =>
-          matchingStateScopes.has(`${city.countryCode}:${city.stateCode}`),
-        )
-        .map((city) => city.name),
-    );
-
-    cityOptionsByScopeCache.set(cacheKey, options);
-
-    return options;
-  }
-
-  cityOptionsCache ??= sortUniqueOptions(cityRecords.map((city) => city.name));
-
-  return cityOptionsCache;
+  return [];
 }
 
 export function getLocationByPincode(pincode: string) {

@@ -1,7 +1,6 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
 import {
   Box,
-  Button,
   IconButton,
   Stack,
   Table,
@@ -15,7 +14,6 @@ import {
 } from "@mui/material";
 import { Plus, Trash2 } from "lucide-react";
 
-import { recordFormActionButtonSx } from "../../../shared/buttonStyles";
 import { getCompactFieldSx } from "../../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 
 interface SupplierContactPerson {
@@ -103,10 +101,6 @@ export const SupplierContactPersonTable = forwardRef<
     Partial<Record<keyof SupplierContactPerson, string>>
   >({});
   const [tableError, setTableError] = useState("");
-
-  const canAddContact = Object.values(draftContact).some((value) =>
-    value.trim(),
-  );
 
   const handleAddContact = () => {
     const errors = getContactValidationErrors(draftContact);
@@ -223,16 +217,25 @@ export const SupplierContactPersonTable = forwardRef<
                 </TableCell>
               ))}
               <TableCell>
-                <Button
-                  disabled={!canAddContact}
+                <IconButton
+                  aria-label="Add contact person"
                   onClick={handleAddContact}
-                  startIcon={<Plus size={14} />}
-                  sx={recordFormActionButtonSx}
+                  size="small"
+                  sx={{
+                    border: `1px solid ${theme.customTokens.borders.default}`,
+                    borderRadius: `${theme.customTokens.radius.md}px`,
+                    color: theme.customTokens.brand.primary,
+                    height: 30,
+                    width: 30,
+                    "&:hover": {
+                      backgroundColor: theme.customTokens.navigation.hoverBackground,
+                      borderColor: theme.customTokens.brand.primary,
+                    },
+                  }}
                   type="button"
-                  variant="contained"
                 >
-                  Add
-                </Button>
+                  <Plus color={theme.customTokens.brand.primary} size={15} />
+                </IconButton>
               </TableCell>
             </TableRow>
 

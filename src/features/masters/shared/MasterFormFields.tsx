@@ -250,7 +250,7 @@ export function MasterFormFields({
           ] as const;
         }
 
-        return [key, await loadLocationCityOptions()] as const;
+        return [key, await loadLocationCityOptions("India")] as const;
       }),
     ).then((loadedOptions) => {
       if (ignore) {
@@ -1143,8 +1143,12 @@ function getSelectOptions(
     return locationOptions.state ?? [];
   }
 
-  if (key === "city" || key === "areaofoperation") {
+  if (key === "city") {
     return locationOptions.city ?? [];
+  }
+
+  if (key === "areaofoperation") {
+    return locationOptions.areaofoperation ?? [];
   }
 
   if (field.options && field.options.length > 0) {

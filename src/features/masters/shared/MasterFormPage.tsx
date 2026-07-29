@@ -36,6 +36,7 @@ interface MasterFormPageProps {
   additionalValues?: Record<string, MasterFieldValue>;
   afterFields?: ReactNode;
   beforeSave?: () => boolean;
+  cancelTo?: string;
   definition: MasterDefinition;
   mode: "add" | "edit" | "view";
   onSave?: (context: {
@@ -80,6 +81,7 @@ export function MasterFormPage({
   additionalValues,
   afterFields,
   beforeSave,
+  cancelTo,
   definition,
   mode,
   onSave,
@@ -91,6 +93,7 @@ export function MasterFormPage({
     [definition],
   );
   const paths = getMasterPaths(localDefinition.slug);
+  const cancelPath = cancelTo ?? paths.list;
   const permissionKey = getMasterPermissionKey(localDefinition.slug);
   const canCreate = canAccessPermission(permissionKey, "create");
   const canEdit = canAccessPermission(permissionKey, "edit");
@@ -293,7 +296,7 @@ export function MasterFormPage({
                 <Button
                   type="button"
                   variant="outlined"
-                  onClick={() => navigate(paths.list)}
+                  onClick={() => navigate(cancelPath)}
                   sx={recordFormActionButtonSx}
                 >
                   Cancel
