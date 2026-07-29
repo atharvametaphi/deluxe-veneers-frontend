@@ -37,6 +37,7 @@ import type {
   MasterFieldValue,
   MasterUploadedFileValue,
 } from "./types";
+import { normalizeMasterStatusValue } from "./utils";
 
 type FormFieldLayoutDefinition = {
   fields: readonly MasterFieldDefinition[];
@@ -1188,6 +1189,10 @@ function getToggleCheckedValue(
   field: MasterFieldDefinition,
   value: MasterFieldValue | null,
 ) {
+  if (isStatusField(field)) {
+    return normalizeMasterStatusValue(value) === "Active";
+  }
+
   if (typeof value === "boolean") {
     return value;
   }
@@ -1196,11 +1201,7 @@ function getToggleCheckedValue(
     return ["active", "enabled", "true"].includes(value.trim().toLowerCase());
   }
 
-  if (!isStatusField(field)) {
-    return Boolean(value);
-  }
-
-  return false;
+  return Boolean(value);
 }
 
 function getStatusFieldValue(checked: boolean) {

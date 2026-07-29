@@ -794,6 +794,7 @@ export function ErpSelectField({
 
         <Popper
           anchorEl={anchorEl}
+          disablePortal
           open={open}
           placement="bottom-start"
           sx={{ zIndex: theme.zIndex.modal }}

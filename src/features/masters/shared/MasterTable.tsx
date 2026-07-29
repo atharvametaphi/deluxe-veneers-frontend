@@ -35,7 +35,11 @@ import { useNavigate } from "react-router";
 
 import { ErpToggleSwitch } from "../../../components/inputs/ErpToggleSwitch";
 import type { MasterColumn, MasterRecord } from "./types";
-import { formatMasterValue, normalizeMasterSortValue } from "./utils";
+import {
+  formatMasterValue,
+  normalizeMasterSortValue,
+  normalizeMasterStatusValue,
+} from "./utils";
 
 type SortDirection = "asc" | "desc";
 
@@ -932,13 +936,6 @@ function pageNumberButtonSx(active: boolean) {
   });
 }
 
-const statusToggleValueMap: Record<string, boolean> = {
-  active: true,
-  enabled: true,
-  inactive: false,
-  disabled: false,
-};
-
 function getStatusToggleState(
   column: MasterColumn,
   value: MasterRecord[string],
@@ -952,10 +949,7 @@ function getStatusToggleState(
     return null;
   }
 
-  const normalizedValue = formatMasterValue(value).trim().toLowerCase();
-  return normalizedValue in statusToggleValueMap
-    ? statusToggleValueMap[normalizedValue]
-    : null;
+  return normalizeMasterStatusValue(value) === "Active";
 }
 
 function renderMasterTableCell(

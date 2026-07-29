@@ -8,6 +8,11 @@ import type {
   MasterFilterDefinition,
   MasterRecord,
 } from "./types";
+import {
+  normalizeMasterDefinitionStatus,
+  normalizeMasterRecordStatus,
+  normalizeMasterStatusValue,
+} from "./utils";
 
 const LOCAL_MASTER_RECORDS_STORAGE_KEY = "deluxe-veneers-local-master-records";
 const LOCAL_MASTER_RECORD_ID_PREFIX = "local-master-record-";
@@ -160,10 +165,7 @@ function buildLocalMasterRecord(
     editedBy: userDisplayName,
     createdDate: currentRecord?.createdDate ?? now,
     updatedDate: now,
-    status:
-      typeof currentRecord?.status === "string"
-        ? currentRecord.status
-        : "Active",
+    status: normalizeMasterStatusValue(currentRecord?.status),
   };
 
   definition.fields.forEach((field) => {
@@ -187,14 +189,15 @@ function getStatusText(checked: boolean) {
 export function buildLocalMasterDefinition(
   definition: MasterDefinition,
 ): MasterDefinition {
+  const normalizedDefinition = normalizeMasterDefinitionStatus(definition);
   const rowsById = new Map<string, MasterRecord>();
 
-  definition.rows.forEach((row) => {
+  normalizedDefinition.rows.forEach((row) => {
     rowsById.set(row.id, row);
   });
 
-  getStoredMasterRows(definition.slug).forEach((row) => {
-    rowsById.set(row.id, row);
+  getStoredMasterRows(normalizedDefinition.slug).forEach((row) => {
+    rowsById.set(row.id, normalizeMasterRecordStatus(row));
   });
 
   const mergedRows = Array.from(rowsById.values())
@@ -206,9 +209,9 @@ export function buildLocalMasterDefinition(
     }));
 
   return {
-    ...definition,
+    ...normalizedDefinition,
     rows: mergedRows,
-    filters: buildFilterDefinitions(definition.filters, mergedRows),
+    filters: buildFilterDefinitions(normalizedDefinition.filters, mergedRows),
   };
 }
 

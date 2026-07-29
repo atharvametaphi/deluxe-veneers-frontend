@@ -1,9 +1,25 @@
 import type {
+  MasterColumn,
   MasterDefinition,
   MasterFieldDefinition,
   MasterFieldValue,
+  MasterFilterDefinition,
   MasterRecord,
 } from "./types";
+
+const activeStatusText = "Active";
+const inactiveStatusText = "Inactive";
+const statusOptions = [activeStatusText, inactiveStatusText];
+
+const inactiveStatusValues = new Set([
+  "0",
+  "disabled",
+  "false",
+  "inactive",
+  "in-active",
+  "in_active",
+  "no",
+]);
 
 function toDateDisplay(value: Date) {
   return new Intl.DateTimeFormat("en-GB", {
@@ -22,6 +38,63 @@ export function createMasterRows(
     srNo: String(index + 1),
     ...row,
   }));
+}
+
+export function normalizeMasterStatusValue(
+  value: MasterFieldValue | MasterRecord[string],
+) {
+  if (typeof value === "boolean") {
+    return value ? activeStatusText : inactiveStatusText;
+  }
+
+  if (typeof value === "string") {
+    return inactiveStatusValues.has(value.trim().toLowerCase())
+      ? inactiveStatusText
+      : activeStatusText;
+  }
+
+  return activeStatusText;
+}
+
+export function normalizeMasterRecordStatus(row: MasterRecord): MasterRecord {
+  return {
+    ...row,
+    status: normalizeMasterStatusValue(row.status ?? row.statusLabel),
+  };
+}
+
+export function normalizeMasterDefinitionStatus(
+  definition: MasterDefinition,
+): MasterDefinition {
+  const hasStatusColumn = definition.columns.some(isStatusToken);
+  const hasStatusFilter = definition.filters.some(isStatusToken);
+  const hasStatusField = definition.fields.some(isStatusToken);
+  const statusColumn: MasterColumn = { key: "status", label: "Status" };
+  const statusFilter: MasterFilterDefinition = {
+    key: "status",
+    label: "Status",
+    options: statusOptions,
+  };
+  const statusField: MasterFieldDefinition = {
+    key: "status",
+    label: "Status",
+    options: statusOptions,
+    type: "select",
+  };
+
+  return {
+    ...definition,
+    columns: hasStatusColumn
+      ? definition.columns
+      : [...definition.columns, statusColumn],
+    fields: hasStatusField
+      ? definition.fields
+      : [...definition.fields, statusField],
+    filters: hasStatusFilter
+      ? definition.filters
+      : [...definition.filters, statusFilter],
+    rows: definition.rows.map(normalizeMasterRecordStatus),
+  };
 }
 
 export function formatMasterValue(value: MasterRecord[string]) {
@@ -101,6 +174,17 @@ function getBooleanFieldValue(value: MasterRecord[string]) {
   }
 
   return false;
+}
+
+function isStatusToken(token: { key: string; label?: string }) {
+  return (
+    normalizeTokenIdentifier(token.key) === "status" ||
+    normalizeTokenIdentifier(token.label ?? "") === "status"
+  );
+}
+
+function normalizeTokenIdentifier(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 export function getMasterPaths(slug: string) {
