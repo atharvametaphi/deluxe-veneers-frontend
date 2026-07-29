@@ -1,12 +1,9 @@
 import { useMemo, useState } from "react";
 import {
   Button,
-  InputAdornment,
   Stack,
-  TextField,
-  useTheme,
 } from "@mui/material";
-import { Eye, PackageOpen, Pencil, RotateCcw, Search, Truck } from "lucide-react";
+import { Eye, PackageOpen, Pencil, RotateCcw, Truck } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import {
@@ -15,10 +12,10 @@ import {
   type EnterpriseTableCellValue,
 } from "../../../components/data-display/EnterpriseDataTable";
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
-import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
 import { listingToolbarButtonSx } from "../../shared/buttonStyles";
+import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import {
   getPackingPaths,
   packingListingColumns,
@@ -34,7 +31,6 @@ const packingTabs = [
 ] as const satisfies readonly { label: string; value: PackingTabValue }[];
 
 export function PackingListingPage() {
-  const theme = useTheme();
   const records = usePackingRecords();
   const navigate = useNavigate();
   const paths = getPackingPaths();
@@ -144,28 +140,12 @@ export function PackingListingPage() {
           justifyContent="space-between"
           spacing={2}
         >
-          <TextField
-            placeholder="Search"
+          <ClearableSearchField
             value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            sx={[
-              getCompactFieldSx(theme),
-              {
-                width: { xs: "100%", md: 320 },
-                maxWidth: "100%",
-              },
-            ]}
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <Search
-                      color={theme.customTokens.text.secondary}
-                      size={16}
-                    />
-                  </InputAdornment>
-                ),
-              },
+            onChange={setSearchValue}
+            sx={{
+              width: { xs: "100%", md: 320 },
+              maxWidth: "100%",
             }}
           />
 

@@ -1,12 +1,19 @@
 import { MasterFormPage, MasterListingPage } from "../../shared";
 import { supplierMasterDefinition } from "../mock/supplierMasterData";
+import { SupplierContactPersonTable } from "./SupplierContactPersonTable";
 
 export function SupplierMasterListPage() {
   return <MasterListingPage definition={supplierMasterDefinition} />;
 }
 
 export function AddSupplierMasterPage() {
-  return <MasterFormPage definition={supplierMasterDefinition} mode="add" />;
+  return (
+    <MasterFormPage
+      afterFields={<SupplierContactPersonTable />}
+      definition={supplierMasterDefinition}
+      mode="add"
+    />
+  );
 }
 
 export function EditSupplierMasterPage() {

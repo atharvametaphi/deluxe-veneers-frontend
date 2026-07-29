@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { InputAdornment, Stack, TextField, useTheme } from "@mui/material";
+import { Stack } from "@mui/material";
 import { Eye, Pencil, Plus, RotateCcw } from "lucide-react";
-import { Search } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
@@ -9,11 +8,11 @@ import {
   EnterpriseDataTable,
   type EnterpriseTableAction,
 } from "../../../components/data-display/EnterpriseDataTable";
-import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import {
   canAccessPermission,
   getFactoryPermissionKey,
 } from "../../permissions";
+import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import { FactoryPageShell } from "./FactoryPageShell";
 import { FactoryToolbar } from "./FactoryToolbar";
 import {
@@ -31,7 +30,6 @@ interface FactoryListingProps<Row extends FactoryRecord> {
 export function FactoryListing<Row extends FactoryRecord>({
   definition,
 }: FactoryListingProps<Row>) {
-  const theme = useTheme();
   const navigate = useNavigate();
   const paths = getFactoryPaths(definition.slug);
   const permissionKey = getFactoryPermissionKey(definition.slug);
@@ -160,28 +158,12 @@ export function FactoryListing<Row extends FactoryRecord>({
           justifyContent="space-between"
           spacing={2}
         >
-          <TextField
-            placeholder="Search"
+          <ClearableSearchField
             value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            sx={[
-              getCompactFieldSx(theme),
-              {
-                width: { xs: "100%", md: 320 },
-                maxWidth: "100%",
-              },
-            ]}
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <Search
-                      color={theme.customTokens.text.secondary}
-                      size={16}
-                    />
-                  </InputAdornment>
-                ),
-              },
+            onChange={setSearchValue}
+            sx={{
+              width: { xs: "100%", md: 320 },
+              maxWidth: "100%",
             }}
           />
           <FactoryToolbar />

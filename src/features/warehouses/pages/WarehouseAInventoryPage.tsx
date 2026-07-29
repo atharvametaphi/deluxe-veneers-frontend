@@ -5,14 +5,10 @@ import {
   FileOutput,
   Pencil,
   Plus,
-  Search,
 } from "lucide-react";
 import {
   Button,
-  InputAdornment,
   Stack,
-  TextField,
-  useTheme,
 } from "@mui/material";
 import { Link as RouterLink, useNavigate, useSearchParams } from "react-router";
 
@@ -22,13 +18,13 @@ import {
   type EnterpriseTableCellValue,
 } from "../../../components/data-display/EnterpriseDataTable";
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
-import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { MasterPageShell } from "../../masters/shared";
 import {
   getInventoryPaths,
   inventoryToolbarButtonSx,
 } from "../../inventory/shared";
 import { canAccessPermission } from "../../permissions";
+import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import {
   warehouseAInventoryConfigs,
   type WarehouseInventoryRow,
@@ -71,7 +67,6 @@ interface WarehouseAInventoryModulePageProps {
 export function WarehouseAInventoryModulePage({
   warehouseName = "Warehouse A",
 }: WarehouseAInventoryModulePageProps = {}) {
-  const theme = useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState("");
@@ -189,28 +184,12 @@ export function WarehouseAInventoryModulePage({
           justifyContent="space-between"
           spacing={2}
         >
-          <TextField
-            placeholder="Search"
+          <ClearableSearchField
             value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            sx={[
-              getCompactFieldSx(theme),
-              {
-                width: { xs: "100%", md: 320 },
-                maxWidth: "100%",
-              },
-            ]}
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <Search
-                      color={theme.customTokens.text.secondary}
-                      size={16}
-                    />
-                  </InputAdornment>
-                ),
-              },
+            onChange={setSearchValue}
+            sx={{
+              width: { xs: "100%", md: 320 },
+              maxWidth: "100%",
             }}
           />
 

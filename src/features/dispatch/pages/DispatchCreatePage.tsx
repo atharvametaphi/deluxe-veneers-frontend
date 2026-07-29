@@ -297,9 +297,6 @@ export function DispatchCreatePage({
             <Table sx={{ minWidth: 1200 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 88)}>
-                    Sr. No
-                  </TableCell>
                   <TableCell sx={(theme) => getHeaderCellSx(theme, 120)}>
                     Order No
                   </TableCell>
@@ -334,9 +331,6 @@ export function DispatchCreatePage({
                 {dispatchItems.length > 0 ? (
                   dispatchItems.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.srNo}
-                      </TableCell>
                       <TableCell sx={(theme) => getBodyCellSx(theme)}>
                         {item.orderNo}
                       </TableCell>

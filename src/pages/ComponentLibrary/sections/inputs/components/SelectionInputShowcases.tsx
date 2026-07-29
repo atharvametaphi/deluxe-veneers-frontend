@@ -88,7 +88,6 @@ function ErpDateRangePickerField({
         <FieldExample label={startLabel}>
           <ErpDatePickerField
             onChange={(nextStart) => onChange(nextStart, value.end)}
-            placeholder="Select start date"
             state={state}
             value={value.start}
           />
@@ -97,7 +96,6 @@ function ErpDateRangePickerField({
         <FieldExample label={endLabel}>
           <ErpDatePickerField
             onChange={(nextEnd) => onChange(value.start, nextEnd)}
-            placeholder="Select end date"
             state={state}
             value={value.end}
           />
@@ -149,7 +147,6 @@ export function SelectShowcase({ sx }: ShowcaseProps) {
             <ErpSelectField
               onChange={setDefaultValue}
               options={moduleOptions}
-              placeholder="Select department"
               value={defaultValue}
             />
           </FieldExample>
@@ -160,7 +157,6 @@ export function SelectShowcase({ sx }: ShowcaseProps) {
             <ErpSelectField
               onChange={setHoverValue}
               options={moduleOptions}
-              placeholder="Select workflow"
               state="hover"
               value={hoverValue}
             />
@@ -172,7 +168,6 @@ export function SelectShowcase({ sx }: ShowcaseProps) {
             <ErpSelectField
               onChange={setFocusValue}
               options={moduleOptions}
-              placeholder="Select supplier"
               state="focus"
               value={focusValue}
             />
@@ -184,7 +179,6 @@ export function SelectShowcase({ sx }: ShowcaseProps) {
             <ErpSelectField
               onChange={setFilledValue}
               options={["INR", "USD", "EUR"]}
-              placeholder="Select currency"
               state="filled"
               value={filledValue}
             />
@@ -197,7 +191,6 @@ export function SelectShowcase({ sx }: ShowcaseProps) {
               helperText="Veneer type is required."
               onChange={setErrorValue}
               options={moduleOptions}
-              placeholder="Select veneer type"
               state="error"
               value={errorValue}
             />
@@ -209,7 +202,6 @@ export function SelectShowcase({ sx }: ShowcaseProps) {
             <ErpSelectField
               onChange={() => undefined}
               options={moduleOptions}
-              placeholder="Select warehouse"
               state="disabled"
               value="Dispatch"
             />
@@ -244,7 +236,6 @@ export function DatePickerShowcase({ sx }: ShowcaseProps) {
           <FieldExample label="Inward Date">
             <ErpDatePickerField
               onChange={setDefaultDate}
-              placeholder="Select inward date"
               value={defaultDate}
             />
           </FieldExample>
@@ -257,7 +248,6 @@ export function DatePickerShowcase({ sx }: ShowcaseProps) {
           <FieldExample label="Invoice Date">
             <ErpDatePickerField
               onChange={setSelectedDate}
-              placeholder="Select invoice date"
               state="filled"
               value={selectedDate}
             />
@@ -273,7 +263,6 @@ export function DatePickerShowcase({ sx }: ShowcaseProps) {
             <ErpDatePickerField
               helperText="Dispatch date is required."
               onChange={() => undefined}
-              placeholder="Select dispatch date"
               state="error"
               value={null}
             />

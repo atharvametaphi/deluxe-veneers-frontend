@@ -586,7 +586,7 @@ export function WarehouseAAddStockLineItems({
 
   const tableMinWidth = useMemo(
     () =>
-      columnConfig.reduce((total, column) => total + column.minWidth, 84) + 132,
+      columnConfig.reduce((total, column) => total + column.minWidth, 0) + 132,
     [columnConfig],
   );
 
@@ -655,8 +655,6 @@ export function WarehouseAAddStockLineItems({
           <Table size="small" sx={{ minWidth: tableMinWidth, tableLayout: "auto" }}>
             <TableHead>
               <TableRow>
-                <TableCell sx={getHeaderCellSx(theme, 84)}>Sr No</TableCell>
-
                 {columnConfig.map((column) => (
                   <TableCell
                     key={column.key}
@@ -676,12 +674,6 @@ export function WarehouseAAddStockLineItems({
                   },
                 }}
               >
-                <TableCell sx={getBodyCellSx(theme)}>
-                  <Typography variant="body2" color="text.primary">
-                    1
-                  </Typography>
-                </TableCell>
-
                 {columnConfig.map((column) => (
                   <TableCell key={column.key} sx={getBodyCellSx(theme)}>
                     {renderEditableField({
@@ -735,8 +727,6 @@ export function WarehouseAAddStockLineItems({
             >
               <TableHead>
                 <TableRow>
-                  <TableCell sx={getHeaderCellSx(theme, 84)}>Sr No</TableCell>
-
                   {columnConfig.map((column) => (
                     <TableCell
                       key={column.key}
@@ -765,12 +755,6 @@ export function WarehouseAAddStockLineItems({
                         },
                       }}
                     >
-                      <TableCell sx={getBodyCellSx(theme)}>
-                        <Typography variant="body2" color="text.primary">
-                          {index + 1}
-                        </Typography>
-                      </TableCell>
-
                       {columnConfig.map((column) => (
                         <TableCell key={column.key} sx={getBodyCellSx(theme)}>
                           {isEditing
@@ -966,7 +950,6 @@ function renderEditableField({
       <ErpSelectField
         onChange={onChange}
         options={column.options ?? []}
-        placeholder={column.placeholder}
         value={value}
       />
     );
@@ -975,7 +958,6 @@ function renderEditableField({
   return (
     <TextField
       fullWidth
-      placeholder={column.placeholder}
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}

@@ -729,7 +729,6 @@ function renderEditableField({
       <ErpSelectField
         onChange={onChange}
         options={column.options ?? []}
-        placeholder={column.placeholder}
         value={value}
       />
     );
@@ -738,7 +737,6 @@ function renderEditableField({
   return (
     <TextField
       fullWidth
-      placeholder={column.placeholder}
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}

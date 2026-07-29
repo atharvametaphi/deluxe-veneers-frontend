@@ -221,7 +221,7 @@ export const departmentMasterDefinition: MasterDefinition = {
     { key: "remark", label: "Remark" },
     { key: "status", label: "Status" },
     { key: "createdBy", label: "Created By" },
-    { key: "editedBy", label: "Edited By" },
+    { key: "editedBy", label: "Updated By" },
     { key: "createdDate", label: "Created Date" },
     { key: "updatedDate", label: "Updated Date" },
   ],

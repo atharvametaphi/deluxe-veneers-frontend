@@ -244,7 +244,6 @@ export function FormLayoutShowcase({
                       )
                     }
                     options={field.options ?? []}
-                    placeholder={field.placeholder ?? `Select ${field.label}`}
                     value={typeof fieldValue === "string" ? fieldValue : ""}
                   />
                 ) : isDate ? (
@@ -255,7 +254,6 @@ export function FormLayoutShowcase({
                         nextValue as FormValues[typeof field.id],
                       )
                     }
-                    placeholder={field.placeholder ?? `Select ${field.label}`}
                     value={fieldValue instanceof Date ? fieldValue : null}
                   />
                 ) : (
@@ -272,7 +270,6 @@ export function FormLayoutShowcase({
                         event.target.value as FormValues[typeof field.id],
                       )
                     }
-                    placeholder={field.placeholder}
                     inputProps={isNumeric ? { min: 0, step: "0.1" } : undefined}
                     sx={(theme) => getCompactFieldSx(theme)}
                   />

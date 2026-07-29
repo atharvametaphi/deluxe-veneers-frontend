@@ -33,7 +33,6 @@ type OrderLineItemColumn = {
   type: "select" | "text";
 };
 
-const serialColumnWidth = 56;
 const actionsColumnWidth = 120;
 
 const orderLineItemColumns: readonly OrderLineItemColumn[] = [
@@ -157,7 +156,7 @@ export function OrderLineItemsTable({
     () =>
       orderLineItemColumns.reduce(
         (total, column) => total + column.minWidth,
-        serialColumnWidth,
+        0,
       ) + actionsColumnWidth,
     [],
   );
@@ -229,9 +228,6 @@ export function OrderLineItemsTable({
               <Table size="small" sx={{ minWidth: tableMinWidth, tableLayout: "auto" }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={(theme) => getHeaderCellSx(theme, serialColumnWidth, "center")}>
-                      Sr No
-                    </TableCell>
                     {orderLineItemColumns.map((column) => (
                       <TableCell
                         key={column.key}
@@ -244,11 +240,6 @@ export function OrderLineItemsTable({
                 </TableHead>
                 <TableBody>
                   <TableRow>
-                    <TableCell sx={(theme) => getBodyCellSx(theme, "center")}>
-                      <Typography variant="body2" color="text.primary">
-                        1
-                      </Typography>
-                    </TableCell>
                     {orderLineItemColumns.map((column) => (
                       <TableCell
                         key={column.key}
@@ -300,9 +291,6 @@ export function OrderLineItemsTable({
             >
               <TableHead>
                 <TableRow>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, serialColumnWidth, "center")}>
-                    Sr No
-                  </TableCell>
                   {orderLineItemColumns.map((column) => (
                     <TableCell
                       key={column.key}
@@ -328,11 +316,6 @@ export function OrderLineItemsTable({
 
                   return (
                     <TableRow key={row.id}>
-                      <TableCell sx={(theme) => getBodyCellSx(theme, "center")}>
-                        <Typography variant="body2" color="text.primary">
-                          {index + 1}
-                        </Typography>
-                      </TableCell>
                       {orderLineItemColumns.map((column) => (
                         <TableCell
                           key={column.key}
@@ -469,7 +452,6 @@ function renderField({
       <ErpSelectField
         onChange={onChange}
         options={column.options ?? []}
-        placeholder={column.placeholder}
         value={value}
       />
     );
@@ -478,7 +460,6 @@ function renderField({
   return (
     <TextField
       fullWidth
-      placeholder={column.placeholder}
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}

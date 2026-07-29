@@ -94,7 +94,6 @@ type SlicingLineItem = {
 };
 
 const sourceHeaderColumns: readonly HeaderColumn[] = [
-  { key: "srNo", label: "Sr No.", minWidth: 72 },
   { key: "itemSubCategory", label: "Item Sub Category", minWidth: 170 },
   { key: "itemName", label: "Item Name", minWidth: 170 },
   { key: "color", label: "Color", minWidth: 150 },
@@ -342,7 +341,6 @@ export function SlicingCreatePage() {
                   slicingDate: value,
                 }))
               }
-              placeholder="Select Slicing Date"
               value={formValues.slicingDate}
             />
           </FieldWrapper>
@@ -356,7 +354,6 @@ export function SlicingCreatePage() {
                 }))
               }
               options={["Day", "General", "Evening", "Night"]}
-              placeholder="Select Shift"
               value={formValues.shift}
             />
           </FieldWrapper>
@@ -364,7 +361,6 @@ export function SlicingCreatePage() {
           <FieldWrapper label="No. of Workers*">
             <TextField
               fullWidth
-              placeholder="Enter No. of Workers"
               size="small"
               value={formValues.noOfWorkers}
               onChange={(event) =>
@@ -380,7 +376,6 @@ export function SlicingCreatePage() {
           <FieldWrapper label="No. of Working Hours*">
             <TextField
               fullWidth
-              placeholder="Enter No. of Working Hours"
               size="small"
               value={formValues.noOfWorkingHours}
               onChange={(event) =>
@@ -396,7 +391,6 @@ export function SlicingCreatePage() {
           <FieldWrapper label="No. of Total Hours*">
             <TextField
               fullWidth
-              placeholder="Enter No. of Total Hours"
               size="small"
               value={formValues.noOfTotalHours}
               onChange={(event) =>
@@ -865,7 +859,6 @@ function renderEditableField({
       <ErpSelectField
         onChange={onChange}
         options={column.options ?? []}
-        placeholder={column.placeholder}
         value={value}
       />
     );
@@ -874,7 +867,6 @@ function renderEditableField({
   return (
     <TextField
       fullWidth
-      placeholder={column.placeholder}
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}

@@ -56,7 +56,6 @@ export function TextInputShowcase({ sx }: ShowcaseProps) {
             <TextField
               fullWidth
               size="small"
-              placeholder="Enter supplier name"
               sx={getCompactFieldSx(theme)}
             />
           </FieldExample>
@@ -67,7 +66,6 @@ export function TextInputShowcase({ sx }: ShowcaseProps) {
             <TextField
               fullWidth
               size="small"
-              placeholder="Enter invoice number"
               defaultValue="INV-2026-184"
               sx={getCompactFieldSx(theme, "filled")}
             />
@@ -80,7 +78,6 @@ export function TextInputShowcase({ sx }: ShowcaseProps) {
               fullWidth
               size="small"
               focused
-              placeholder="Enter bundle number"
               defaultValue="BDL-24-018"
               sx={getCompactFieldSx(theme, "focus")}
             />
@@ -92,7 +89,6 @@ export function TextInputShowcase({ sx }: ShowcaseProps) {
             <TextField
               fullWidth
               size="small"
-              placeholder="Enter pallet number"
               helperText="Use the pallet reference printed on the inward material slip."
               sx={getCompactFieldSx(theme)}
             />
@@ -105,7 +101,6 @@ export function TextInputShowcase({ sx }: ShowcaseProps) {
               fullWidth
               size="small"
               error
-              placeholder="Enter lot number"
               defaultValue="LT"
               helperText="Lot number must contain at least 6 characters."
               sx={getCompactFieldSx(theme, "error")}
@@ -119,7 +114,6 @@ export function TextInputShowcase({ sx }: ShowcaseProps) {
               fullWidth
               size="small"
               disabled
-              placeholder="Enter pallet number"
               defaultValue="PLT-2026-044"
               sx={getCompactFieldSx(theme, "disabled")}
             />
@@ -135,7 +129,6 @@ export function TextInputShowcase({ sx }: ShowcaseProps) {
             <TextField
               fullWidth
               size="small"
-              placeholder="Enter remarks"
               defaultValue="Lot linked to inward batch after moisture verification."
               InputProps={{ readOnly: true }}
               sx={getCompactFieldSx(theme, "readOnly")}
@@ -173,7 +166,6 @@ export function TextareaShowcase({ sx }: ShowcaseProps) {
               multiline
               rows={3}
               size="small"
-              placeholder="Enter remarks"
               sx={getCompactFieldSx(theme)}
             />
           </FieldExample>
@@ -186,7 +178,6 @@ export function TextareaShowcase({ sx }: ShowcaseProps) {
               multiline
               rows={3}
               size="small"
-              placeholder="Enter remarks"
               helperText="Capture only remarks that affect inward approval, grading, or dispatch planning."
               sx={getCompactFieldSx(theme)}
             />
@@ -201,7 +192,6 @@ export function TextareaShowcase({ sx }: ShowcaseProps) {
               multiline
               rows={3}
               size="small"
-              placeholder="Enter remarks"
               defaultValue="ok"
               helperText="Provide at least 15 characters for operational remarks."
               sx={getCompactFieldSx(theme, "error")}
@@ -217,7 +207,6 @@ export function TextareaShowcase({ sx }: ShowcaseProps) {
               multiline
               rows={3}
               size="small"
-              placeholder="Enter remarks"
               defaultValue="Remarks are locked after invoice posting."
               sx={getCompactFieldSx(theme, "disabled")}
             />
@@ -235,7 +224,6 @@ export function TextareaShowcase({ sx }: ShowcaseProps) {
               multiline
               rows={3}
               size="small"
-              placeholder="Enter remarks"
               defaultValue="Material moved to quality holding after bundle inspection."
               InputProps={{ readOnly: true }}
               sx={getCompactFieldSx(theme, "readOnly")}

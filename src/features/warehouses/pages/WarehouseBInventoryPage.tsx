@@ -4,13 +4,11 @@ import {
   Eye,
   FileOutput,
   Pencil,
-  Search,
   Truck,
 } from "lucide-react";
 import {
   Box,
   Button,
-  InputAdornment,
   MenuItem,
   Stack,
   TextField,
@@ -50,6 +48,7 @@ import {
   canAccessPermission,
   getFactoryPermissionKey,
 } from "../../permissions";
+import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import {
   warehouseAInventoryConfigs,
   warehouseBInspectionConfigs,
@@ -495,28 +494,12 @@ export function WarehouseBInventoryModulePage({
               width: { xs: "100%", lg: "auto" },
             }}
           >
-            <TextField
-              placeholder="Search"
+            <ClearableSearchField
               value={searchValue}
-              onChange={(event) => setSearchValue(event.target.value)}
-              sx={[
-                getCompactFieldSx(theme),
-                {
-                  width: { xs: "100%", md: 320 },
-                  maxWidth: "100%",
-                },
-              ]}
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <Search
-                        color={theme.customTokens.text.secondary}
-                        size={16}
-                      />
-                    </InputAdornment>
-                  ),
-                },
+              onChange={setSearchValue}
+              sx={{
+                width: { xs: "100%", md: 320 },
+                maxWidth: "100%",
               }}
             />
 

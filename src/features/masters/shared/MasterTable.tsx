@@ -4,13 +4,18 @@ import {
   ArrowDownWideNarrow,
   ArrowUpDown,
   ArrowUpWideNarrow,
+  ChevronLeft,
+  ChevronRight,
   ListFilter,
   MoreHorizontal,
+  X,
 } from "lucide-react";
 import {
+  Avatar,
   Box,
   Button,
   IconButton,
+  InputAdornment,
   Menu,
   MenuItem,
   Select,
@@ -38,6 +43,16 @@ type SortConfig = {
   direction: SortDirection;
   key: string;
 } | null;
+
+type AuditColumnType = "created" | "updated";
+
+type MasterDisplayColumn = MasterColumn & {
+  audit?: {
+    dateKey?: string;
+    nameKey?: string;
+    type: AuditColumnType;
+  };
+};
 
 interface MasterTableProps {
   canChangeStatus?: boolean;
@@ -70,6 +85,7 @@ export function MasterTable({
   const [goToPage, setGoToPage] = useState("1");
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [filterMenuAnchor, setFilterMenuAnchor] = useState<HTMLElement | null>(null);
+  const [filterSearch, setFilterSearch] = useState("");
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(
     null,
   );
@@ -79,6 +95,10 @@ export function MasterTable({
     {},
   );
   const hasRowActions = canView || canEdit;
+  const displayColumns = useMemo(
+    () => getMasterDisplayColumns(columns),
+    [columns],
+  );
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) =>
@@ -87,7 +107,9 @@ export function MasterTable({
           return true;
         }
 
-        return formatMasterValue(row[key]) === value;
+        return formatMasterValue(row[key])
+          .toLowerCase()
+          .includes(value.trim().toLowerCase());
       }),
     );
   }, [columnFilters, rows]);
@@ -150,40 +172,31 @@ export function MasterTable({
     event: MouseEvent<HTMLButtonElement>,
   ) => {
     setActiveFilterColumn(columnKey);
+    setFilterSearch(columnFilters[columnKey] ?? "");
     setFilterMenuAnchor(event.currentTarget);
   };
 
-  const handleApplyFilter = (value: string | null) => {
+  const handleFilterSearchChange = (value: string) => {
     if (!activeFilterColumn) {
       return;
     }
 
+    setFilterSearch(value);
     setColumnFilters((current) => {
       const next = { ...current };
+      const normalizedValue = value.trim();
 
-      if (!value) {
+      if (!normalizedValue) {
         delete next[activeFilterColumn];
       } else {
-        next[activeFilterColumn] = value;
+        next[activeFilterColumn] = normalizedValue;
       }
 
       return next;
     });
 
     setPage(1);
-    setFilterMenuAnchor(null);
-    setActiveFilterColumn(null);
   };
-
-  const filterOptions = activeFilterColumn
-    ? Array.from(
-        new Set(
-          rows
-            .map((row) => formatMasterValue(row[activeFilterColumn]))
-            .filter(Boolean),
-        ),
-      )
-    : [];
 
   const handleOpenActionMenu = (
     rowId: string,
@@ -247,7 +260,7 @@ export function MasterTable({
           >
             <TableHead>
               <TableRow>
-                {columns.map((column) => {
+                {displayColumns.map((column) => {
                   const isSorted = sortConfig?.key === column.key;
                   const isFiltered = Boolean(columnFilters[column.key]);
 
@@ -339,7 +352,7 @@ export function MasterTable({
                     },
                   })}
                 >
-                  {columns.map((column) => (
+                  {displayColumns.map((column) => (
                     <TableCell key={column.key} sx={bodyCellSx}>
                       {renderMasterTableCell(
                         row,
@@ -403,7 +416,7 @@ export function MasterTable({
             gap: theme.spacing(2),
             flexWrap: "wrap",
             px: theme.spacing(2),
-            py: theme.spacing(1.5),
+            py: theme.spacing(1),
             borderTop: `1px solid ${theme.customTokens.borders.default}`,
           })}
         >
@@ -417,54 +430,17 @@ export function MasterTable({
               width: "100%",
             })}
           >
-            <Stack direction="row" spacing={1} useFlexGap>
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={safePage === 1}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                sx={paginationButtonSx}
-              >
-                Previous
-              </Button>
-
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                (pageNumber) => (
-                  <Button
-                    key={pageNumber}
-                    size="small"
-                    variant={pageNumber === safePage ? "contained" : "outlined"}
-                    onClick={() => setPage(pageNumber)}
-                    sx={pageNumberButtonSx(pageNumber === safePage)}
-                  >
-                    {pageNumber}
-                  </Button>
-                ),
-              )}
-
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={safePage === totalPages}
-                onClick={() =>
-                  setPage((current) => Math.min(current + 1, totalPages))
-                }
-                sx={paginationButtonSx}
-              >
-                Next
-              </Button>
-            </Stack>
-
             <Box
               sx={(theme) => ({
                 display: "flex",
                 alignItems: "center",
-                gap: theme.spacing(1.25),
+                gap: theme.spacing(0.75),
                 flexWrap: "wrap",
                 justifyContent: "flex-end",
+                ml: "auto",
               })}
             >
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary">
                 Rows per page
               </Typography>
 
@@ -476,8 +452,15 @@ export function MasterTable({
                   setPage(1);
                 }}
                 sx={(theme) => ({
-                  minWidth: 88,
+                  minWidth: 68,
+                  height: 30,
                   borderRadius: `${theme.customTokens.radius.md}px`,
+                  "& .MuiSelect-select": {
+                    py: theme.spacing(0.5),
+                    pr: `${theme.spacing(3)} !important`,
+                    pl: theme.spacing(1),
+                    fontSize: theme.typography.caption.fontSize,
+                  },
                   "& .MuiOutlinedInput-notchedOutline": {
                     borderColor: theme.customTokens.borders.default,
                   },
@@ -490,7 +473,7 @@ export function MasterTable({
                 ))}
               </Select>
 
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary">
                 Go To Page
               </Typography>
 
@@ -503,9 +486,17 @@ export function MasterTable({
                     setPage(clampPage(goToPage, totalPages));
                   }
                 }}
-                sx={{
-                  width: 76,
-                }}
+                sx={(theme) => ({
+                  width: 58,
+                  "& .MuiOutlinedInput-root": {
+                    height: 30,
+                    borderRadius: `${theme.customTokens.radius.md}px`,
+                    fontSize: theme.typography.caption.fontSize,
+                  },
+                  "& .MuiInputBase-input": {
+                    py: theme.spacing(0.5),
+                  },
+                })}
               />
 
               <Button
@@ -516,6 +507,51 @@ export function MasterTable({
               >
                 Go
               </Button>
+
+              <Stack
+                direction="row"
+                spacing={0.5}
+                sx={(theme) => ({ ml: theme.spacing(1) })}
+                useFlexGap
+              >
+                <Button
+                  aria-label="Previous page"
+                  size="small"
+                  variant="outlined"
+                  disabled={safePage === 1}
+                  onClick={() => setPage((current) => Math.max(current - 1, 1))}
+                  sx={paginationIconButtonSx}
+                >
+                  <ChevronLeft size={13} />
+                </Button>
+
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                  (pageNumber) => (
+                    <Button
+                      key={pageNumber}
+                      size="small"
+                      variant={pageNumber === safePage ? "contained" : "outlined"}
+                      onClick={() => setPage(pageNumber)}
+                      sx={pageNumberButtonSx(pageNumber === safePage)}
+                    >
+                      {pageNumber}
+                    </Button>
+                  ),
+                )}
+
+                <Button
+                  aria-label="Next page"
+                  size="small"
+                  variant="outlined"
+                  disabled={safePage === totalPages}
+                  onClick={() =>
+                    setPage((current) => Math.min(current + 1, totalPages))
+                  }
+                  sx={paginationIconButtonSx}
+                >
+                  <ChevronRight size={13} />
+                </Button>
+              </Stack>
             </Box>
           </Box>
         </Box>
@@ -568,6 +604,7 @@ export function MasterTable({
         anchorEl={filterMenuAnchor}
         open={Boolean(filterMenuAnchor && activeFilterColumn)}
         onClose={() => {
+          setFilterSearch("");
           setFilterMenuAnchor(null);
           setActiveFilterColumn(null);
         }}
@@ -578,24 +615,63 @@ export function MasterTable({
             borderRadius: `${theme.customTokens.radius.md}px`,
             boxShadow: "none",
             mt: 1,
+            width: 240,
           },
         }}
       >
-        <MenuItem onClick={() => handleApplyFilter(null)}>All Values</MenuItem>
-
-        {filterOptions.map((option) => (
-          <MenuItem
-            key={option}
-            selected={
-              activeFilterColumn
-                ? columnFilters[activeFilterColumn] === option
-                : false
-            }
-            onClick={() => handleApplyFilter(option)}
-          >
-            {option}
-          </MenuItem>
-        ))}
+        <Box
+          sx={{
+            px: theme.spacing(1),
+            py: theme.spacing(0.75),
+          }}
+        >
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            value={filterSearch}
+            onChange={(event) => handleFilterSearchChange(event.target.value)}
+            onClick={(event) => event.stopPropagation()}
+            slotProps={{
+              input: {
+                endAdornment: filterSearch ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="Clear filter search"
+                      edge="end"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleFilterSearchChange("");
+                      }}
+                      onMouseDown={(event) => event.preventDefault()}
+                      size="small"
+                      sx={{
+                        color: theme.customTokens.text.secondary,
+                        p: theme.spacing(0.25),
+                        "&:hover": {
+                          backgroundColor:
+                            theme.customTokens.navigation.hoverBackground,
+                          color: theme.palette.primary.main,
+                        },
+                      }}
+                    >
+                      <X size={12} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              },
+            }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: `${theme.customTokens.radius.md}px`,
+                fontSize: theme.typography.body2.fontSize,
+              },
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: theme.customTokens.borders.default,
+              },
+            }}
+          />
+        </Box>
       </Menu>
     </>
   );
@@ -659,9 +735,9 @@ const headerIconButtonSx = {
 };
 
 const paginationButtonSx = (theme: Theme) => ({
-  minHeight: 32,
-  minWidth: 42,
-  px: theme.spacing(1.5),
+  minHeight: 28,
+  minWidth: 32,
+  px: theme.spacing(1),
   borderRadius: `${theme.customTokens.radius.md}px`,
   borderColor: theme.customTokens.borders.default,
   color: theme.customTokens.navigation.activeText,
@@ -682,6 +758,25 @@ const paginationButtonSx = (theme: Theme) => ({
   },
 });
 
+const paginationIconButtonSx = (theme: Theme) => ({
+  ...paginationButtonSx(theme),
+  width: 28,
+  minWidth: 28,
+  height: 28,
+  p: 0,
+  color: theme.customTokens.text.primary,
+  "& svg": {
+    color: theme.customTokens.text.primary,
+    strokeWidth: 2.25,
+  },
+  "&:hover": {
+    borderColor: theme.customTokens.text.primary,
+    backgroundColor: theme.customTokens.navigation.hoverBackground,
+    color: theme.customTokens.text.primary,
+    boxShadow: "none",
+  },
+});
+
 const actionMenuItemSx = {
   color: "text.primary",
   "&:hover": {
@@ -692,9 +787,13 @@ const actionMenuItemSx = {
 
 function pageNumberButtonSx(active: boolean) {
   return (theme: Theme) => ({
-    minHeight: 32,
-    minWidth: 40,
+    minHeight: 28,
+    minWidth: 28,
+    px: theme.spacing(0.75),
     borderRadius: `${theme.customTokens.radius.md}px`,
+    fontSize: theme.typography.caption.fontSize,
+    fontWeight: 700,
+    lineHeight: 1,
     color: active
       ? theme.customTokens.text.inverse
       : theme.customTokens.navigation.activeText,
@@ -743,13 +842,21 @@ function getStatusToggleState(
 
 function renderMasterTableCell(
   row: MasterRecord,
-  column: MasterColumn,
+  column: MasterDisplayColumn,
   statusOverrides: Record<string, boolean>,
   setStatusOverrides: Dispatch<SetStateAction<Record<string, boolean>>>,
   onStatusChange: MasterTableProps["onStatusChange"],
   theme: Theme,
   canChangeStatus: boolean,
 ) {
+  if (column.audit) {
+    return renderAuditCell(
+      row[column.audit.nameKey ?? column.key],
+      row[column.audit.dateKey ?? column.key],
+      theme,
+    );
+  }
+
   const toggleState = getStatusToggleState(column, row[column.key]);
 
   if (toggleState === null) {
@@ -779,6 +886,176 @@ function renderMasterTableCell(
       }}
     />
   );
+}
+
+function getMasterDisplayColumns(columns: readonly MasterColumn[]) {
+  const createdNameKey = findAuditColumnKey(columns, auditColumnKeys.createdName);
+  const createdDateKey = findAuditColumnKey(columns, auditColumnKeys.createdDate);
+  const updatedNameKey = findAuditColumnKey(columns, auditColumnKeys.updatedName);
+  const updatedDateKey = findAuditColumnKey(columns, auditColumnKeys.updatedDate);
+  const hasCreatedAudit = Boolean(createdNameKey || createdDateKey);
+  const hasUpdatedAudit = Boolean(updatedNameKey || updatedDateKey);
+  let createdAdded = false;
+  let updatedAdded = false;
+  const displayColumns: MasterDisplayColumn[] = [];
+
+  columns.forEach((column) => {
+    if (isSerialNumberColumn(column)) {
+      return;
+    }
+
+    const auditType = getAuditColumnType(column.key);
+
+    if (!auditType) {
+      displayColumns.push(column);
+      return;
+    }
+
+    if (auditType === "created") {
+      if (!createdAdded && hasCreatedAudit) {
+        createdAdded = true;
+        displayColumns.push({
+          key: createdDateKey ?? createdNameKey ?? column.key,
+          label: "Created",
+          audit: {
+            ...(createdDateKey ? { dateKey: createdDateKey } : {}),
+            ...(createdNameKey ? { nameKey: createdNameKey } : {}),
+            type: "created",
+          },
+        });
+      }
+
+      return;
+    }
+
+    if (!updatedAdded && hasUpdatedAudit) {
+      updatedAdded = true;
+      displayColumns.push({
+        key: updatedDateKey ?? updatedNameKey ?? column.key,
+        label: "Updated",
+        audit: {
+          ...(updatedDateKey ? { dateKey: updatedDateKey } : {}),
+          ...(updatedNameKey ? { nameKey: updatedNameKey } : {}),
+          type: "updated",
+        },
+      });
+    }
+  });
+
+  return displayColumns;
+}
+
+function isSerialNumberColumn(column: MasterColumn) {
+  const normalizedLabel = normalizeColumnIdentifier(column.label);
+  const normalizedKey = normalizeColumnIdentifier(column.key);
+
+  return (
+    normalizedLabel === "srno" ||
+    normalizedLabel === "sno" ||
+    normalizedLabel === "serialno" ||
+    normalizedKey === "srno" ||
+    normalizedKey === "sno" ||
+    normalizedKey === "serialno"
+  );
+}
+
+function normalizeColumnIdentifier(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+const auditColumnKeys = {
+  createdDate: new Set(["createdDate", "createdAt", "createdEditedDate", "createdEditedAt"]),
+  createdName: new Set(["createdBy", "createdEditedBy"]),
+  updatedDate: new Set(["updatedDate", "updatedAt"]),
+  updatedName: new Set(["updatedBy", "editedBy"]),
+};
+
+function getAuditColumnType(key: string): AuditColumnType | null {
+  if (
+    auditColumnKeys.createdName.has(key) ||
+    auditColumnKeys.createdDate.has(key)
+  ) {
+    return "created";
+  }
+
+  if (
+    auditColumnKeys.updatedName.has(key) ||
+    auditColumnKeys.updatedDate.has(key)
+  ) {
+    return "updated";
+  }
+
+  return null;
+}
+
+function findAuditColumnKey(columns: readonly MasterColumn[], keys: Set<string>) {
+  return columns.find((column) => keys.has(column.key))?.key;
+}
+
+function renderAuditCell(
+  nameValue: MasterRecord[string],
+  dateValue: MasterRecord[string],
+  theme: Theme,
+) {
+  const name = formatMasterValue(nameValue) || "-";
+  const date = formatMasterValue(dateValue) || "-";
+  const initials = getAuditInitials(name);
+
+  return (
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <Avatar
+        sx={{
+          width: 28,
+          height: 28,
+          bgcolor: theme.customTokens.brand.primary,
+          color: theme.customTokens.text.inverse,
+          fontSize: theme.typography.caption.fontSize,
+          fontWeight: 700,
+        }}
+      >
+        {initials}
+      </Avatar>
+
+      <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: theme.customTokens.text.primary,
+            fontWeight: 600,
+            lineHeight: 1.25,
+          }}
+        >
+          {name}
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            color: theme.customTokens.text.secondary,
+            lineHeight: 1.2,
+          }}
+        >
+          {date}
+        </Typography>
+      </Stack>
+    </Stack>
+  );
+}
+
+function getAuditInitials(name: string) {
+  const parts = name
+    .replace("-", "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "?";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 function clampPage(value: string, totalPages: number) {

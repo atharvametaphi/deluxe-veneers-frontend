@@ -711,7 +711,6 @@ function InventoryItemDetailsInput({
     <TextField
       fullWidth
       multiline={field.type === "textarea"}
-      placeholder={field.placeholder ?? `Enter ${field.label}`}
       size="small"
       value={fieldValue}
       onChange={(event) => onChange(event.target.value)}

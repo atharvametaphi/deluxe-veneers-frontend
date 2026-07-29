@@ -105,7 +105,6 @@ const initialRows: LineItem[] = [
 ] as const;
 
 const columnMeta = [
-  { key: "srNo", label: "Sr No.", minWidth: 72 },
   { key: "supplierItemName", label: "Supplier Item Name", minWidth: 180 },
   { key: "supplierLogNo", label: "Supplier Log No.", minWidth: 160 },
   { key: "itemSubCategory", label: "Item Sub Category", minWidth: 180 },
@@ -277,7 +276,7 @@ export function DynamicFormTableShowcase() {
                 stickyHeader
                 size="small"
                 sx={{
-                  minWidth: 1780,
+                  minWidth: 1708,
                   tableLayout: "auto",
                 }}
               >
@@ -322,19 +321,12 @@ export function DynamicFormTableShowcase() {
                         },
                       })}
                     >
-                      <TableCell sx={{ whiteSpace: "nowrap" }}>
-                        <Typography variant="body2" color="text.primary">
-                          {index + 1}
-                        </Typography>
-                      </TableCell>
-
                       <TableCell>
                         <ErpSelectField
                           onChange={(nextValue) =>
                             updateRow(row.id, "supplierItemName", nextValue)
                           }
                           options={supplierItemOptions}
-                          placeholder="Select supplier item"
                           value={row.supplierItemName}
                         />
                       </TableCell>
@@ -357,7 +349,6 @@ export function DynamicFormTableShowcase() {
                             updateRow(row.id, "itemSubCategory", nextValue)
                           }
                           options={itemSubCategoryOptions}
-                          placeholder="Select sub category"
                           value={row.itemSubCategory}
                         />
                       </TableCell>
@@ -368,7 +359,6 @@ export function DynamicFormTableShowcase() {
                             updateRow(row.id, "itemName", nextValue)
                           }
                           options={itemNameOptions}
-                          placeholder="Select item name"
                           value={row.itemName}
                         />
                       </TableCell>
@@ -379,7 +369,6 @@ export function DynamicFormTableShowcase() {
                             updateRow(row.id, "timberColor", nextValue)
                           }
                           options={timberColorOptions}
-                          placeholder="Select timber color"
                           value={row.timberColor}
                         />
                       </TableCell>
@@ -402,7 +391,6 @@ export function DynamicFormTableShowcase() {
                             updateRow(row.id, "logFormula", nextValue)
                           }
                           options={logFormulaOptions}
-                          placeholder="Select formula"
                           value={row.logFormula}
                         />
                       </TableCell>

@@ -34,9 +34,9 @@ export function ErpToggleSwitch({
           position: "relative",
           display: "inline-flex",
           alignItems: "center",
-          width: 42,
-          minWidth: 42,
-          height: 26,
+          width: 36,
+          minWidth: 36,
+          height: 20,
           borderRadius: "999px",
           overflow: "hidden",
           backgroundColor: checked
@@ -60,13 +60,14 @@ export function ErpToggleSwitch({
       <Box
         sx={{
           position: "absolute",
-          top: 2,
-          left: checked ? 18 : 2,
-          width: 22,
-          height: 22,
+          top: "50%",
+          left: 2,
+          width: 16,
+          height: 16,
           borderRadius: "50%",
           backgroundColor: theme.customTokens.surfaces.surface,
-          transition: "left 180ms ease",
+          transform: checked ? "translate(16px, -50%)" : "translate(0, -50%)",
+          transition: "transform 180ms ease",
           boxShadow: "none",
         }}
       />

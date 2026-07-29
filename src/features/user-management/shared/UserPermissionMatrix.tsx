@@ -133,12 +133,8 @@ export function UserPermissionMatrix({
                     inputProps={{
                       "aria-label": `Select all ${section.label} ${action} permissions`,
                     }}
-                    onChange={(event) =>
-                      toggleSectionActionPermissions(
-                        section,
-                        action,
-                        event.target.checked,
-                      )
+                    onChange={() =>
+                      toggleSectionActionPermissions(section, action)
                     }
                     sx={{
                       color: theme.customTokens.borders.strong,
@@ -238,8 +234,11 @@ export function UserPermissionMatrix({
   function toggleSectionActionPermissions(
     section: PermissionSection,
     action: UserPermissionAction,
-    checked: boolean,
   ) {
+    const checked =
+      !isSectionActionFullySelected(section, action) &&
+      !isSectionActionPartlySelected(section, action);
+
     section.items.forEach((item) => {
       onToggle(item.key, action, checked);
     });

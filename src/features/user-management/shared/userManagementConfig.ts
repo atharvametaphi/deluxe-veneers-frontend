@@ -87,25 +87,16 @@ export interface UserManagementDetail extends UserManagementSeedRow {
 
 export const userManagementColumns: readonly EnterpriseTableColumn<UserManagementRecord>[] =
   [
+    { key: "userName", label: "User Name" },
     { key: "firstName", label: "First Name" },
     { key: "lastName", label: "Last Name" },
-    { key: "userName", label: "User Name" },
-    { key: "department", label: "Department" },
-    { key: "statusLabel", label: "Status" },
     { key: "email", label: "Email" },
-    { key: "phoneNo", label: "Phone No" },
-    { key: "dateOfBirth", label: "Date Of Birth" },
-    { key: "age", label: "Age" },
-    { key: "bloodGroup", label: "Blood Group" },
-    { key: "address", label: "Address" },
-    { key: "city", label: "City" },
-    { key: "pincode", label: "Pincode" },
-    { key: "state", label: "State" },
-    { key: "country", label: "Country" },
+    { key: "phoneNo", label: "Phone Number" },
     { key: "remarks", label: "Remarks" },
+    { key: "statusLabel", label: "Status" },
     { key: "createdBy", label: "Created By" },
-    { key: "updatedBy", label: "Updated By" },
     { key: "createdDate", label: "Created At" },
+    { key: "updatedBy", label: "Updated By" },
     { key: "updatedDate", label: "Updated At" },
   ];
 
@@ -125,38 +116,16 @@ export const userTypeOptions = [
   "Executive",
 ] as const;
 
-export const countryOptions = ["India"] as const;
-
-export const stateOptions = [
-  "Gujarat",
-  "Maharashtra",
-  "Rajasthan",
-  "Delhi",
-  "Karnataka",
-  "West Bengal",
-] as const;
-
-export const cityOptions = [
-  "Ahmedabad",
-  "Surat",
-  "Mumbai",
-  "Pune",
-  "Jaipur",
-  "New Delhi",
-  "Bengaluru",
-  "Kolkata",
-] as const;
-
 export const genderOptions = ["Male", "Female", "Other"] as const;
 
 export const bloodGroupOptions = [
   "A+",
-  "A-",
   "B+",
-  "B-",
   "AB+",
-  "AB-",
   "O+",
+  "A-",
+  "B-",
+  "AB-",
   "O-",
 ] as const;
 
@@ -173,20 +142,20 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
     id: "masters",
     label: "Masters",
     items: [
-      { key: "colorMaster", label: "Color Master" },
-      { key: "currencyMaster", label: "Currency Master" },
-      { key: "cutMaster", label: "Cut Master" },
-      { key: "customerMaster", label: "Customer Master" },
-      { key: "departmentMaster", label: "Department Master" },
-      { key: "gradeMaster", label: "Grade Master" },
-      { key: "gstMaster", label: "GST Master" },
-      { key: "hsnMaster", label: "HSN Master" },
-      { key: "itemCategoryMaster", label: "Category" },
-      { key: "itemMaster", label: "Item Name Master" },
-      { key: "itemSubCategoryMaster", label: "Sub Category" },
-      { key: "supplierMaster", label: "Supplier Master" },
-      { key: "transporterMaster", label: "Transporter Master" },
-      { key: "unitMaster", label: "Unit Master" },
+      { key: "colorMaster", label: "Color" },
+      { key: "currencyMaster", label: "Currency" },
+      { key: "customerMaster", label: "Customer" },
+      { key: "cutMaster", label: "Cut" },
+      { key: "departmentMaster", label: "Department" },
+      { key: "gradeMaster", label: "Grade" },
+      { key: "gstMaster", label: "GST" },
+      { key: "hsnMaster", label: "HSN" },
+      { key: "itemCategoryMaster", label: "Item Category" },
+      { key: "itemMaster", label: "Item Name" },
+      { key: "itemSubCategoryMaster", label: "Item Sub Category" },
+      { key: "supplierMaster", label: "Supplier" },
+      { key: "transporterMaster", label: "Transporter" },
+      { key: "unitMaster", label: "Unit" },
       { key: "warehouseLocationMaster", label: "Warehouse / Location" },
     ],
   },
@@ -590,6 +559,12 @@ export const userManagementRows: UserManagementRecord[] = userManagementDetails.
 
 export const userManagementFormFields: readonly MasterFieldDefinition[] = [
   {
+    key: "userName",
+    label: "User Name",
+    type: "text",
+    placeholder: "Enter User Name",
+  },
+  {
     key: "firstName",
     label: "First Name",
     type: "text",
@@ -600,12 +575,6 @@ export const userManagementFormFields: readonly MasterFieldDefinition[] = [
     label: "Last Name",
     type: "text",
     placeholder: "Enter Last Name",
-  },
-  {
-    key: "userName",
-    label: "User Name",
-    type: "text",
-    placeholder: "Enter User Name",
   },
   {
     key: "department",
@@ -641,8 +610,9 @@ export const userManagementFormFields: readonly MasterFieldDefinition[] = [
   {
     key: "bloodGroup",
     label: "Blood Group",
-    type: "text",
-    placeholder: "Enter Blood Group",
+    type: "select",
+    options: [...bloodGroupOptions],
+    placeholder: "Select Blood Group",
   },
   {
     key: "address",
@@ -657,22 +627,22 @@ export const userManagementFormFields: readonly MasterFieldDefinition[] = [
     placeholder: "Enter Pincode",
   },
   {
-    key: "city",
-    label: "City",
-    type: "text",
-    placeholder: "Enter City",
+    key: "country",
+    label: "Country",
+    type: "select",
+    placeholder: "Select Country",
   },
   {
     key: "state",
     label: "State",
-    type: "text",
-    placeholder: "Enter State",
+    type: "select",
+    placeholder: "Select State",
   },
   {
-    key: "country",
-    label: "Country",
-    type: "text",
-    placeholder: "Enter Country",
+    key: "city",
+    label: "City",
+    type: "select",
+    placeholder: "Select City",
   },
   {
     key: "remarks",

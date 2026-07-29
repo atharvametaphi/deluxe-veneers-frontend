@@ -1,8 +1,7 @@
-import { Box, Stack, TextField, Typography, useTheme } from "@mui/material";
-import { Search } from "lucide-react";
+import { Box, Stack, Typography } from "@mui/material";
 
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
-import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
+import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import type { MasterFilterDefinition } from "./types";
 
 interface MasterFiltersBarProps {
@@ -20,8 +19,6 @@ export function MasterFiltersBar({
   onSearchChange,
   searchValue,
 }: MasterFiltersBarProps) {
-  const theme = useTheme();
-
   return (
     <Stack
       sx={(theme) => ({
@@ -48,23 +45,10 @@ export function MasterFiltersBar({
             Search
           </Typography>
 
-          <TextField
-            fullWidth
-            placeholder="Search records"
+          <ClearableSearchField
             value={searchValue}
-            onChange={(event) => onSearchChange(event.target.value)}
-            sx={getCompactFieldSx(theme)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <Search
-                    color={theme.customTokens.text.secondary}
-                    size={16}
-                    style={{ marginRight: 10 }}
-                  />
-                ),
-              },
-            }}
+            onChange={onSearchChange}
+            sx={{ width: "100%" }}
           />
         </Stack>
 
@@ -82,7 +66,6 @@ export function MasterFiltersBar({
             <ErpSelectField
               onChange={(value) => onFilterChange(filter.key, value)}
               options={filter.options}
-              placeholder={`All ${filter.label}`}
               value={filterValues[filter.key] ?? ""}
             />
           </Stack>

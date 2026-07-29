@@ -264,7 +264,6 @@ export function LoginPage() {
               <TextField
                 autoComplete="username"
                 label="Email Address"
-                placeholder="Enter email address"
                 value={email}
                 onChange={(event) => {
                   setEmail(event.target.value);
@@ -278,7 +277,6 @@ export function LoginPage() {
               <TextField
                 autoComplete="current-password"
                 label="Password"
-                placeholder="Enter password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(event) => {
@@ -409,7 +407,6 @@ export function LoginPage() {
 
             <TextField
               label="Email Address"
-              placeholder="Enter email address"
               value={forgotPasswordEmail}
               onChange={(event) => {
                 setForgotPasswordEmail(event.target.value);
@@ -435,7 +432,6 @@ export function LoginPage() {
             {forgotPasswordStep !== "email" ? (
               <TextField
                 label="OTP"
-                placeholder="Enter OTP"
                 value={forgotPasswordOtp}
                 onChange={(event) => {
                   setForgotPasswordOtp(event.target.value);
@@ -543,7 +539,6 @@ export function LoginPage() {
 
             <TextField
               label="New Password"
-              placeholder="Enter new password"
               type="password"
               value={forgotPasswordNewPassword}
               onChange={(event) => {
@@ -560,7 +555,6 @@ export function LoginPage() {
 
             <TextField
               label="Confirm New Password"
-              placeholder="Confirm new password"
               type="password"
               value={forgotPasswordConfirmPassword}
               onChange={(event) => {

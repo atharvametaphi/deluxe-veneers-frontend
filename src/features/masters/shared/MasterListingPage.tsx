@@ -2,15 +2,14 @@ import { useMemo, useState } from "react";
 import {
   Alert,
   Button,
-  InputAdornment,
   Stack,
-  TextField,
   useTheme,
 } from "@mui/material";
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Link as RouterLink } from "react-router";
 
 import { getListingToolbarButtonSx } from "../../shared/buttonStyles";
+import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import {
   canAccessAnyAction,
   canAccessPermission,
@@ -18,9 +17,9 @@ import {
 } from "../../permissions";
 import { MasterPageShell } from "./MasterPageShell";
 import { MasterTable } from "./MasterTable";
+import { buildLocalMasterDefinition } from "./localMasterStore";
 import type { MasterDefinition } from "./types";
 import { formatMasterValue, getMasterPaths } from "./utils";
-import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 
 interface MasterListingPageProps {
   definition: MasterDefinition;
@@ -28,8 +27,12 @@ interface MasterListingPageProps {
 
 export function MasterListingPage({ definition }: MasterListingPageProps) {
   const theme = useTheme();
-  const paths = getMasterPaths(definition.slug);
-  const permissionKey = getMasterPermissionKey(definition.slug);
+  const localDefinition = useMemo(
+    () => buildLocalMasterDefinition(definition),
+    [definition],
+  );
+  const paths = getMasterPaths(localDefinition.slug);
+  const permissionKey = getMasterPermissionKey(localDefinition.slug);
   const canCreate = canAccessPermission(permissionKey, "create");
   const canEdit = canAccessPermission(permissionKey, "edit");
   const canView = canAccessPermission(permissionKey, "view");
@@ -37,7 +40,7 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
   const [searchValue, setSearchValue] = useState("");
 
   const filteredRows = useMemo(() => {
-    return definition.rows.filter((row) => {
+    return localDefinition.rows.filter((row) => {
       const matchesSearch =
         searchValue.trim().length === 0 ||
         Object.values(row).some((value) =>
@@ -48,17 +51,17 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
 
       return matchesSearch;
     });
-  }, [definition.rows, searchValue]);
+  }, [localDefinition.rows, searchValue]);
 
-  const addButtonLabel = `Add ${definition.title.replace(/ Master$/, "")}`;
+  const addButtonLabel = `Add ${localDefinition.title.replace(/ Master$/, "")}`;
 
   return (
     <MasterPageShell
       breadcrumbs={[
         { label: "Masters", to: "/masters" },
-        { label: definition.title },
+        { label: localDefinition.title },
       ]}
-      title={definition.title}
+      title={localDefinition.title}
     >
       {!canOpenPage ? (
         <Alert severity="warning">
@@ -72,28 +75,12 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
         justifyContent="space-between"
         spacing={2}
       >
-        <TextField
-          placeholder="Search"
+        <ClearableSearchField
           value={searchValue}
-          onChange={(event) => setSearchValue(event.target.value)}
-          sx={[
-            getCompactFieldSx(theme),
-            {
-              width: { xs: "100%", md: 320 },
-              maxWidth: "100%",
-            },
-          ]}
-          slotProps={{
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Search
-                    color={theme.customTokens.text.secondary}
-                    size={16}
-                  />
-                </InputAdornment>
-              ),
-            },
+          onChange={setSearchValue}
+          sx={{
+            width: { xs: "100%", md: 320 },
+            maxWidth: "100%",
           }}
         />
 
@@ -122,7 +109,7 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
           canChangeStatus={canEdit}
           canEdit={canEdit}
           canView={canView}
-          columns={definition.columns}
+          columns={localDefinition.columns}
           getEditPath={paths.edit}
           getViewPath={paths.view}
           rows={canView ? filteredRows : []}

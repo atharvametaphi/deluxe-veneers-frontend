@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
@@ -14,6 +15,11 @@ import {
 import { MasterFormFields, hasFormFieldErrors } from "./MasterFormFields";
 import { MasterPageShell } from "./MasterPageShell";
 import { MasterSectionCard } from "./MasterSectionCard";
+import {
+  buildLocalMasterDefinition,
+  createLocalMasterRecord,
+  updateLocalMasterRecord,
+} from "./localMasterStore";
 import type {
   MasterDefinition,
   MasterFieldDefinition,
@@ -27,6 +33,7 @@ import {
 } from "./utils";
 
 interface MasterFormPageProps {
+  afterFields?: ReactNode;
   definition: MasterDefinition;
   mode: "add" | "edit" | "view";
   onSave?: (context: {
@@ -68,14 +75,19 @@ function getMasterFormDefinitionForMode(
 }
 
 export function MasterFormPage({
+  afterFields,
   definition,
   mode,
   onSave,
 }: MasterFormPageProps) {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
-  const paths = getMasterPaths(definition.slug);
-  const permissionKey = getMasterPermissionKey(definition.slug);
+  const localDefinition = useMemo(
+    () => buildLocalMasterDefinition(definition),
+    [definition],
+  );
+  const paths = getMasterPaths(localDefinition.slug);
+  const permissionKey = getMasterPermissionKey(localDefinition.slug);
   const canCreate = canAccessPermission(permissionKey, "create");
   const canEdit = canAccessPermission(permissionKey, "edit");
   const canView = canAccessPermission(permissionKey, "view");
@@ -87,27 +99,27 @@ export function MasterFormPage({
   const row =
     mode === "add"
       ? undefined
-      : definition.rows.find((record) => record.id === params.id);
+      : localDefinition.rows.find((record) => record.id === params.id);
 
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildMasterInitialValues(definition, row),
+    buildMasterInitialValues(localDefinition, row),
   );
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const formDefinition = getMasterFormDefinitionForMode(definition, mode);
+  const formDefinition = getMasterFormDefinitionForMode(localDefinition, mode);
 
   useEffect(() => {
-    setValues(buildMasterInitialValues(definition, row));
-  }, [definition, row]);
+    setValues(buildMasterInitialValues(localDefinition, row));
+  }, [localDefinition, row]);
 
   if ((mode === "edit" || mode === "view") && !row) {
     return (
       <MasterPageShell
         breadcrumbs={[
           { label: "Masters", to: "/masters" },
-          { label: definition.title, to: paths.list },
+          { label: localDefinition.title, to: paths.list },
           { label: "Not Found" },
         ]}
-        title={definition.title}
+        title={localDefinition.title}
       >
         <MasterSectionCard>
           <Typography variant="body2" color="text.secondary">
@@ -123,10 +135,10 @@ export function MasterFormPage({
       <MasterPageShell
         breadcrumbs={[
           { label: "Masters", to: "/masters" },
-          { label: definition.title, to: paths.list },
+          { label: localDefinition.title, to: paths.list },
           { label: mode === "add" ? "Add" : mode === "edit" ? "Edit" : "View" },
         ]}
-        title={getMasterPageTitle(definition, mode)}
+        title={getMasterPageTitle(localDefinition, mode)}
       >
         <Alert severity="warning">
           You do not have permission to {mode} this master record.
@@ -148,18 +160,24 @@ export function MasterFormPage({
 
     const saveContext = row
       ? {
-          definition,
+          definition: localDefinition,
           mode,
           row,
           values,
         }
       : {
-          definition,
+          definition: localDefinition,
           mode,
           values,
         };
 
-    onSave?.(saveContext);
+    if (onSave) {
+      onSave(saveContext);
+    } else if (row) {
+      updateLocalMasterRecord(localDefinition, row, values);
+    } else {
+      createLocalMasterRecord(localDefinition, values);
+    }
 
     navigate(paths.list);
   };
@@ -200,10 +218,10 @@ export function MasterFormPage({
     <MasterPageShell
       breadcrumbs={[
         { label: "Masters", to: "/masters" },
-        { label: definition.title, to: paths.list },
+        { label: localDefinition.title, to: paths.list },
         { label: mode === "add" ? "Add" : mode === "edit" ? "Edit" : "View" },
       ]}
-      title={getMasterPageTitle(definition, mode)}
+      title={getMasterPageTitle(localDefinition, mode)}
     >
       <MasterSectionCard>
         <Stack
@@ -218,6 +236,8 @@ export function MasterFormPage({
             showRequiredErrors={mode !== "view" && hasSubmitted}
             values={values}
           />
+
+          {afterFields}
 
           <Box
             sx={(theme) => ({

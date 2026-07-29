@@ -3,18 +3,16 @@ import {
   Alert,
   Button,
   IconButton,
-  InputAdornment,
   Stack,
-  TextField,
   useTheme,
 } from "@mui/material";
-import { Search, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router";
 
 import { EnterpriseDataTable } from "../../../components/data-display/EnterpriseDataTable";
-import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
+import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import {
   fetchRolePermissionRows,
   getRolePermissionSearchValues,
@@ -109,25 +107,12 @@ export function RolesPermissionsPage() {
         alignItems={{ xs: "stretch", md: "center" }}
         spacing={2}
       >
-        <TextField
-          placeholder="Search"
+        <ClearableSearchField
           value={searchValue}
-          onChange={(event) => setSearchValue(event.target.value)}
-          sx={[
-            getCompactFieldSx(theme),
-            {
-              width: { xs: "100%", md: 320 },
-              maxWidth: "100%",
-            },
-          ]}
-          slotProps={{
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Search size={16} />
-                </InputAdornment>
-              ),
-            },
+          onChange={setSearchValue}
+          sx={{
+            width: { xs: "100%", md: 320 },
+            maxWidth: "100%",
           }}
         />
 

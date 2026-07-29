@@ -6,12 +6,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  InputAdornment,
   Stack,
   TextField,
   useTheme,
 } from "@mui/material";
-import { Eye, KeyRound, Pencil, Search } from "lucide-react";
+import { Eye, KeyRound, Pencil } from "lucide-react";
 import { Link as RouterLink, useNavigate } from "react-router";
 
 import {
@@ -26,6 +25,7 @@ import {
   listingToolbarButtonSx,
   recordFormActionButtonSx,
 } from "../../shared/buttonStyles";
+import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import {
   getUserManagementPaths,
   getUserManagementSearchValues,
@@ -231,25 +231,12 @@ export function UserManagementListing() {
         alignItems={{ xs: "stretch", md: "center" }}
         spacing={2}
       >
-        <TextField
-          placeholder="Search"
+        <ClearableSearchField
           value={searchValue}
-          onChange={(event) => setSearchValue(event.target.value)}
-          sx={[
-            getCompactFieldSx(theme),
-            {
-              width: { xs: "100%", md: 320 },
-              maxWidth: "100%",
-            },
-          ]}
-          slotProps={{
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Search size={16} />
-                </InputAdornment>
-              ),
-            },
+          onChange={setSearchValue}
+          sx={{
+            width: { xs: "100%", md: 320 },
+            maxWidth: "100%",
           }}
         />
 
@@ -329,7 +316,6 @@ export function UserManagementListing() {
             <TextField
               autoFocus
               label="New Password"
-              placeholder="Enter New Password"
               type="password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
@@ -338,7 +324,6 @@ export function UserManagementListing() {
 
             <TextField
               label="Confirm Password"
-              placeholder="Confirm New Password"
               type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}

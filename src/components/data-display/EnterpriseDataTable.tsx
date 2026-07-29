@@ -5,19 +5,22 @@ import {
   ArrowDownWideNarrow,
   ArrowUpDown,
   ArrowUpWideNarrow,
-  ChevronsLeft,
-  ChevronsRight,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   ListFilter,
   MoreHorizontal,
   Pencil,
+  X,
 } from "lucide-react";
 import {
   Box,
+  Avatar,
   Button,
   Chip,
   Checkbox,
   IconButton,
+  InputAdornment,
   Menu,
   MenuItem,
   Select,
@@ -63,6 +66,18 @@ export interface EnterpriseTableColumn<
   key: keyof Row & string;
   label: string;
 }
+
+type AuditColumnType = "created" | "updated";
+
+type EnterpriseDisplayTableColumn<
+  Row extends EnterpriseTableRow = EnterpriseTableRow,
+> = EnterpriseTableColumn<Row> & {
+  audit?: {
+    dateKey?: keyof Row & string;
+    nameKey?: keyof Row & string;
+    type: AuditColumnType;
+  };
+};
 
 export interface EnterpriseTableAction<
   Row extends EnterpriseTableRow = EnterpriseTableRow,
@@ -125,6 +140,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   const [filterMenuAnchor, setFilterMenuAnchor] = useState<HTMLElement | null>(
     null,
   );
+  const [filterSearch, setFilterSearch] = useState("");
   const [activeFilterColumn, setActiveFilterColumn] = useState<
     (keyof Row & string) | null
   >(null);
@@ -140,6 +156,11 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
 
   const usesActionMenu = actions.length > 0 || Boolean(getRowActions);
   const hasActions = usesActionMenu || Boolean(renderActionCell);
+  const displayColumns = useMemo(
+    () => getEnterpriseDisplayColumns(columns),
+    [columns],
+  );
+
   useEffect(() => {
     setSortConfig(initialSort);
   }, [initialSort]);
@@ -151,7 +172,9 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
           return true;
         }
 
-        return formatEnterpriseValue(row[key]) === value;
+        return formatEnterpriseValue(row[key])
+          .toLowerCase()
+          .includes(value.trim().toLowerCase());
       }),
     );
   }, [filters, rows]);
@@ -249,29 +272,30 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     event: MouseEvent<HTMLButtonElement>,
   ) => {
     setActiveFilterColumn(columnKey);
+    setFilterSearch(filters[columnKey] ?? "");
     setFilterMenuAnchor(event.currentTarget);
   };
 
-  const handleApplyFilter = (value: string | null) => {
+  const handleFilterSearchChange = (value: string) => {
     if (!activeFilterColumn) {
       return;
     }
 
+    setFilterSearch(value);
     setFilters((current) => {
       const nextFilters = { ...current };
+      const normalizedValue = value.trim();
 
-      if (!value) {
+      if (!normalizedValue) {
         delete nextFilters[activeFilterColumn];
       } else {
-        nextFilters[activeFilterColumn] = value;
+        nextFilters[activeFilterColumn] = normalizedValue;
       }
 
       return nextFilters;
     });
 
     setPage(1);
-    setFilterMenuAnchor(null);
-    setActiveFilterColumn(null);
   };
 
   const handleToggleRowSelection = (rowId: string) => {
@@ -295,16 +319,6 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
       return Array.from(new Set([...current, ...currentPageIds]));
     });
   };
-
-  const filterOptions = activeFilterColumn
-    ? Array.from(
-        new Set(
-          rows
-            .map((row) => formatEnterpriseValue(row[activeFilterColumn]))
-            .filter(Boolean),
-        ),
-      )
-    : [];
 
   const handleOpenActionMenu = (
     rowId: string,
@@ -388,7 +402,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                   </TableCell>
                 ) : null}
 
-                {columns.map((column) => {
+                {displayColumns.map((column) => {
                   const isSorted = sortConfig?.key === column.key;
                   const isFiltered = Boolean(filters[column.key]);
 
@@ -458,7 +472,9 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                 <TableRow>
                   <TableCell
                     colSpan={
-                      columns.length + (selectable ? 1 : 0) + (hasActions ? 1 : 0)
+                      displayColumns.length +
+                      (selectable ? 1 : 0) +
+                      (hasActions ? 1 : 0)
                     }
                     sx={emptyStateCellSx(theme)}
                   >
@@ -506,7 +522,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                       </TableCell>
                     ) : null}
 
-                    {columns.map((column) => (
+                    {displayColumns.map((column) => (
                       <TableCell key={column.key} sx={bodyCellSx(theme)}>
                         {renderEnterpriseTableCell(
                           row,
@@ -574,7 +590,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
             flexWrap: "wrap",
             borderTop: `1px solid ${theme.customTokens.borders.default}`,
             px: { xs: theme.spacing(1.5), md: theme.spacing(2) },
-            py: theme.spacing(1.5),
+            py: theme.spacing(1),
             backgroundColor: theme.customTokens.surfaces.surface,
           }}
         >
@@ -589,74 +605,17 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
               minWidth: 0,
             }}
           >
-            <Stack direction="row" spacing={1} useFlexGap>
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={safePage === 1}
-                onClick={() => setPage(1)}
-                sx={paginationButtonSx(theme)}
-              >
-                <ChevronsLeft size={14} />
-              </Button>
-
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={safePage === 1}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                sx={paginationButtonSx(theme)}
-              >
-                Previous
-              </Button>
-
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                (pageNumber) => (
-                  <Button
-                    key={pageNumber}
-                    size="small"
-                    variant={pageNumber === safePage ? "contained" : "outlined"}
-                    onClick={() => setPage(pageNumber)}
-                    sx={pageNumberButtonSx(theme, pageNumber === safePage)}
-                  >
-                    {pageNumber}
-                  </Button>
-                ),
-              )}
-
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={safePage === totalPages}
-                onClick={() =>
-                  setPage((current) => Math.min(current + 1, totalPages))
-                }
-                sx={paginationButtonSx(theme)}
-              >
-                Next
-              </Button>
-
-              <Button
-                size="small"
-                variant="outlined"
-                disabled={safePage === totalPages}
-                onClick={() => setPage(totalPages)}
-                sx={paginationButtonSx(theme)}
-              >
-                <ChevronsRight size={14} />
-              </Button>
-            </Stack>
-
             <Box
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: theme.spacing(1.25),
+                gap: theme.spacing(0.75),
                 flexWrap: "wrap",
                 justifyContent: "flex-end",
+                ml: "auto",
               }}
             >
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary">
                 Rows per page
               </Typography>
 
@@ -668,8 +627,15 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                   setPage(1);
                 }}
                 sx={{
-                  minWidth: 88,
+                  minWidth: 68,
+                  height: 30,
                   borderRadius: `${theme.customTokens.radius.md}px`,
+                  "& .MuiSelect-select": {
+                    py: theme.spacing(0.5),
+                    pr: `${theme.spacing(3)} !important`,
+                    pl: theme.spacing(1),
+                    fontSize: theme.typography.caption.fontSize,
+                  },
                   "& .MuiOutlinedInput-notchedOutline": {
                     borderColor: theme.customTokens.borders.default,
                   },
@@ -682,7 +648,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                 ))}
               </Select>
 
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary">
                 Go To Page
               </Typography>
 
@@ -698,9 +664,14 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                   setPage(clampPage(goToPage, totalPages));
                 }}
                 sx={{
-                  width: 76,
+                  width: 58,
                   "& .MuiOutlinedInput-root": {
+                    height: 30,
                     borderRadius: `${theme.customTokens.radius.md}px`,
+                    fontSize: theme.typography.caption.fontSize,
+                  },
+                  "& .MuiInputBase-input": {
+                    py: theme.spacing(0.5),
                   },
                 }}
               />
@@ -713,6 +684,51 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
               >
                 Go
               </Button>
+
+              <Stack
+                direction="row"
+                spacing={0.5}
+                sx={{ ml: theme.spacing(1) }}
+                useFlexGap
+              >
+                <Button
+                  aria-label="Previous page"
+                  size="small"
+                  variant="outlined"
+                  disabled={safePage === 1}
+                  onClick={() => setPage((current) => Math.max(current - 1, 1))}
+                  sx={paginationIconButtonSx(theme)}
+                >
+                  <ChevronLeft size={13} />
+                </Button>
+
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                  (pageNumber) => (
+                    <Button
+                      key={pageNumber}
+                      size="small"
+                      variant={pageNumber === safePage ? "contained" : "outlined"}
+                      onClick={() => setPage(pageNumber)}
+                      sx={pageNumberButtonSx(theme, pageNumber === safePage)}
+                    >
+                      {pageNumber}
+                    </Button>
+                  ),
+                )}
+
+                <Button
+                  aria-label="Next page"
+                  size="small"
+                  variant="outlined"
+                  disabled={safePage === totalPages}
+                  onClick={() =>
+                    setPage((current) => Math.min(current + 1, totalPages))
+                  }
+                  sx={paginationIconButtonSx(theme)}
+                >
+                  <ChevronRight size={13} />
+                </Button>
+              </Stack>
             </Box>
           </Box>
         </Box>
@@ -766,6 +782,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
         anchorEl={filterMenuAnchor}
         open={Boolean(filterMenuAnchor && activeFilterColumn)}
         onClose={() => {
+          setFilterSearch("");
           setFilterMenuAnchor(null);
           setActiveFilterColumn(null);
         }}
@@ -776,24 +793,63 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
             borderRadius: `${theme.customTokens.radius.md}px`,
             boxShadow: "none",
             mt: 1,
+            width: 240,
           },
         }}
       >
-        <MenuItem onClick={() => handleApplyFilter(null)}>
-          All Values
-        </MenuItem>
-
-        {filterOptions.map((option) => (
-          <MenuItem
-            key={option}
-            selected={
-              activeFilterColumn ? filters[activeFilterColumn] === option : false
-            }
-            onClick={() => handleApplyFilter(option)}
-          >
-            {option}
-          </MenuItem>
-        ))}
+        <Box
+          sx={{
+            px: theme.spacing(1),
+            py: theme.spacing(0.75),
+          }}
+        >
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            value={filterSearch}
+            onChange={(event) => handleFilterSearchChange(event.target.value)}
+            onClick={(event) => event.stopPropagation()}
+            slotProps={{
+              input: {
+                endAdornment: filterSearch ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="Clear filter search"
+                      edge="end"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleFilterSearchChange("");
+                      }}
+                      onMouseDown={(event) => event.preventDefault()}
+                      size="small"
+                      sx={{
+                        color: theme.customTokens.text.secondary,
+                        p: theme.spacing(0.25),
+                        "&:hover": {
+                          backgroundColor:
+                            theme.customTokens.navigation.hoverBackground,
+                          color: theme.palette.primary.main,
+                        },
+                      }}
+                    >
+                      <X size={12} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              },
+            }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: `${theme.customTokens.radius.md}px`,
+                fontSize: theme.typography.body2.fontSize,
+              },
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: theme.customTokens.borders.default,
+              },
+            }}
+          />
+        </Box>
       </Menu>
     </>
   );
@@ -928,9 +984,9 @@ function paginationButtonSx(theme: Theme) {
   return {
     borderColor: theme.customTokens.borders.default,
     color: theme.customTokens.navigation.activeText,
-    minHeight: 32,
-    minWidth: 42,
-    px: theme.spacing(1.5),
+    minHeight: 28,
+    minWidth: 32,
+    px: theme.spacing(1),
     borderRadius: `${theme.customTokens.radius.md}px`,
     fontSize: theme.typography.caption.fontSize,
     fontWeight: 700,
@@ -950,14 +1006,39 @@ function paginationButtonSx(theme: Theme) {
   };
 }
 
+function paginationIconButtonSx(theme: Theme) {
+  return {
+    ...paginationButtonSx(theme),
+    width: 28,
+    minWidth: 28,
+    height: 28,
+    p: 0,
+    color: theme.customTokens.text.primary,
+    "& svg": {
+      color: theme.customTokens.text.primary,
+      strokeWidth: 2.25,
+    },
+    "&:hover": {
+      borderColor: theme.customTokens.text.primary,
+      backgroundColor: theme.customTokens.navigation.hoverBackground,
+      color: theme.customTokens.text.primary,
+      boxShadow: "none",
+    },
+  };
+}
+
 function pageNumberButtonSx(
   theme: Theme,
   active: boolean,
 ) {
   return {
-    minHeight: 32,
-    minWidth: 40,
+    minHeight: 28,
+    minWidth: 28,
+    px: theme.spacing(0.75),
     borderRadius: `${theme.customTokens.radius.md}px`,
+    fontSize: theme.typography.caption.fontSize,
+    fontWeight: 700,
+    lineHeight: 1,
     color: active
       ? theme.customTokens.text.inverse
       : theme.customTokens.navigation.activeText,
@@ -1006,13 +1087,21 @@ function getEnterpriseStatusToggleState<Row extends EnterpriseTableRow>(
 
 function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
   row: Row,
-  column: EnterpriseTableColumn<Row>,
+  column: EnterpriseDisplayTableColumn<Row>,
   statusOverrides: Record<string, boolean>,
   setStatusOverrides: Dispatch<SetStateAction<Record<string, boolean>>>,
   isStatusChangeDisabled: EnterpriseDataTableProps<Row>["isStatusChangeDisabled"],
   onStatusChange: EnterpriseDataTableProps<Row>["onStatusChange"],
   theme: Theme,
 ) {
+  if (column.audit) {
+    return renderAuditCell(
+      row[column.audit.nameKey ?? column.key],
+      row[column.audit.dateKey ?? column.key],
+      theme,
+    );
+  }
+
   if (column.key === "qcStatus") {
     return renderQcStatusChip(row[column.key], theme);
   }
@@ -1047,6 +1136,185 @@ function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
       }}
     />
   );
+}
+
+function getEnterpriseDisplayColumns<Row extends EnterpriseTableRow>(
+  columns: readonly EnterpriseTableColumn<Row>[],
+) {
+  const createdNameKey = findAuditColumnKey(columns, auditColumnKeys.createdName);
+  const createdDateKey = findAuditColumnKey(columns, auditColumnKeys.createdDate);
+  const updatedNameKey = findAuditColumnKey(columns, auditColumnKeys.updatedName);
+  const updatedDateKey = findAuditColumnKey(columns, auditColumnKeys.updatedDate);
+  const hasCreatedAudit = Boolean(createdNameKey || createdDateKey);
+  const hasUpdatedAudit = Boolean(updatedNameKey || updatedDateKey);
+  let createdAdded = false;
+  let updatedAdded = false;
+  const displayColumns: EnterpriseDisplayTableColumn<Row>[] = [];
+
+  columns.forEach((column) => {
+    if (isSerialNumberColumn(column)) {
+      return;
+    }
+
+    const auditType = getAuditColumnType(column.key);
+
+    if (!auditType) {
+      displayColumns.push(column);
+      return;
+    }
+
+    if (auditType === "created") {
+      if (!createdAdded && hasCreatedAudit) {
+        createdAdded = true;
+        displayColumns.push({
+          key: (createdDateKey ?? createdNameKey ?? column.key) as keyof Row &
+            string,
+          label: "Created",
+          audit: {
+            ...(createdDateKey ? { dateKey: createdDateKey } : {}),
+            ...(createdNameKey ? { nameKey: createdNameKey } : {}),
+            type: "created",
+          },
+        });
+      }
+
+      return;
+    }
+
+    if (!updatedAdded && hasUpdatedAudit) {
+      updatedAdded = true;
+      displayColumns.push({
+        key: (updatedDateKey ?? updatedNameKey ?? column.key) as keyof Row &
+          string,
+        label: "Updated",
+        audit: {
+          ...(updatedDateKey ? { dateKey: updatedDateKey } : {}),
+          ...(updatedNameKey ? { nameKey: updatedNameKey } : {}),
+          type: "updated",
+        },
+      });
+    }
+  });
+
+  return displayColumns;
+}
+
+function isSerialNumberColumn<Row extends EnterpriseTableRow>(
+  column: EnterpriseTableColumn<Row>,
+) {
+  const normalizedLabel = normalizeColumnIdentifier(column.label);
+  const normalizedKey = normalizeColumnIdentifier(column.key);
+
+  return (
+    normalizedLabel === "srno" ||
+    normalizedLabel === "sno" ||
+    normalizedLabel === "serialno" ||
+    normalizedKey === "srno" ||
+    normalizedKey === "sno" ||
+    normalizedKey === "serialno"
+  );
+}
+
+function normalizeColumnIdentifier(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+const auditColumnKeys = {
+  createdDate: new Set(["createdDate", "createdAt", "createdEditedDate", "createdEditedAt"]),
+  createdName: new Set(["createdBy", "createdEditedBy"]),
+  updatedDate: new Set(["updatedDate", "updatedAt"]),
+  updatedName: new Set(["updatedBy", "editedBy"]),
+};
+
+function getAuditColumnType(key: string): AuditColumnType | null {
+  if (
+    auditColumnKeys.createdName.has(key) ||
+    auditColumnKeys.createdDate.has(key)
+  ) {
+    return "created";
+  }
+
+  if (
+    auditColumnKeys.updatedName.has(key) ||
+    auditColumnKeys.updatedDate.has(key)
+  ) {
+    return "updated";
+  }
+
+  return null;
+}
+
+function findAuditColumnKey<Row extends EnterpriseTableRow>(
+  columns: readonly EnterpriseTableColumn<Row>[],
+  keys: Set<string>,
+) {
+  return columns.find((column) => keys.has(column.key))?.key;
+}
+
+function renderAuditCell(
+  nameValue: EnterpriseTableCellValue,
+  dateValue: EnterpriseTableCellValue,
+  theme: Theme,
+) {
+  const name = formatEnterpriseValue(nameValue) || "-";
+  const date = formatEnterpriseValue(dateValue) || "-";
+  const initials = getAuditInitials(name);
+
+  return (
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <Avatar
+        sx={{
+          width: 28,
+          height: 28,
+          bgcolor: theme.customTokens.brand.primary,
+          color: theme.customTokens.text.inverse,
+          fontSize: theme.typography.caption.fontSize,
+          fontWeight: 700,
+        }}
+      >
+        {initials}
+      </Avatar>
+
+      <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: theme.customTokens.text.primary,
+            fontWeight: 600,
+            lineHeight: 1.25,
+          }}
+        >
+          {name}
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            color: theme.customTokens.text.secondary,
+            lineHeight: 1.2,
+          }}
+        >
+          {date}
+        </Typography>
+      </Stack>
+    </Stack>
+  );
+}
+
+function getAuditInitials(name: string) {
+  const parts = name
+    .replace("-", "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "?";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 function renderQcStatusChip(value: EnterpriseTableCellValue, theme: Theme) {

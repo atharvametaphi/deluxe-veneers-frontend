@@ -1,6 +1,16 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { Box, IconButton, Menu, MenuItem, Popover, Stack, Typography, useTheme } from "@mui/material";
+import {
+  Box,
+  IconButton,
+  Menu,
+  MenuItem,
+  Popover,
+  Stack,
+  TextField,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import type { Theme } from "@mui/material/styles";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -17,14 +27,16 @@ type FieldSize = "regular" | "dense";
 
 type BaseFieldProps = {
   helperText?: string | undefined;
-  placeholder: string;
+  placeholder?: string | undefined;
   size?: FieldSize;
   state?: InteractiveFieldState;
 };
 
 export type ErpSelectFieldProps = BaseFieldProps & {
+  maxVisibleOptions?: number | undefined;
   onChange: (value: string) => void;
   options: ReadonlyArray<string>;
+  searchable?: boolean;
   value: string;
 };
 
@@ -34,6 +46,7 @@ export type ErpDatePickerFieldProps = BaseFieldProps & {
 };
 
 const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const defaultVisibleOptionLimit = 160;
 const monthLabels = Array.from({ length: 12 }, (_, monthIndex) =>
   new Intl.DateTimeFormat("en-US", { month: "short" }).format(
     new Date(2026, monthIndex, 1),
@@ -163,12 +176,10 @@ function getInteractiveFieldStyles(
 }
 
 function FieldValue({
-  placeholder,
   size,
   theme,
   value,
 }: {
-  placeholder: string;
   size: FieldSize;
   theme: Theme;
   value: string;
@@ -189,7 +200,7 @@ function FieldValue({
         textOverflow: "ellipsis",
       }}
     >
-      {hasValue ? value : placeholder}
+      {hasValue ? value : "\u00a0"}
     </Typography>
   );
 }
@@ -568,9 +579,11 @@ function CalendarSurface({
 
 export function ErpSelectField({
   helperText,
+  maxVisibleOptions = defaultVisibleOptionLimit,
   onChange,
   options,
-  placeholder,
+  placeholder: _placeholder,
+  searchable = false,
   size = "regular",
   state = "default",
   value,
@@ -578,9 +591,27 @@ export function ErpSelectField({
   const theme = useTheme();
   const metrics = getControlMetrics(theme, size);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [searchText, setSearchText] = useState("");
 
   const open = Boolean(anchorEl);
   const styles = getInteractiveFieldStyles(theme, state, open);
+  const shouldSearchOptions = searchable || options.length > 25;
+  const visibleOptions = useMemo(
+    () =>
+      getVisibleSelectOptions({
+        limit: maxVisibleOptions,
+        options,
+        query: searchText,
+        value,
+      }),
+    [maxVisibleOptions, options, searchText, value],
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setSearchText("");
+    }
+  }, [open]);
 
   return (
     <Stack
@@ -630,7 +661,6 @@ export function ErpSelectField({
       >
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <FieldValue
-            placeholder={placeholder}
             size={size}
             theme={theme}
             value={value}
@@ -664,6 +694,29 @@ export function ErpSelectField({
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
         slotProps={{
+          list: {
+            sx: {
+              maxHeight: theme.spacing(38),
+              overflowY: "auto",
+              py: 0,
+              scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
+              scrollbarWidth: "thin",
+              "&::-webkit-scrollbar": {
+                width: 6,
+              },
+              "&::-webkit-scrollbar-track": {
+                backgroundColor: theme.customTokens.surfaces.alt,
+                borderRadius: 999,
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: theme.customTokens.brand.primary,
+                borderRadius: 999,
+              },
+              "&::-webkit-scrollbar-thumb:hover": {
+                backgroundColor: theme.customTokens.brand.primaryScale[800],
+              },
+            },
+          },
           paper: {
             sx: {
               mt: theme.spacing(0.75),
@@ -678,7 +731,41 @@ export function ErpSelectField({
           },
         }}
       >
-        {options.map((option) => {
+        {shouldSearchOptions ? (
+          <Box
+            sx={{
+              backgroundColor: theme.customTokens.surfaces.surface,
+              p: theme.spacing(1),
+              position: "sticky",
+              top: 0,
+              zIndex: 1,
+            }}
+          >
+            <TextField
+              autoFocus
+              fullWidth
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              sx={{
+                "& .MuiInputBase-root": {
+                  borderRadius: `${theme.customTokens.radius.md}px`,
+                  height: theme.spacing(4),
+                },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: theme.customTokens.borders.default,
+                },
+                "& .MuiInputBase-input": {
+                  fontSize: theme.typography.caption.fontSize,
+                  py: 0,
+                },
+              }}
+            />
+          </Box>
+        ) : null}
+
+        {visibleOptions.map((option) => {
           const selected = option === value;
 
           return (
@@ -713,15 +800,54 @@ export function ErpSelectField({
             </MenuItem>
           );
         })}
+
+        {visibleOptions.length === 0 ? (
+          <MenuItem
+            disabled
+            sx={{
+              minHeight: metrics.menuItemHeight,
+              fontSize:
+                size === "dense"
+                  ? theme.typography.caption.fontSize
+                  : theme.typography.body2.fontSize,
+            }}
+          >
+            No options found
+          </MenuItem>
+        ) : null}
       </Menu>
     </Stack>
   );
 }
 
+function getVisibleSelectOptions({
+  limit,
+  options,
+  query,
+  value,
+}: {
+  limit: number;
+  options: ReadonlyArray<string>;
+  query: string;
+  value: string;
+}) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const source = normalizedQuery
+    ? options.filter((option) => option.toLowerCase().includes(normalizedQuery))
+    : options;
+  const visibleOptions = source.slice(0, limit);
+
+  if (value && options.includes(value) && !visibleOptions.includes(value)) {
+    return [value, ...visibleOptions.slice(0, Math.max(limit - 1, 0))];
+  }
+
+  return visibleOptions;
+}
+
 export function ErpDatePickerField({
   helperText,
   onChange,
-  placeholder,
+  placeholder: _placeholder,
   size = "regular",
   state = "default",
   value,
@@ -809,7 +935,6 @@ export function ErpDatePickerField({
       >
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <FieldValue
-            placeholder={placeholder}
             size={size}
             theme={theme}
             value={displayValue}

@@ -155,7 +155,6 @@ export function WarehouseAAddStockWorkspace({
           <InvoiceField label="Invoice Date*">
             <ErpDatePickerField
               onChange={(value) => handleInvoiceFieldChange("invoiceDate", value)}
-              placeholder="Select Invoice Date"
               value={invoiceDetailValues.invoiceDate}
             />
           </InvoiceField>
@@ -163,7 +162,6 @@ export function WarehouseAAddStockWorkspace({
           <InvoiceField label="Total Item Amount">
             <TextField
               fullWidth
-              placeholder="Enter Total Item Amount"
               value={effectiveTotalItemAmount}
               onChange={(event) =>
                 handleInvoiceFieldChange("totalItemAmount", event.target.value)
@@ -176,7 +174,6 @@ export function WarehouseAAddStockWorkspace({
             <ErpSelectField
               onChange={handleGstPercentageChange}
               options={gstMasterOptions}
-              placeholder="Select GST Percentage"
               value={invoiceDetailValues.gstPercentage}
             />
           </InvoiceField>
@@ -223,7 +220,6 @@ export function WarehouseAAddStockWorkspace({
           <InvoiceField label="Additional Charges">
             <TextField
               fullWidth
-              placeholder="Enter Additional Charges"
               value={invoiceDetailValues.additionalCharges}
               onChange={(event) =>
                 handleInvoiceFieldChange("additionalCharges", event.target.value)
@@ -265,7 +261,6 @@ export function WarehouseAAddStockWorkspace({
           <InvoiceField label="Remark">
             <TextField
               fullWidth
-              placeholder="Enter Remark"
               value={invoiceDetailValues.remark}
               onChange={(event) =>
                 handleInvoiceFieldChange("remark", event.target.value)

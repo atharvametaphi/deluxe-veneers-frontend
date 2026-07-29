@@ -339,10 +339,20 @@ export function buildWarehouseLocationMasterDefinition(): MasterDefinition {
   const mergedRows = [
     ...warehouseLocationMasterDefinition.rows,
     ...getLocalWarehouseRecords(),
-  ].map((row, index) => ({
-    ...row,
-    srNo: String(index + 1),
-  }));
+  ]
+    .slice()
+    .sort((left, right) => {
+      const leftTime =
+        left.createdDate instanceof Date ? left.createdDate.getTime() : 0;
+      const rightTime =
+        right.createdDate instanceof Date ? right.createdDate.getTime() : 0;
+
+      return rightTime - leftTime;
+    })
+    .map((row, index) => ({
+      ...row,
+      srNo: String(index + 1),
+    }));
 
   return {
     ...warehouseLocationMasterDefinition,
