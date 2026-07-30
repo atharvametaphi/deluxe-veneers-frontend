@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import {
   Box,
@@ -47,6 +54,10 @@ type DynamicLineItem = {
   id: string;
   values: Record<string, string>;
 };
+
+export interface WarehouseAAddStockLineItemsHandle {
+  validate: () => boolean;
+}
 
 const veneerItemOptions = [
   "Oak Veneer",
@@ -548,13 +559,16 @@ export function isWarehouseAAddStockSlug(
   return value in warehouseAAddStockTableConfigs;
 }
 
-export function WarehouseAAddStockLineItems({
+export const WarehouseAAddStockLineItems = forwardRef<
+  WarehouseAAddStockLineItemsHandle,
+  {
+    onAmountTotalChange?: (amount: number) => void;
+    slug: WarehouseAAddStockSlug;
+  }
+>(function WarehouseAAddStockLineItems({
   onAmountTotalChange,
   slug,
-}: {
-  onAmountTotalChange?: (amount: number) => void;
-  slug: WarehouseAAddStockSlug;
-}) {
+}, ref) {
   const theme = useTheme();
   const columnConfig = warehouseAAddStockTableConfigs[slug];
   const nextRowId = useRef(1);
@@ -562,16 +576,20 @@ export function WarehouseAAddStockLineItems({
     createEmptyValues(columnConfig),
   );
   const [lineItems, setLineItems] = useState<DynamicLineItem[]>([]);
+  const [draftSubmitAttempted, setDraftSubmitAttempted] = useState(false);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editingValues, setEditingValues] = useState<Record<string, string>>(
     () => createEmptyValues(columnConfig),
   );
+  const [editingSubmitAttempted, setEditingSubmitAttempted] = useState(false);
 
   useEffect(() => {
     nextRowId.current = 1;
     setDraftValues(createEmptyValues(columnConfig));
+    setDraftSubmitAttempted(false);
     setEditingRowId(null);
     setEditingValues(createEmptyValues(columnConfig));
+    setEditingSubmitAttempted(false);
     setLineItems([]);
   }, [columnConfig]);
 
@@ -592,6 +610,14 @@ export function WarehouseAAddStockLineItems({
 
   const handleAddLineItem = () => {
     if (allValuesEmpty(draftValues)) {
+      setDraftSubmitAttempted(true);
+      return;
+    }
+
+    const validationErrors = getLineItemValidationErrors(columnConfig, draftValues);
+
+    if (hasValidationErrors(validationErrors)) {
+      setDraftSubmitAttempted(true);
       return;
     }
 
@@ -606,6 +632,7 @@ export function WarehouseAAddStockLineItems({
       },
     ]);
     setDraftValues(createEmptyValues(columnConfig));
+    setDraftSubmitAttempted(false);
   };
 
   const handleDeleteLineItem = (rowId: string) => {
@@ -614,15 +641,27 @@ export function WarehouseAAddStockLineItems({
     if (editingRowId === rowId) {
       setEditingRowId(null);
       setEditingValues(createEmptyValues(columnConfig));
+      setEditingSubmitAttempted(false);
     }
   };
 
   const handleStartEdit = (row: DynamicLineItem) => {
     setEditingRowId(row.id);
     setEditingValues({ ...row.values });
+    setEditingSubmitAttempted(false);
   };
 
   const handleSaveEdit = (rowId: string) => {
+    const validationErrors = getLineItemValidationErrors(
+      columnConfig,
+      editingValues,
+    );
+
+    if (hasValidationErrors(validationErrors)) {
+      setEditingSubmitAttempted(true);
+      return;
+    }
+
     setLineItems((current) =>
       current.map((row) =>
         row.id === rowId
@@ -635,7 +674,35 @@ export function WarehouseAAddStockLineItems({
     );
     setEditingRowId(null);
     setEditingValues(createEmptyValues(columnConfig));
+    setEditingSubmitAttempted(false);
   };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      validate: () => {
+        const draftHasValues = !allValuesEmpty(draftValues);
+        const draftErrors = getLineItemValidationErrors(columnConfig, draftValues);
+        const editingErrors = getLineItemValidationErrors(
+          columnConfig,
+          editingValues,
+        );
+
+        if (lineItems.length === 0 || (draftHasValues && hasValidationErrors(draftErrors))) {
+          setDraftSubmitAttempted(true);
+          return false;
+        }
+
+        if (editingRowId && hasValidationErrors(editingErrors)) {
+          setEditingSubmitAttempted(true);
+          return false;
+        }
+
+        return true;
+      },
+    }),
+    [columnConfig, draftValues, editingRowId, editingValues, lineItems.length],
+  );
 
   return (
     <Stack
@@ -660,7 +727,10 @@ export function WarehouseAAddStockLineItems({
                     key={column.key}
                     sx={getHeaderCellSx(theme, column.minWidth)}
                   >
-                    {column.label}
+                    <ColumnLabel
+                      label={column.label}
+                      required={isDynamicColumnRequired(column)}
+                    />
                   </TableCell>
                 ))}
               </TableRow>
@@ -685,6 +755,9 @@ export function WarehouseAAddStockLineItems({
                         })),
                       theme,
                       value: draftValues[column.key] ?? "",
+                      errorText: draftSubmitAttempted
+                        ? getFieldValidationError(column, draftValues)
+                        : "",
                     })}
                   </TableCell>
                 ))}
@@ -732,7 +805,10 @@ export function WarehouseAAddStockLineItems({
                       key={column.key}
                       sx={getHeaderCellSx(theme, column.minWidth)}
                     >
-                      {column.label}
+                      <ColumnLabel
+                        label={column.label}
+                        required={isDynamicColumnRequired(column)}
+                      />
                     </TableCell>
                   ))}
 
@@ -767,6 +843,9 @@ export function WarehouseAAddStockLineItems({
                                   })),
                                 theme,
                                 value: editingValues[column.key] ?? "",
+                                errorText: editingSubmitAttempted
+                                  ? getFieldValidationError(column, editingValues)
+                                  : "",
                               })
                             : renderReadOnlyCell(
                                 row.values[column.key] ?? "",
@@ -815,7 +894,7 @@ export function WarehouseAAddStockLineItems({
       ) : null}
     </Stack>
   );
-}
+});
 
 function createEmptyValues(columns: readonly DynamicFieldConfig[]) {
   return columns.reduce<Record<string, string>>((accumulator, column) => {
@@ -826,6 +905,58 @@ function createEmptyValues(columns: readonly DynamicFieldConfig[]) {
 
 function allValuesEmpty(values: Record<string, string>) {
   return Object.values(values).every((value) => value.trim().length === 0);
+}
+
+function getLineItemValidationErrors(
+  columns: readonly DynamicFieldConfig[],
+  values: Record<string, string>,
+) {
+  return columns.reduce<Record<string, string>>((errors, column) => {
+    const error = getFieldValidationError(column, values);
+
+    if (error) {
+      errors[column.key] = error;
+    }
+
+    return errors;
+  }, {});
+}
+
+function hasValidationErrors(errors: Record<string, string>) {
+  return Object.keys(errors).length > 0;
+}
+
+function getFieldValidationError(
+  column: DynamicFieldConfig,
+  values: Record<string, string>,
+) {
+  if (
+    isDynamicColumnRequired(column) &&
+    (values[column.key] ?? "").trim().length === 0
+  ) {
+    return `${column.label} is required.`;
+  }
+
+  return "";
+}
+
+function isDynamicColumnRequired(column: DynamicFieldConfig) {
+  return !["remark", "remarks"].includes(column.key.toLowerCase());
+}
+
+function ColumnLabel({
+  label,
+  required,
+}: {
+  label: string;
+  required: boolean;
+}) {
+  return (
+    <Stack component="span" direction="row" spacing={0.25}>
+      <span>{label}</span>
+      {required ? <span>*</span> : null}
+    </Stack>
+  );
 }
 
 function parseAmountValue(value: string) {
@@ -936,11 +1067,13 @@ function getAddItemButtonSx(theme: Theme) {
 
 function renderEditableField({
   column,
+  errorText,
   onChange,
   theme,
   value,
 }: {
   column: DynamicFieldConfig;
+  errorText?: string;
   onChange: (value: string) => void;
   theme: Theme;
   value: string;
@@ -948,8 +1081,10 @@ function renderEditableField({
   if (column.type === "select") {
     return (
       <ErpSelectField
+        helperText={errorText}
         onChange={onChange}
         options={column.options ?? []}
+        state={errorText ? "error" : "default"}
         value={value}
       />
     );
@@ -957,11 +1092,13 @@ function renderEditableField({
 
   return (
     <TextField
+      error={Boolean(errorText)}
       fullWidth
+      helperText={errorText}
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      sx={getCompactFieldSx(theme)}
+      sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
     />
   );
 }

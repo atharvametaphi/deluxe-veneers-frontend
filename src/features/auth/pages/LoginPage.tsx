@@ -21,6 +21,7 @@ import deluxeLogo from "../../../assets/deluxe-veneers.png";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import {
   demoCredentials,
+  getDefaultAuthenticatedRoute,
   isAuthenticated,
   resetDemoPassword,
   signIn,
@@ -51,7 +52,7 @@ export function LoginPage() {
   const [forgotPasswordError, setForgotPasswordError] = useState("");
 
   if (authenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={getDefaultAuthenticatedRoute()} replace />;
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -61,7 +62,7 @@ export function LoginPage() {
 
     try {
       if (await signIn(email, password)) {
-        navigate("/dashboard", { replace: true });
+        navigate(getDefaultAuthenticatedRoute(), { replace: true });
         return;
       }
 

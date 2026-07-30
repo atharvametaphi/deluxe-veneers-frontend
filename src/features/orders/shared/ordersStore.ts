@@ -4,12 +4,20 @@ import type {
   EnterpriseTableColumn,
   EnterpriseTableRow,
 } from "../../../components/data-display/EnterpriseDataTable";
-import { itemSubCategoryMasterOptions } from "../../masters/shared/masterDefinitions";
-import type { MasterFieldDefinition } from "../../masters/shared";
+import { buildLocalMasterDefinition } from "../../masters/shared/localMasterStore";
+import {
+  customerMasterDefinition,
+  itemSubCategoryMasterOptions,
+} from "../../masters/shared/masterDefinitions";
+import type { MasterFieldDefinition, MasterRecord } from "../../masters/shared";
+
+const sqmToSqf = 10.7639;
 
 export interface OrderLineItem {
   id: string;
   productCategory: string;
+  finishedType: string;
+  salesItemName: string;
   itemName: string;
   subCategory: string;
   series: string;
@@ -21,7 +29,13 @@ export interface OrderLineItem {
   sqm: string;
   totalSqm: string;
   ratePerSqf: string;
+  baseType: string;
+  baseName: string;
+  baseLength: string;
+  baseWidth: string;
+  baseThickness: string;
   amount: string;
+  remark: string;
 }
 
 export interface OrderRecord extends EnterpriseTableRow {
@@ -29,6 +43,7 @@ export interface OrderRecord extends EnterpriseTableRow {
   orderDate: Date;
   customerName: string;
   orderType: string;
+  priority: string;
   productCategory: string;
   itemName: string;
   subCategory: string;
@@ -38,8 +53,10 @@ export interface OrderRecord extends EnterpriseTableRow {
   width: string;
   thickness: string;
   quantitySheets: string;
+  sqm: string;
   totalSqm: string;
   amount: string;
+  remark: string;
   deliveryDate: Date;
   salesCoordinator: string;
   createdBy: string;
@@ -60,6 +77,7 @@ export interface OrderDraft {
   orderDate?: Date;
   orderNo?: string;
   orderType?: string;
+  priority?: string;
   productCategory?: string;
   quantitySheets?: string;
   salesCoordinator?: string;
@@ -67,8 +85,10 @@ export interface OrderDraft {
   status?: string;
   subCategory?: string;
   thickness?: string;
+  sqm?: string;
   totalSqm?: string;
   width?: string;
+  remark?: string;
 }
 
 export type OrderCreateVariant =
@@ -76,12 +96,22 @@ export type OrderCreateVariant =
   | "marquetry"
   | "decorative"
   | "fluted"
-  | "embossed";
+  | "embossed"
+  | "finished";
 
-export const orderCreateOptions: readonly {
+export type OrderCreateOption = {
   label: string;
   value: OrderCreateVariant;
-}[] = [
+};
+
+export type OrderModuleConfig = {
+  basePath: string;
+  createOptions: readonly OrderCreateOption[];
+  permissionKey: string;
+  title: string;
+};
+
+export const ordersCreateOptions: readonly OrderCreateOption[] = [
   { label: "Raw Order", value: "raw" },
   { label: "Marquetry Order", value: "marquetry" },
   { label: "Decorative Order", value: "decorative" },
@@ -89,30 +119,52 @@ export const orderCreateOptions: readonly {
   { label: "Embossed Order", value: "embossed" },
 ];
 
+export const orderModuleCreateOptions: readonly OrderCreateOption[] = [
+  { label: "Raw Order", value: "raw" },
+  { label: "Finished Order", value: "finished" },
+];
+
+const allOrderCreateOptions = [
+  ...ordersCreateOptions,
+  ...orderModuleCreateOptions.filter(
+    (option) =>
+      !ordersCreateOptions.some((existing) => existing.value === option.value),
+  ),
+];
+
+export const orderCreateOptions = ordersCreateOptions;
+
+export const ordersModuleConfig: OrderModuleConfig = {
+  basePath: "/orders",
+  createOptions: ordersCreateOptions,
+  permissionKey: "placeOrder",
+  title: "Orders",
+};
+
+export const orderModuleConfig: OrderModuleConfig = {
+  basePath: "/order",
+  createOptions: orderModuleCreateOptions,
+  permissionKey: "placeOrder",
+  title: "Order",
+};
+
 export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] =
   [
     { key: "orderNo", label: "Order No" },
     { key: "orderDate", label: "Order Date" },
     { key: "customerName", label: "Customer Name" },
-    // { key: "orderType", label: "Order Type" },
-    { key: "productCategory", label: "Product Category" },
     { key: "itemName", label: "Item Name" },
-    { key: "subCategory", label: "Sub Category" },
-    { key: "series", label: "Series" },
-    { key: "grade", label: "Grade" },
+    { key: "quantitySheets", label: "No of Sheets" },
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
     { key: "thickness", label: "Thickness" },
-    { key: "quantitySheets", label: "Number of Sheets" },
+    { key: "sqm", label: "SQM" },
     { key: "totalSqm", label: "SQF" },
-    { key: "amount", label: "Amount" },
-    // { key: "deliveryDate", label: "Delivery Date" },
-    { key: "salesCoordinator", label: "Sales Coordinator" },
+    { key: "remark", label: "Remark" },
     { key: "createdBy", label: "Created By" },
-    { key: "updatedBy", label: "Updated By" },
     { key: "createdDate", label: "Created Date" },
+    { key: "updatedBy", label: "Updated By" },
     { key: "updatedDate", label: "Updated Date" },
-    { key: "status", label: "Status" },
   ];
 
 export const orderTypeOptions = orderCreateOptions.map((option) => option.label);
@@ -125,6 +177,7 @@ export const productCategoryOptions = [
 ] as const;
 
 export const subCategoryOptions = itemSubCategoryMasterOptions;
+export const priorityOptions = ["Standard", "Urgent"] as const;
 
 export const seriesOptions = [
   "DV-Architect",
@@ -151,72 +204,42 @@ const statusOptions = [
   "Cancelled",
 ] as const;
 
-export const orderFormFields: readonly MasterFieldDefinition[] = [
-  {
-    key: "orderNo",
-    label: "Order No",
-    type: "text",
-    placeholder: "Enter Order Number",
-  },
-  {
-    key: "orderDate",
-    label: "Order Date",
-    type: "date",
-    placeholder: "Select Order Date",
-  },
-  {
-    key: "customerName",
-    label: "Customer Name",
-    type: "text",
-    placeholder: "Enter Customer Name",
-  },
-  // {
-  //   key: "orderType",
-  //   // label: "Order Type",
-  //   type: "select",
-  //   options: [...orderTypeOptions],
-  //   placeholder: "Select Order Type",
-  // },
-  {
-    key: "productCategory",
-    label: "Product Category",
-    type: "select",
-    options: [...productCategoryOptions],
-    placeholder: "Select Product Category",
-  },
-  {
-    key: "itemName",
-    label: "Item Name",
-    type: "text",
-    placeholder: "Enter Item Name",
-  },
-  {
-    key: "subCategory",
-    label: "Sub Category",
-    type: "select",
-    options: [...subCategoryOptions],
-    placeholder: "Select Sub Category",
-  },
-  // {
-  //   key: "deliveryDate",
-  //   label: "Delivery Date",
-  //   type: "date",
-  //   placeholder: "Select Delivery Date",
-  // },
-  {
-    key: "salesCoordinator",
-    label: "Sales Coordinator",
-    type: "text",
-    placeholder: "Enter Sales Coordinator",
-  },
-];
+export const orderFormFields: readonly MasterFieldDefinition[] =
+  getOrderFormFields();
+
+export function getOrderFormFields(): readonly MasterFieldDefinition[] {
+  return [
+    {
+      key: "orderNo",
+      label: "Order No",
+      type: "text",
+    },
+    {
+      key: "orderDate",
+      label: "Order Date",
+      type: "date",
+    },
+    {
+      key: "customerName",
+      label: "Customer Name",
+      type: "select",
+      options: getOrderCustomerOptions(),
+    },
+    {
+      key: "priority",
+      label: "Priority",
+      type: "select",
+      options: [...priorityOptions],
+    },
+  ];
+}
 
 export function getCreateOrderFormFields(
   variant: OrderCreateVariant,
 ): readonly MasterFieldDefinition[] {
   const orderTypeLabel = getOrderVariantLabel(variant);
 
-  return orderFormFields.map((field) =>
+  return getOrderFormFields().map((field) =>
     field.key === "orderType"
       ? {
           ...field,
@@ -225,6 +248,23 @@ export function getCreateOrderFormFields(
           readOnly: true,
         }
       : field,
+  );
+}
+
+export function getOrderCustomerRows(): MasterRecord[] {
+  return buildLocalMasterDefinition(customerMasterDefinition).rows;
+}
+
+export function getOrderCustomerOptions() {
+  return Array.from(
+    new Set(
+      getOrderCustomerRows()
+        .filter(
+          (row) => String(row.status ?? "Active").toLowerCase() !== "inactive",
+        )
+        .map((row) => String(row.customerName ?? "").trim())
+        .filter(Boolean),
+    ),
   );
 }
 
@@ -254,7 +294,7 @@ export const orderViewFields: readonly MasterFieldDefinition[] = [
 
 export function getOrderVariantLabel(variant: OrderCreateVariant) {
   return (
-    orderCreateOptions.find((option) => option.value === variant)?.label ??
+    allOrderCreateOptions.find((option) => option.value === variant)?.label ??
     "Raw Order"
   );
 }
@@ -284,6 +324,10 @@ export function getOrderVariantFromType(
     return "embossed";
   }
 
+  if (normalizedType.includes("finished")) {
+    return "finished";
+  }
+
   if (normalizedType.includes("raw")) {
     return "raw";
   }
@@ -295,7 +339,8 @@ export function getOrderCreateVariant(
   value: string | null | undefined,
 ): OrderCreateVariant {
   return (
-    orderCreateOptions.find((option) => option.value === value)?.value ?? "raw"
+    allOrderCreateOptions.find((option) => option.value === value)?.value ??
+    "raw"
   );
 }
 
@@ -337,7 +382,8 @@ export function createOrderRecord(order: Partial<OrderDraft>) {
       ),
       orderDate: order.orderDate instanceof Date ? order.orderDate : timestamp,
       customerName: normalizeString(order.customerName, "New Customer"),
-      orderType: normalizeString(order.orderType, "Domestic Project"),
+      orderType: normalizeString(order.orderType, "Raw Order"),
+      priority: normalizeString(order.priority, "Standard"),
       productCategory: normalizeString(order.productCategory, "Raw Veneer"),
       itemName: normalizeString(order.itemName, "Oak Veneer Panel"),
       subCategory: normalizeString(order.subCategory, "Quarter Cut"),
@@ -347,8 +393,10 @@ export function createOrderRecord(order: Partial<OrderDraft>) {
       width: normalizeString(order.width, "1220 mm"),
       thickness: normalizeString(order.thickness, "0.60 mm"),
       quantitySheets: normalizeString(order.quantitySheets, "24"),
+      sqm: normalizeString(order.sqm, "7.280"),
       totalSqm: normalizeString(order.totalSqm, "78.400"),
       amount: normalizeOrderCurrency(order.amount, 185000 + recordCount * 2500),
+      remark: normalizeString(order.remark, ""),
       deliveryDate:
         order.deliveryDate instanceof Date
           ? order.deliveryDate
@@ -422,12 +470,12 @@ export function cancelOrderRecord(recordId: string) {
   emitOrdersChange();
 }
 
-export function getOrdersPaths() {
+export function getOrdersPaths(basePath = "/orders") {
   return {
-    list: "/orders",
-    add: "/orders/add",
-    edit: (id: string) => `/orders/edit/${id}`,
-    view: (id: string) => `/orders/view/${id}`,
+    list: basePath,
+    add: `${basePath}/add`,
+    edit: (id: string) => `${basePath}/edit/${id}`,
+    view: (id: string) => `${basePath}/view/${id}`,
   };
 }
 
@@ -463,22 +511,36 @@ function normalizeLineItems(
     return [];
   }
 
-  return lineItems.map((item, index) => ({
-    id: item.id || `order-line-item-${index + 1}`,
-    productCategory: normalizeString(item.productCategory, ""),
-    itemName: normalizeString(item.itemName, "Oak Veneer Panel"),
-    subCategory: normalizeString(item.subCategory, "Quarter Cut"),
-    series: normalizeString(item.series, "DV-Prime"),
-    grade: normalizeString(item.grade, "A"),
-    length: normalizeString(item.length, "2440 mm"),
-    width: normalizeString(item.width, "1220 mm"),
-    thickness: normalizeString(item.thickness, "0.60 mm"),
-    quantitySheets: normalizeString(item.quantitySheets, "24"),
-    sqm: normalizeString(item.sqm, "7.280"),
-    totalSqm: normalizeString(item.totalSqm, "78.400"),
-    ratePerSqf: normalizeString(item.ratePerSqf, "2,360.00"),
-    amount: normalizeOrderCurrency(item.amount, 185000),
-  }));
+  return lineItems.map((item, index) => {
+    const sqm = normalizeString(item.sqm, "7.280");
+    const totalSqf = formatSqfFromSqm(sqm, item.totalSqm);
+    const ratePerSqf = normalizeString(item.ratePerSqf, "2,360.00");
+
+    return {
+      id: item.id || `order-line-item-${index + 1}`,
+      productCategory: normalizeString(item.productCategory, ""),
+      finishedType: normalizeString(item.finishedType, ""),
+      salesItemName: normalizeString(item.salesItemName, ""),
+      itemName: normalizeString(item.itemName, "Oak Veneer Panel"),
+      subCategory: normalizeString(item.subCategory, "Quarter Cut"),
+      series: normalizeString(item.series, "DV-Prime"),
+      grade: normalizeString(item.grade, "A"),
+      length: normalizeString(item.length, "2440 mm"),
+      width: normalizeString(item.width, "1220 mm"),
+      thickness: normalizeString(item.thickness, "0.60 mm"),
+      quantitySheets: normalizeString(item.quantitySheets, "24"),
+      sqm,
+      totalSqm: totalSqf,
+      ratePerSqf,
+      baseType: normalizeString(item.baseType, ""),
+      baseName: normalizeString(item.baseName, ""),
+      baseLength: normalizeString(item.baseLength, ""),
+      baseWidth: normalizeString(item.baseWidth, ""),
+      baseThickness: normalizeString(item.baseThickness, ""),
+      amount: calculateAmountFromSqf(totalSqf, ratePerSqf, item.amount),
+      remark: normalizeString(item.remark, ""),
+    };
+  });
 }
 
 function applyOrderLineItemSummary(
@@ -496,6 +558,10 @@ function applyOrderLineItemSummary(
   );
   const totalSqm = lineItems.reduce(
     (sum, item) => sum + parseNumberValue(item.totalSqm),
+    0,
+  );
+  const totalOrderSqm = lineItems.reduce(
+    (sum, item) => sum + parseNumberValue(item.sqm),
     0,
   );
   const totalAmount = lineItems.reduce(
@@ -517,6 +583,13 @@ function applyOrderLineItemSummary(
       totalQuantitySheets > 0
         ? String(totalQuantitySheets)
         : firstItem.quantitySheets,
+    sqm:
+      totalOrderSqm > 0
+        ? totalOrderSqm.toLocaleString("en-US", {
+            minimumFractionDigits: 3,
+            maximumFractionDigits: 3,
+          })
+        : firstItem.sqm,
     totalSqm:
       totalSqm > 0
         ? totalSqm.toLocaleString("en-US", {
@@ -524,6 +597,7 @@ function applyOrderLineItemSummary(
             maximumFractionDigits: 3,
           })
         : firstItem.totalSqm,
+    remark: firstItem.remark,
     amount:
       totalAmount > 0
         ? normalizeOrderCurrency(String(totalAmount), totalAmount)
@@ -570,6 +644,38 @@ function parseNumberValue(value: string | undefined) {
   return Number.isNaN(numericValue) ? 0 : numericValue;
 }
 
+function formatAreaValue(value: number) {
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
+}
+
+function formatSqfFromSqm(sqm: string, fallbackSqf?: string) {
+  const sqmValue = parseNumberValue(sqm);
+
+  if (sqmValue > 0) {
+    return formatAreaValue(sqmValue * sqmToSqf);
+  }
+
+  return normalizeString(fallbackSqf, "");
+}
+
+function calculateAmountFromSqf(
+  sqf: string,
+  ratePerSqf: string,
+  fallbackAmount?: string,
+) {
+  const sqfValue = parseNumberValue(sqf);
+  const rateValue = parseNumberValue(ratePerSqf);
+
+  if (sqfValue > 0 && rateValue > 0) {
+    return formatCurrencyAmount(sqfValue * rateValue);
+  }
+
+  return normalizeOrderCurrency(fallbackAmount, 185000);
+}
+
 function createInitialOrderState() {
   const customerNames = [
     "Aster Interior Studio",
@@ -579,7 +685,7 @@ function createInitialOrderState() {
     "Royal Habitat",
     "Urban Craft Furnishings",
   ] as const;
-  const itemNames = [
+  const rawItemNames = [
     "Ash Crown Cut Panel",
     "Oak Veneer Panel",
     "Smoked Oak Veneer",
@@ -587,66 +693,118 @@ function createInitialOrderState() {
     "Walnut Decorative Sheet",
     "Walnut Feature Slab",
   ] as const;
+  const finishedItemNames = [
+    "Marquetry Walnut Panel",
+    "Fluted Oak Wall Panel",
+    "Embossed Teak Sheet",
+    "Decorative Ash Panel",
+    "Prelam MDF Walnut",
+    "Calibrated Board 18mm",
+  ] as const;
+  const seedRemarks = [
+    "Priority customer finish.",
+    "Match existing lot shade.",
+    "Pack for dispatch planning.",
+    "Confirm final surface before packing.",
+    "Use latest approved sample.",
+    "Hold for supervisor review.",
+  ] as const;
+  const finishedTypes = ["Marquetry", "Fluted", "Embossed", "Decorative"] as const;
+  const baseTypes = ["Plywood", "MDF"] as const;
   const coordinators = [...salesCoordinatorOptions];
   const records: OrderRecord[] = [];
   const lineItemsById = new Map<string, OrderLineItem[]>();
   const pickValue = <Value,>(values: readonly Value[], index: number) =>
     values[index % values.length]!;
 
-  Array.from({ length: 30 }, (_, index) => {
-    const recordNumber = index + 1;
-    const orderDate = new Date(2026, 5, 1 + (index % 25));
-    const deliveryDate = new Date(2026, 6, 4 + (index % 20));
-    const createdDate = new Date(2026, 5, 1 + (index % 25));
-    const updatedDate = new Date(2026, 5, 3 + (index % 25));
-    const salesCoordinator = pickValue(coordinators, index);
-    const quantitySheets = 18 + (index % 8) * 3;
-    const sqm = 7.28 + (index % 6) * 0.74;
-    const totalSqm = 52.4 + (index % 7) * 6.35;
-    const amount = 142500 + index * 6850;
-    const ratePerSqf = amount / totalSqm;
-    const productCategory = pickValue(productCategoryOptions, index);
-    const itemName = pickValue(itemNames, index);
-    const subCategory = pickValue(subCategoryOptions, index);
-    const series = pickValue(seriesOptions, index);
-    const grade = pickValue(gradeOptions, index);
-    const length = `${2400 + (index % 5) * 60} mm`;
-    const width = `${1200 + (index % 4) * 25} mm`;
-    const thickness = `${(0.5 + (index % 5) * 0.1).toFixed(2)} mm`;
-    const recordId = `order-${recordNumber}`;
-    const lineItem: OrderLineItem = {
-      id: `order-line-item-${recordNumber}-1`,
+  const createLineItem = ({
+    itemIndex,
+    recordNumber,
+    variant,
+  }: {
+    itemIndex: number;
+    recordNumber: number;
+    variant: "raw" | "finished";
+  }): OrderLineItem => {
+    const isFinished = variant === "finished";
+    const sequence = recordNumber * 3 + itemIndex;
+    const lengthMm = (isFinished ? 2100 : 2400) + (sequence % 7) * 85;
+    const widthMm = (isFinished ? 900 : 1200) + (sequence % 5) * 45;
+    const thickness = isFinished
+      ? 0.65 + (sequence % 6) * 0.15
+      : 0.55 + (sequence % 5) * 0.1;
+    const quantitySheets = (isFinished ? 10 : 18) + (sequence % 9) * 4;
+    const sqm = (lengthMm / 1000) * (widthMm / 1000) * quantitySheets;
+    const sqf = sqm * sqmToSqf;
+    const ratePerSqf = (isFinished ? 245 : 180) + (sequence % 8) * 17.5;
+    const amount = sqf * ratePerSqf;
+    const finishedType = pickValue(finishedTypes, sequence);
+    const itemName = pickValue(isFinished ? finishedItemNames : rawItemNames, sequence);
+    const productCategory = isFinished
+      ? "Finished Goods"
+      : pickValue(productCategoryOptions, sequence);
+    const baseType = pickValue(baseTypes, sequence);
+
+    return {
+      id: `order-line-item-${recordNumber}-${itemIndex + 1}`,
       productCategory,
+      finishedType: isFinished ? finishedType : "",
+      salesItemName: isFinished ? `${finishedType} ${itemName}` : "",
       itemName,
-      subCategory,
-      series,
-      grade,
-      length,
-      width,
-      thickness,
+      subCategory: pickValue(subCategoryOptions, sequence),
+      series: pickValue(seriesOptions, sequence),
+      grade: pickValue(gradeOptions, sequence),
+      length: `${lengthMm} mm`,
+      width: `${widthMm} mm`,
+      thickness: `${thickness.toFixed(2)} mm`,
       quantitySheets: String(quantitySheets),
-      sqm: sqm.toFixed(3),
-      totalSqm: totalSqm.toFixed(3),
+      sqm: formatAreaValue(sqm),
+      totalSqm: formatAreaValue(sqf),
       ratePerSqf: formatCurrencyAmount(ratePerSqf),
+      baseType: isFinished ? baseType : "",
+      baseName: isFinished ? `${baseType} Base ${String(sequence).padStart(2, "0")}` : "",
+      baseLength: isFinished ? `${lengthMm} mm` : "",
+      baseWidth: isFinished ? `${widthMm} mm` : "",
+      baseThickness: isFinished ? `${12 + (sequence % 5) * 3} mm` : "",
       amount: formatCurrencyAmount(amount),
+      remark: itemIndex === 0 ? pickValue(seedRemarks, sequence) : "",
     };
-    const record: OrderRecord = {
-      id: recordId,
-      orderNo: `ORD-DV-${String(2000 + recordNumber).padStart(4, "0")}`,
+  };
+
+  const createSeedOrder = (variant: "raw" | "finished", index: number) => {
+    const isFinished = variant === "finished";
+    const recordNumber = isFinished ? index + 31 : index + 1;
+    const orderDate = new Date(2026, isFinished ? 6 : 5, 1 + (index % 25));
+    const deliveryDate = new Date(2026, isFinished ? 7 : 6, 4 + (index % 20));
+    const createdDate = new Date(2026, isFinished ? 6 : 5, 1 + (index % 25));
+    const updatedDate = new Date(2026, isFinished ? 6 : 5, 3 + (index % 25));
+    const salesCoordinator = pickValue(coordinators, index);
+    const itemCount = index % 10 === 0 ? 3 : index % 4 === 0 ? 2 : 1;
+    const lineItems = Array.from({ length: itemCount }, (_, itemIndex) =>
+      createLineItem({ itemIndex, recordNumber, variant }),
+    );
+    const firstItem = lineItems[0]!;
+    const record = applyOrderLineItemSummary(
+      {
+        id: `order-${variant}-${index + 1}`,
+        orderNo: `ORD-${isFinished ? "FIN" : "RAW"}-${String(202600 + index + 1).padStart(6, "0")}`,
       orderDate,
       customerName: pickValue(customerNames, index),
-      orderType: pickValue(orderTypeOptions, index),
-      productCategory,
-      itemName,
-      subCategory,
-      series,
-      grade,
-      length,
-      width,
-      thickness,
-      quantitySheets: String(quantitySheets),
-      totalSqm: totalSqm.toFixed(3),
-      amount: formatCurrencyAmount(amount),
+        orderType: isFinished ? "Finished Order" : "Raw Order",
+        priority: index % 3 === 0 ? "Urgent" : "Standard",
+        productCategory: firstItem.productCategory,
+        itemName: firstItem.itemName,
+        subCategory: firstItem.subCategory,
+        series: firstItem.series,
+        grade: firstItem.grade,
+        length: firstItem.length,
+        width: firstItem.width,
+        thickness: firstItem.thickness,
+        quantitySheets: firstItem.quantitySheets,
+        sqm: firstItem.sqm,
+        totalSqm: firstItem.totalSqm,
+        amount: firstItem.amount,
+        remark: firstItem.remark,
       deliveryDate,
       salesCoordinator,
       createdBy: salesCoordinator,
@@ -654,11 +812,16 @@ function createInitialOrderState() {
       createdDate,
       updatedDate,
       status: pickValue(statusOptions, index),
-    };
+      },
+      lineItems,
+    );
 
     records.push(record);
-    lineItemsById.set(recordId, [lineItem]);
-  });
+    lineItemsById.set(record.id, lineItems);
+  };
+
+  Array.from({ length: 30 }, (_, index) => createSeedOrder("raw", index));
+  Array.from({ length: 30 }, (_, index) => createSeedOrder("finished", index));
 
   return { records, lineItemsById };
 }

@@ -25,7 +25,7 @@ import {
   type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
-import { recordFormActionButtonSx } from "../../shared/buttonStyles";
+import { listingToolbarButtonSx, recordFormActionButtonSx } from "../../shared/buttonStyles";
 import { FactoryPageShell } from "./FactoryPageShell";
 import { buildFactoryInitialValues, flattenFactorySections, getFactoryPaths } from "./factoryUtils";
 import type { FactoryDefinition, FactoryRecord } from "./types";
@@ -190,14 +190,27 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
     buildDefaultLineItemValues(lineItemFields, sourceRow),
   );
   const [lineItems, setLineItems] = useState<LineItemRecord[]>([]);
+  const [draftSubmitAttempted, setDraftSubmitAttempted] = useState(false);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [editingValues, setEditingValues] = useState<Record<string, string>>(() =>
     createEmptyLineItemValues(lineItemFields),
   );
+  const [editingSubmitAttempted, setEditingSubmitAttempted] = useState(false);
 
   const handleAddLineItem = () => {
     if (allValuesEmpty(draftValues)) {
+      setDraftSubmitAttempted(true);
+      return;
+    }
+
+    const validationErrors = getLineItemValidationErrors(
+      lineItemColumns,
+      draftValues,
+    );
+
+    if (hasValidationErrors(validationErrors)) {
+      setDraftSubmitAttempted(true);
       return;
     }
 
@@ -212,6 +225,7 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
       },
     ]);
     setDraftValues(buildDefaultLineItemValues(lineItemFields, sourceRow));
+    setDraftSubmitAttempted(false);
   };
 
   const handleDeleteLineItem = (rowId: string) => {
@@ -220,15 +234,27 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
     if (editingRowId === rowId) {
       setEditingRowId(null);
       setEditingValues(createEmptyLineItemValues(lineItemFields));
+      setEditingSubmitAttempted(false);
     }
   };
 
   const handleStartEdit = (row: LineItemRecord) => {
     setEditingRowId(row.id);
     setEditingValues({ ...row.values });
+    setEditingSubmitAttempted(false);
   };
 
   const handleSaveEdit = (rowId: string) => {
+    const validationErrors = getLineItemValidationErrors(
+      lineItemColumns,
+      editingValues,
+    );
+
+    if (hasValidationErrors(validationErrors)) {
+      setEditingSubmitAttempted(true);
+      return;
+    }
+
     setLineItems((current) =>
       current.map((row) =>
         row.id === rowId
@@ -241,6 +267,7 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
     );
     setEditingRowId(null);
     setEditingValues(createEmptyLineItemValues(lineItemFields));
+    setEditingSubmitAttempted(false);
   };
 
   return (
@@ -336,7 +363,10 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                         key={column.key}
                         sx={getHeaderCellSx(theme, column.minWidth)}
                       >
-                        {column.label}
+                        <ColumnLabel
+                          label={column.label}
+                          required={isLineItemColumnRequired(column)}
+                        />
                       </TableCell>
                     ))}
                   </TableRow>
@@ -353,6 +383,9 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                             ),
                           theme,
                           value: draftValues[column.key] ?? "",
+                          errorText: draftSubmitAttempted
+                            ? getFieldValidationError(column, draftValues)
+                            : "",
                         })}
                       </TableCell>
                     ))}
@@ -371,11 +404,11 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
             <Button
               disableElevation
               onClick={handleAddLineItem}
-              startIcon={<Plus size={16} />}
-              sx={factoryCreateAddItemButtonSx}
+              startIcon={<Plus size={14} />}
+              sx={listingToolbarButtonSx}
               variant="contained"
             >
-              Add New Item
+              Add Item
             </Button>
           </Box>
 
@@ -400,7 +433,10 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                           key={column.key}
                           sx={getHeaderCellSx(theme, column.minWidth)}
                         >
-                          {column.label}
+                          <ColumnLabel
+                            label={column.label}
+                            required={isLineItemColumnRequired(column)}
+                          />
                         </TableCell>
                       ))}
                       <TableCell sx={getActionHeaderCellSx(theme, 120)}>
@@ -432,6 +468,12 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                                       ),
                                     theme,
                                     value: editingValues[column.key] ?? "",
+                                    errorText: editingSubmitAttempted
+                                      ? getFieldValidationError(
+                                          column,
+                                          editingValues,
+                                        )
+                                      : "",
                                   })
                                 : renderReadOnlyCell(row.values[column.key] ?? "", theme)}
                             </TableCell>
@@ -500,7 +542,29 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
             sx={recordFormActionButtonSx}
             onClick={() => {
               setHasSubmitted(true);
-              if (hasRequiredFieldErrors(metadataFields, formValues)) {
+              const draftHasValues = !allValuesEmpty(draftValues);
+              const draftErrors = getLineItemValidationErrors(
+                lineItemColumns,
+                draftValues,
+              );
+              const editingErrors = getLineItemValidationErrors(
+                lineItemColumns,
+                editingValues,
+              );
+              const lineItemsInvalid =
+                lineItems.length === 0 ||
+                (draftHasValues && hasValidationErrors(draftErrors)) ||
+                Boolean(editingRowId && hasValidationErrors(editingErrors));
+
+              if (lineItemsInvalid) {
+                setDraftSubmitAttempted(lineItems.length === 0 || draftHasValues);
+                setEditingSubmitAttempted(Boolean(editingRowId));
+              }
+
+              if (
+                hasRequiredFieldErrors(metadataFields, formValues) ||
+                lineItemsInvalid
+              ) {
                 return;
               }
               navigate(paths.list);
@@ -616,6 +680,58 @@ function allValuesEmpty(values: Record<string, string>) {
   return Object.values(values).every((value) => value.trim().length === 0);
 }
 
+function getLineItemValidationErrors(
+  columns: readonly LineItemColumnDefinition[],
+  values: Record<string, string>,
+) {
+  return columns.reduce<Record<string, string>>((errors, column) => {
+    const error = getFieldValidationError(column, values);
+
+    if (error) {
+      errors[column.key] = error;
+    }
+
+    return errors;
+  }, {});
+}
+
+function hasValidationErrors(errors: Record<string, string>) {
+  return Object.keys(errors).length > 0;
+}
+
+function getFieldValidationError(
+  column: LineItemColumnDefinition,
+  values: Record<string, string>,
+) {
+  if (
+    isLineItemColumnRequired(column) &&
+    (values[column.key] ?? "").trim().length === 0
+  ) {
+    return `${column.label} is required.`;
+  }
+
+  return "";
+}
+
+function isLineItemColumnRequired(column: LineItemColumnDefinition) {
+  return !["remark", "remarks"].includes(column.key.toLowerCase());
+}
+
+function ColumnLabel({
+  label,
+  required,
+}: {
+  label: string;
+  required: boolean;
+}) {
+  return (
+    <Stack component="span" direction="row" spacing={0.25}>
+      <span>{label}</span>
+      {required ? <span>*</span> : null}
+    </Stack>
+  );
+}
+
 function applyAreaValueChange(
   values: Record<string, string>,
   key: string,
@@ -715,11 +831,13 @@ function getDefaultPlaceholder(field: MasterFieldDefinition) {
 
 function renderEditableField({
   column,
+  errorText,
   onChange,
   theme,
   value,
 }: {
   column: LineItemColumnDefinition;
+  errorText?: string;
   onChange: (value: string) => void;
   theme: Theme;
   value: string;
@@ -727,8 +845,10 @@ function renderEditableField({
   if (column.type === "select") {
     return (
       <ErpSelectField
+        helperText={errorText}
         onChange={onChange}
         options={column.options ?? []}
+        state={errorText ? "error" : "default"}
         value={value}
       />
     );
@@ -736,7 +856,9 @@ function renderEditableField({
 
   return (
     <TextField
+      error={Boolean(errorText)}
       fullWidth
+      helperText={errorText}
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
@@ -748,7 +870,7 @@ function renderEditableField({
         event.preventDefault();
         onChange(getNextMeasurementValue(value, event.deltaY));
       }}
-      sx={getCompactFieldSx(theme)}
+      sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
     />
   );
 }
@@ -875,40 +997,3 @@ function getActionButtonSx(theme: Theme) {
     },
   } as const;
 }
-
-const factoryCreateActionButtonSx = {
-  alignItems: "center",
-  display: "inline-flex",
-  justifyContent: "center",
-  minHeight: 30,
-  minWidth: 66,
-  px: 1.35,
-  py: 0.5,
-  borderRadius: "12px",
-  fontSize: "0.75rem",
-  fontWeight: 700,
-  lineHeight: 1,
-  boxShadow: "none",
-  textTransform: "none",
-  "&.MuiButton-contained": {
-    boxShadow: "0 8px 18px rgba(143, 19, 22, 0.16)",
-  },
-  "&.MuiButton-contained:hover": {
-    boxShadow: "0 10px 20px rgba(143, 19, 22, 0.2)",
-  },
-  "& .MuiButton-endIcon, & .MuiButton-startIcon": {
-    alignItems: "center",
-    display: "inline-flex",
-    lineHeight: 0,
-    "& svg": {
-      height: 14,
-      width: 14,
-    },
-  },
-};
-
-const factoryCreateAddItemButtonSx = {
-  ...factoryCreateActionButtonSx,
-  borderRadius: "8px",
-  minWidth: 120,
-};

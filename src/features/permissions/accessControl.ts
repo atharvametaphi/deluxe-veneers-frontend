@@ -53,7 +53,17 @@ export function canAccessPermission(
     return true;
   }
 
-  return Boolean(user.permissions?.[permissionKey]?.[action]);
+  const permission = user.permissions?.[permissionKey];
+
+  if (!permission) {
+    return false;
+  }
+
+  if (action === "view") {
+    return Boolean(permission.view || permission.edit || permission.create);
+  }
+
+  return Boolean(permission[action]);
 }
 
 export function canAccessAnyAction(

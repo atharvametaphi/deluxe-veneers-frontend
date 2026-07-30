@@ -10,10 +10,10 @@ import {
   EnterpriseDataTable,
   type EnterpriseTableAction,
   type EnterpriseTableCellValue,
+  type EnterpriseTableColumn,
 } from "../../../components/data-display/EnterpriseDataTable";
 import { MasterPageShell } from "../../masters/shared";
 import {
-  packingListingColumns,
   revertDispatchEntry,
   type PackingRecord,
   usePackingRecords,
@@ -21,6 +21,31 @@ import {
 import { canAccessPermission } from "../../permissions";
 import { listingToolbarButtonSx } from "../../shared/buttonStyles";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
+
+interface DispatchListingRow extends PackingRecord {
+  dispatchGrandTotal: string;
+  dispatchTotalQuantity: string;
+  dispatchTotalSqf: string;
+  dispatchTransportMode: string;
+  dispatchTransporter: string;
+}
+
+const dispatchListingColumns: readonly EnterpriseTableColumn<DispatchListingRow>[] =
+  [
+    { key: "orderType", label: "Order Category" },
+    { key: "productCategory", label: "Product Category" },
+    { key: "customerName", label: "Customer Name" },
+    { key: "dispatchTransporter", label: "Transporter" },
+    { key: "dispatchTransportMode", label: "Transport Mode" },
+    { key: "dispatchTotalQuantity", label: "Total Quantity" },
+    { key: "dispatchTotalSqf", label: "Total SQF" },
+    { key: "dispatchGrandTotal", label: "Grand Total" },
+    { key: "remark", label: "Remark" },
+    { key: "createdBy", label: "Created By" },
+    { key: "updatedBy", label: "Updated By" },
+    { key: "createdDate", label: "Created Date" },
+    { key: "updatedDate", label: "Updated Date" },
+  ];
 
 export function DispatchPage() {
   const navigate = useNavigate();
@@ -34,9 +59,9 @@ export function DispatchPage() {
     [records],
   );
   const rows = useMemo(() => {
-    const dispatchedRows = records.filter(
-      (record) => record.packingState === "dispatched",
-    );
+    const dispatchedRows = records
+      .filter((record) => record.packingState === "dispatched")
+      .map(mapDispatchListingRow);
     const normalizedSearch = searchValue.trim().toLowerCase();
 
     if (!normalizedSearch) {
@@ -49,7 +74,7 @@ export function DispatchPage() {
       ),
     );
   }, [records, searchValue]);
-  const rowActions = useMemo<ReadonlyArray<EnterpriseTableAction<PackingRecord>>>(
+  const rowActions = useMemo<ReadonlyArray<EnterpriseTableAction<DispatchListingRow>>>(
     () => [
       ...(canView
         ? [
@@ -57,7 +82,8 @@ export function DispatchPage() {
               id: "view",
               label: "View",
               icon: Eye,
-              onSelect: (row: PackingRecord) => navigate(`/dispatch/view/${row.id}`),
+              onSelect: (row: DispatchListingRow) =>
+                navigate(`/dispatch/view/${row.id}`),
             },
           ]
         : []),
@@ -67,13 +93,14 @@ export function DispatchPage() {
               id: "edit",
               label: "Edit",
               icon: Pencil,
-              onSelect: (row: PackingRecord) => navigate(`/dispatch/edit/${row.id}`),
+              onSelect: (row: DispatchListingRow) =>
+                navigate(`/dispatch/edit/${row.id}`),
             },
             {
               id: "revert-dispatch",
               label: "Revert Dispatch",
               icon: RotateCcw,
-              onSelect: (row: PackingRecord) => revertDispatchEntry(row.id),
+              onSelect: (row: DispatchListingRow) => revertDispatchEntry(row.id),
             },
           ]
         : []),
@@ -109,11 +136,7 @@ export function DispatchPage() {
           {canCreate ? (
             <Button
               disabled={!eligibleRecord}
-              onClick={() => {
-                if (eligibleRecord) {
-                  navigate(`/dispatch/add/${eligibleRecord.id}`);
-                }
-              }}
+              onClick={() => navigate("/dispatch/add")}
               startIcon={<Truck size={16} />}
               sx={listingToolbarButtonSx}
               variant="contained"
@@ -125,7 +148,7 @@ export function DispatchPage() {
 
         <EnterpriseDataTable
           actions={rowActions}
-          columns={packingListingColumns}
+          columns={dispatchListingColumns}
           defaultRowsPerPage={10}
           emptyStateLabel="No dispatch records are available."
           initialSort={{ key: "updatedDate", direction: "desc" }}
@@ -134,6 +157,20 @@ export function DispatchPage() {
       </Stack>
     </MasterPageShell>
   );
+}
+
+function mapDispatchListingRow(record: PackingRecord): DispatchListingRow {
+  const amount = parseAmount(record.amount);
+
+  return {
+    ...record,
+    dispatchGrandTotal:
+      record.dispatchGrandTotal ?? formatAmount(amount * 1.18),
+    dispatchTotalQuantity: record.dispatchTotalQuantity ?? record.noOfSheets,
+    dispatchTotalSqf: record.dispatchTotalSqf ?? record.sqf,
+    dispatchTransportMode: record.dispatchTransportMode || "-",
+    dispatchTransporter: record.dispatchTransporter || "-",
+  };
 }
 
 function formatDispatchSearchValue(value: EnterpriseTableCellValue) {
@@ -152,4 +189,16 @@ function formatDispatchSearchValue(value: EnterpriseTableCellValue) {
   }
 
   return String(value).toLowerCase();
+}
+
+function parseAmount(value: string) {
+  const numericValue = Number(value.replace(/,/g, ""));
+  return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function formatAmount(value: number) {
+  return value.toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  });
 }

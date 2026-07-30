@@ -12,6 +12,7 @@ import {
 import { factoryRoutes } from "../features/factory";
 import { inventoryRoutes } from "../features/inventory";
 import { masterRoutes } from "../features/masters";
+import { orderRoutes } from "../features/order";
 import { ordersRoutes } from "../features/orders";
 import { packingRoutes } from "../features/packing";
 import { ProfilePage } from "../features/profile";
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
         ),
       },
       ...masterRoutes,
+      ...orderRoutes,
       {
         path: "warehouse-a",
         element: <WarehousesPage warehouseId="warehouse-a" />,
@@ -88,6 +90,10 @@ const router = createBrowserRouter([
       },
       ...factoryRoutes,
       ...packingRoutes,
+      {
+        path: "dispatch/add",
+        Component: DispatchCreatePage,
+      },
       {
         path: "dispatch/add/:id",
         Component: DispatchCreatePage,

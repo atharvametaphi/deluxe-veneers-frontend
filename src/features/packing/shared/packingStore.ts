@@ -6,24 +6,35 @@ export type PackingTabValue = "done" | "issued";
 export type PackingRecordState = "dispatched" | "done" | "issued" | "reverted";
 
 export const packingOrderTypeOptions = [
-  "Raw Order",
-  "Marquetry",
+  "Raw",
+  "Finished",
 ] as const;
 
 export interface PackingRecord extends EnterpriseTableRow {
+  packingId: string;
   issuedFrom: string;
   orderNo: string;
   customerName: string;
   orderType: string;
   productCategory: string;
+  preparedBy: string;
+  checkedBy: string;
   itemName: string;
   length: string;
   width: string;
   thickness: string;
+  noOfSheets: string;
+  sqm: string;
+  sqf: string;
   series: string;
   grade: string;
   amount: string;
   remark: string;
+  dispatchTransporter?: string;
+  dispatchTransportMode?: string;
+  dispatchTotalQuantity?: string;
+  dispatchTotalSqf?: string;
+  dispatchGrandTotal?: string;
   packingDate: Date | null;
   dispatchDate: Date | null;
   createdBy: string;
@@ -35,18 +46,19 @@ export interface PackingRecord extends EnterpriseTableRow {
 
 export const packingListingColumns: readonly EnterpriseTableColumn<PackingRecord>[] =
   [
-    { key: "issuedFrom", label: "Issued From" },
+    { key: "packingId", label: "Packing ID" },
     { key: "orderNo", label: "Order No" },
     { key: "customerName", label: "Customer Name" },
     { key: "orderType", label: "Order Type" },
-    { key: "productCategory", label: "Product Category" },
-    { key: "itemName", label: "Item Name" },
+    { key: "productCategory", label: "Product Type" },
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
     { key: "thickness", label: "Thickness" },
-    { key: "series", label: "Series" },
-    { key: "grade", label: "Grade" },
+    { key: "noOfSheets", label: "No of Sheets" },
+    { key: "sqm", label: "SQM" },
+    { key: "sqf", label: "SQF" },
     { key: "amount", label: "Amount" },
+    { key: "remark", label: "Remark" },
     { key: "createdBy", label: "Created By" },
     { key: "updatedBy", label: "Updated By" },
     { key: "createdDate", label: "Created Date" },
@@ -149,14 +161,19 @@ export function createPackingEntry(
   payload: {
     customerName?: string;
     amount?: string;
+    checkedBy?: string;
     issuedFrom?: string;
     itemName?: string;
     length?: string;
+    noOfSheets?: string;
     orderNo?: string;
     orderType?: string;
     packingDate?: Date | null;
+    preparedBy?: string;
     productCategory?: string;
     remark?: string;
+    sqf?: string;
+    sqm?: string;
     thickness?: string;
     width?: string;
   },
@@ -171,6 +188,7 @@ export function createPackingEntry(
     updatePackingRecords((records) => [
       {
         id: `packing-${nextRecordNumber}`,
+        packingId: `PKG-${String(nextRecordNumber).padStart(4, "0")}`,
         issuedFrom: normalizeString(payload.issuedFrom, "Manual Entry"),
         orderNo: normalizeString(
           payload.orderNo,
@@ -180,12 +198,17 @@ export function createPackingEntry(
         orderType: normalizeString(payload.orderType, "Raw Order"),
         productCategory: normalizeString(
           payload.productCategory,
-          "Raw Veneer",
+          "Raw",
         ),
+        preparedBy: normalizeString(payload.preparedBy, "Packing Supervisor"),
+        checkedBy: normalizeString(payload.checkedBy, "Quality Coordinator"),
         itemName: normalizeString(payload.itemName, "Packing Item"),
         length: normalizeString(payload.length, "2440 mm"),
         width: normalizeString(payload.width, "1220 mm"),
         thickness: normalizeString(payload.thickness, "0.60 mm"),
+        noOfSheets: normalizeString(payload.noOfSheets, "0"),
+        sqm: normalizeString(payload.sqm, "0.000"),
+        sqf: normalizeString(payload.sqf, "0.000"),
         series: "DV-Prime",
         grade: "A",
         amount: normalizeString(payload.amount, "18,500.00"),
@@ -210,11 +233,17 @@ export function createPackingEntry(
         ? {
             ...record,
             customerName: normalizeString(payload.customerName, record.customerName),
+            orderNo: normalizeString(payload.orderNo, record.orderNo),
             orderType: normalizeString(payload.orderType, record.orderType),
             productCategory: normalizeString(
               payload.productCategory,
               record.productCategory,
             ),
+            preparedBy: normalizeString(payload.preparedBy, record.preparedBy),
+            checkedBy: normalizeString(payload.checkedBy, record.checkedBy),
+            noOfSheets: normalizeString(payload.noOfSheets, record.noOfSheets),
+            sqm: normalizeString(payload.sqm, record.sqm),
+            sqf: normalizeString(payload.sqf, record.sqf),
             remark: normalizeString(payload.remark, record.remark),
             packingDate: payload.packingDate instanceof Date ? payload.packingDate : timestamp,
             packingState: "done",
@@ -231,6 +260,11 @@ export function createDispatchEntry(
   payload: {
     customerName?: string;
     dispatchDate?: Date | null;
+    dispatchGrandTotal?: string;
+    dispatchTotalQuantity?: string;
+    dispatchTotalSqf?: string;
+    dispatchTransporter?: string;
+    dispatchTransportMode?: string;
     orderType?: string;
     productCategory?: string;
     remark?: string;
@@ -250,6 +284,26 @@ export function createDispatchEntry(
             productCategory: normalizeString(
               payload.productCategory,
               record.productCategory,
+            ),
+            dispatchTransporter: normalizeString(
+              payload.dispatchTransporter,
+              record.dispatchTransporter ?? "",
+            ),
+            dispatchTransportMode: normalizeString(
+              payload.dispatchTransportMode,
+              record.dispatchTransportMode ?? "",
+            ),
+            dispatchTotalQuantity: normalizeString(
+              payload.dispatchTotalQuantity,
+              record.dispatchTotalQuantity ?? record.noOfSheets,
+            ),
+            dispatchTotalSqf: normalizeString(
+              payload.dispatchTotalSqf,
+              record.dispatchTotalSqf ?? record.sqf,
+            ),
+            dispatchGrandTotal: normalizeString(
+              payload.dispatchGrandTotal,
+              record.dispatchGrandTotal ?? record.amount,
             ),
             remark: normalizeString(payload.remark, record.remark),
             dispatchDate:
@@ -304,10 +358,11 @@ function createPackingRecords(): PackingRecord[] {
   ] as const;
   const orderTypes = [...packingOrderTypeOptions];
   const productCategories = [
-    "Raw Veneer",
-    "Veneer Blocks",
-    "Plywood",
-    "MDF",
+    "Raw",
+    "Marquetry",
+    "Fluted",
+    "Embossed",
+    "Decorative",
   ] as const;
   const itemNames = [
     "Oak Veneer Panel",
@@ -332,6 +387,13 @@ function createPackingRecords(): PackingRecord[] {
     "Maple Edge Exports",
     "Royal Habitat",
   ] as const;
+  const dispatchTransporters = [
+    "Amardeep Cargo Logistic",
+    "National Freight Carrier",
+    "Deluxe Transport Services",
+    "Blue Sky Air Cargo",
+  ] as const;
+  const dispatchTransportModes = ["Road", "Air", "Rail", "Ship"] as const;
   const pickValue = <Value,>(values: readonly Value[], index: number) =>
     values[index % values.length]!;
 
@@ -339,6 +401,11 @@ function createPackingRecords(): PackingRecord[] {
     const rowNumber = index + 1;
     const createdDate = new Date(2026, 5, 1 + (index % 25));
     const updatedDate = new Date(2026, 5, 3 + (index % 25));
+    const lengthMm = 2400 + (index % 6) * 50;
+    const widthMm = 1200 + (index % 4) * 25;
+    const noOfSheets = 20 + (index % 8) * 4;
+    const sqm = (lengthMm / 1000) * (widthMm / 1000) * noOfSheets;
+    const sqf = sqm * 10.7639;
     const packingState: PackingRecordState =
       index < 25 ? "issued" : index < 50 ? "done" : "dispatched";
     const updatedBy =
@@ -350,20 +417,32 @@ function createPackingRecords(): PackingRecord[] {
 
     return {
       id: `packing-${rowNumber}`,
+      packingId: `PKG-2026-${String(rowNumber).padStart(4, "0")}`,
       issuedFrom: pickValue(issuedFromValues, index),
       orderNo: `ORD-PK-${String(1000 + rowNumber).padStart(4, "0")}`,
       customerName: pickValue(customerNames, index),
       orderType: pickValue(orderTypes, index),
       productCategory: pickValue(productCategories, index),
+      preparedBy: "Packing Supervisor",
+      checkedBy: "Quality Coordinator",
       itemName: pickValue(itemNames, index),
-      length: `${2400 + (index % 6) * 50} mm`,
-      width: `${1200 + (index % 4) * 25} mm`,
+      length: `${lengthMm} mm`,
+      width: `${widthMm} mm`,
       thickness: `${(0.5 + (index % 5) * 0.1).toFixed(2)} mm`,
+      noOfSheets: String(noOfSheets),
+      sqm: sqm.toFixed(3),
+      sqf: sqf.toFixed(3),
       series: pickValue(seriesValues, index),
       grade: pickValue(gradeValues, index),
       amount: `${(18500 + index * 875).toLocaleString("en-IN")}.00`,
       remark: "",
-      packingDate: packingState === "issued" ? null : updatedDate,
+      ...(packingState === "dispatched"
+        ? {
+            dispatchTransporter: pickValue(dispatchTransporters, index),
+            dispatchTransportMode: pickValue(dispatchTransportModes, index),
+          }
+        : {}),
+      packingDate: createdDate,
       dispatchDate: packingState === "dispatched" ? updatedDate : null,
       createdBy: index < 25 ? "Packing Planner" : "Packing Operator",
       updatedBy,

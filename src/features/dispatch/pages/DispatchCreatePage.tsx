@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
+  Checkbox,
+  Chip,
   Stack,
   Table,
   TableBody,
@@ -10,50 +13,157 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
 } from "@mui/material";
-import type { Theme } from "@mui/material/styles";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 
 import {
-  MasterFormFields,
   MasterPageShell,
   MasterSectionCard,
-  hasRequiredFieldErrors,
-  type MasterFieldDefinition,
-  type MasterFieldValue,
 } from "../../masters/shared";
 import { transporterMasterOptions } from "../../masters/shared/masterDefinitions";
 import {
   createDispatchEntry,
+  packingOrderTypeOptions,
   type PackingRecord,
   usePackingRecords,
 } from "../../packing/shared/packingStore";
 import { canAccessPermission } from "../../permissions";
-import { orderTypeOptions } from "../../orders/shared/ordersStore";
 import {
   recordFormActionButtonSx,
   recordViewActionButtonSx,
 } from "../../shared/buttonStyles";
+
+const ALL_OPTION = "All";
+
+interface DispatchRecordPageProps {
+  mode?: "add" | "edit" | "view";
+}
+
+interface DispatchFormState {
+  customerName: string;
+  orderCategories: string[];
+  productCategories: string[];
+  packingList: string[];
+  buyerAddress: string;
+  sellerAddress: string;
+  transporter: string;
+  transportMode: string;
+  remark: string;
+}
 
 interface DispatchItemRow {
   id: string;
   srNo: string;
   orderNo: string;
   salesItemName: string;
-  alternateSalesItemName: string;
   orderItemNo: string;
+  productCategory: string;
   groupNo: string;
-  photoNo: string;
-  logNo: string;
   itemName: string;
   itemSubCategory: string;
+  length: string;
+  width: string;
+  thickness: string;
+  noOfSheets: string;
+  sqm: string;
+  rate: string;
+  itemAmount: string;
+  discountPercent: string;
+  itemAmountWithDiscount: string;
+  gstPercent: string;
+  gstAmount: string;
+  igstAmount: string;
+  finalAmount: string;
+  remark: string;
 }
 
-interface DispatchRecordPageProps {
-  mode?: "add" | "edit" | "view";
+interface DispatchSummaryRow {
+  totalQuantity: string;
+  totalSqm: string;
+  baseAmountWithoutGst: string;
+  otherAmount: string;
+  expenseAmountWithGst: string;
+  baseAmountWithGst: string;
+  grandTotal: string;
 }
+
+const itemTableColumns: readonly {
+  key: keyof DispatchItemRow;
+  label: string;
+  minWidth: number;
+}[] = [
+  { key: "srNo", label: "Sr. No", minWidth: 80 },
+  { key: "orderNo", label: "Order No", minWidth: 140 },
+  { key: "salesItemName", label: "Sales Item Name", minWidth: 200 },
+  { key: "orderItemNo", label: "Order Item No", minWidth: 130 },
+  { key: "productCategory", label: "Product Category", minWidth: 160 },
+  { key: "groupNo", label: "Group No", minWidth: 120 },
+  { key: "itemName", label: "Item Name", minWidth: 180 },
+  { key: "itemSubCategory", label: "Item Sub Category", minWidth: 170 },
+  { key: "length", label: "Length", minWidth: 110 },
+  { key: "width", label: "Width", minWidth: 110 },
+  { key: "thickness", label: "Thickness", minWidth: 120 },
+  { key: "sqm", label: "SQM", minWidth: 110 },
+  { key: "rate", label: "Rate", minWidth: 120 },
+  { key: "itemAmount", label: "Item Amount", minWidth: 140 },
+  { key: "discountPercent", label: "Discount %", minWidth: 120 },
+  {
+    key: "itemAmountWithDiscount",
+    label: "Item Amount With Discount",
+    minWidth: 210,
+  },
+  { key: "gstPercent", label: "GST %", minWidth: 100 },
+  { key: "gstAmount", label: "GST Amount", minWidth: 140 },
+  { key: "igstAmount", label: "IGST Amount", minWidth: 140 },
+  { key: "finalAmount", label: "Final Amount", minWidth: 140 },
+  { key: "remark", label: "Remark", minWidth: 160 },
+];
+
+const summaryTableColumns: readonly {
+  key: keyof DispatchSummaryRow;
+  label: string;
+  minWidth: number;
+}[] = [
+  { key: "totalQuantity", label: "Total Quantity", minWidth: 140 },
+  { key: "totalSqm", label: "Total SQM", minWidth: 130 },
+  {
+    key: "baseAmountWithoutGst",
+    label: "Base Amount Without GST",
+    minWidth: 190,
+  },
+  { key: "otherAmount", label: "Other Amount", minWidth: 140 },
+  {
+    key: "expenseAmountWithGst",
+    label: "Expense Amount With GST(18%)",
+    minWidth: 220,
+  },
+  {
+    key: "baseAmountWithGst",
+    label: "Base Amount With GST",
+    minWidth: 180,
+  },
+  { key: "grandTotal", label: "Grand Total", minWidth: 150 },
+];
+
+const buyerAddressOptions = [
+  "At Bhatpore",
+  "Corporate Office, SG Highway",
+  "Factory Billing Address",
+  "Northwood Projects Registered Office",
+];
+
+const sellerAddressOptions = [
+  "Plot No 317 325, Vill Karoli",
+  "Deluxe Veneers Factory",
+  "Deluxe Veneers Warehouse",
+  "Deluxe Veneers Dispatch Office",
+];
+
+const transportModeOptions = ["Road", "Air", "Rail", "Ship"];
 
 export function DispatchCreatePage({
   mode = "add",
@@ -65,145 +175,6 @@ export function DispatchCreatePage({
     () => records.find((entry) => entry.id === id),
     [id, records],
   );
-  const dispatchItems = useMemo<readonly DispatchItemRow[]>(
-    () =>
-      sourceRecord
-        ? [
-            {
-              id: `${sourceRecord.id}-dispatch-item`,
-              srNo: "1",
-              orderNo: sourceRecord.orderNo,
-              salesItemName: sourceRecord.itemName,
-              alternateSalesItemName: "-",
-              orderItemNo: "1",
-              groupNo: sourceRecord.series || "-",
-              photoNo: "-",
-              logNo: "-",
-              itemName: sourceRecord.itemName,
-              itemSubCategory: "-",
-            },
-          ]
-        : [],
-    [sourceRecord],
-  );
-  const activeFields = useMemo<readonly MasterFieldDefinition[]>(
-    () => [
-      {
-        key: "invoiceNo",
-        label: "Invoice No",
-        type: "text",
-        placeholder: "Enter Invoice No",
-      },
-      {
-        key: "invoiceDateTime",
-        label: "Invoice Date & Time",
-        type: "date",
-      },
-      {
-        key: "removalDateTime",
-        label: "Date/Time of Removal of goods",
-        type: "date",
-      },
-      {
-        key: "transDocDate",
-        label: "Trans Doc Date",
-        type: "date",
-      },
-      {
-        key: "transDocNo",
-        label: "Trans Doc No",
-        type: "text",
-        placeholder: "Enter Trans Doc No",
-      },
-      {
-        key: "customerName",
-        label: "Customer Name",
-        type: "select",
-        options: uniqueDispatchOptions(records, "customerName"),
-        placeholder: "Select Customer Name",
-      },
-      {
-        key: "orderType",
-        label: "Order Category",
-        type: "select",
-        options: [...orderTypeOptions],
-        placeholder: "Select Order Category",
-      },
-      {
-        key: "packingList",
-        label: "Packing List",
-        type: "select",
-        options: uniqueDispatchOptions(records, "orderNo"),
-        placeholder: "Select Packing List",
-      },
-      {
-        key: "suppType",
-        label: "Supp Type",
-        type: "select",
-        options: ["B2B", "B2C", "SEZ", "Export"],
-        placeholder: "Select Supp Type",
-      },
-      {
-        key: "transactionType",
-        label: "Transaction Type",
-        type: "select",
-        options: [
-          "Regular",
-          "Bill To Ship To And Bill From Dispatch From",
-          "Export",
-          "Job Work",
-        ],
-        placeholder: "Select Transaction Type",
-      },
-      {
-        key: "buyerAddress",
-        label: "Address of Buyer",
-        type: "select",
-        options: [
-          "At Bhatpore",
-          "Corporate Office, SG Highway",
-          "Factory Billing Address",
-        ],
-        placeholder: "Select Address of Buyer",
-      },
-      {
-        key: "sellerAddress",
-        label: "Address of Seller",
-        type: "select",
-        options: [
-          "Plot No 317 325, Vill Karoli",
-          "Deluxe Veneers Factory",
-          "Deluxe Veneers Warehouse",
-        ],
-        placeholder: "Select Address of Seller",
-      },
-      {
-        key: "transporter",
-        label: "Transporter",
-        type: "select",
-        options: transporterMasterOptions,
-        placeholder: "Select Transporter",
-      },
-      {
-        key: "transportMode",
-        label: "Transport Mode",
-        type: "select",
-        options: ["Road", "Air", "Rail", "Ship"],
-        placeholder: "Select Transport Mode",
-      },
-      {
-        key: "remark",
-        label: "Remark",
-        type: "text",
-        placeholder: "Enter Remark",
-      },
-    ],
-    [records],
-  );
-  const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildDispatchInitialValues(activeFields, sourceRecord, mode),
-  );
-  const [hasSubmitted, setHasSubmitted] = useState(false);
   const canCreate = canAccessPermission("dispatch", "create");
   const canEdit = canAccessPermission("dispatch", "edit");
   const canView = canAccessPermission("dispatch", "view");
@@ -215,12 +186,91 @@ export function DispatchCreatePage({
       : mode === "edit"
         ? "Edit Dispatch"
         : "View Dispatch";
+  const readOnly = mode === "view";
+  const dispatchSourceRecords = useMemo(
+    () => records.filter((record) => record.packingState === "done"),
+    [records],
+  );
+  const [values, setValues] = useState<DispatchFormState>(() =>
+    buildDispatchInitialValues(sourceRecord),
+  );
+  const [loadedRecords, setLoadedRecords] = useState<readonly PackingRecord[]>(
+    () => (sourceRecord ? [sourceRecord] : []),
+  );
+  const [showRequiredErrors, setShowRequiredErrors] = useState(false);
+  const customerOptions = useMemo(
+    () => uniqueOptions(dispatchSourceRecords, "customerName"),
+    [dispatchSourceRecords],
+  );
+  const orderCategoryOptions = useMemo(
+    () => [...packingOrderTypeOptions],
+    [],
+  );
+  const productCategoryOptions = useMemo(
+    () =>
+      uniqueStrings(
+        dispatchSourceRecords
+          .filter((record) =>
+            values.customerName ? record.customerName === values.customerName : true,
+          )
+          .filter((record) =>
+            values.orderCategories.length > 0
+              ? values.orderCategories.includes(record.orderType)
+              : false,
+          )
+          .map((record) => record.productCategory),
+      ),
+    [dispatchSourceRecords, values.customerName, values.orderCategories],
+  );
+  const canSelectPackingList =
+    values.customerName.trim().length > 0 &&
+    values.orderCategories.length > 0 &&
+    values.productCategories.length > 0;
+  const packingListRecords = useMemo(
+    () =>
+      canSelectPackingList
+        ? dispatchSourceRecords.filter(
+            (record) =>
+              record.customerName === values.customerName &&
+              values.orderCategories.includes(record.orderType) &&
+              values.productCategories.includes(record.productCategory),
+          )
+        : [],
+    [
+      canSelectPackingList,
+      dispatchSourceRecords,
+      values.customerName,
+      values.orderCategories,
+      values.productCategories,
+    ],
+  );
+  const packingListOptions = useMemo(
+    () =>
+      uniqueStrings(
+        packingListRecords.map(
+          (record) => `${record.packingId} - ${record.orderNo}`,
+        ),
+      ),
+    [packingListRecords],
+  );
+  const dispatchItemRows = useMemo(
+    () => loadedRecords.map((record, index) => mapDispatchItemRow(record, index)),
+    [loadedRecords],
+  );
+  const dispatchSummaryRow = useMemo(
+    () => buildSummaryRow(dispatchItemRows),
+    [dispatchItemRows],
+  );
+  const hasLoadedItems = loadedRecords.length > 0;
 
   useEffect(() => {
-    setValues(buildDispatchInitialValues(activeFields, sourceRecord, mode));
-  }, [activeFields, mode, sourceRecord]);
+    const nextValues = buildDispatchInitialValues(sourceRecord);
+    setValues(nextValues);
+    setLoadedRecords(sourceRecord ? [sourceRecord] : []);
+    setShowRequiredErrors(false);
+  }, [sourceRecord]);
 
-  if (!sourceRecord) {
+  if ((mode === "edit" || mode === "view") && !sourceRecord) {
     return (
       <MasterPageShell
         breadcrumbs={[
@@ -231,7 +281,7 @@ export function DispatchCreatePage({
       >
         <MasterSectionCard>
           <Typography variant="body2" color="text.secondary">
-            The requested dispatch source record could not be found.
+            The requested dispatch record could not be found.
           </Typography>
         </MasterSectionCard>
       </MasterPageShell>
@@ -270,113 +320,191 @@ export function DispatchCreatePage({
             gap: theme.spacing(3),
           })}
         >
-          <MasterFormFields
-            definition={{
-              fields: activeFields,
-              gridColumns: 4,
-            }}
-            onChange={(key, value) =>
-              setValues((current) => ({
-                ...current,
-                [key]: value,
-              }))
-            }
-            readOnly={mode === "view"}
-            showRequiredErrors={mode === "add" && hasSubmitted}
-            values={values}
-          />
-
-          <TableContainer
+          <Box
             sx={(theme) => ({
-              border: `1px solid ${theme.customTokens.borders.default}`,
-              borderRadius: `${theme.customTokens.radius.md}px`,
-              overflowX: "auto",
-              overflowY: "hidden",
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(2, minmax(0, 1fr))",
+                xl: "repeat(4, minmax(0, 1fr))",
+              },
+              gap: theme.spacing(2),
+              alignItems: "start",
             })}
           >
-            <Table sx={{ minWidth: 1200 }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 120)}>
-                    Order No
-                  </TableCell>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 200)}>
-                    Sales Item Name
-                  </TableCell>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 220)}>
-                    Alternate Sales Item Name
-                  </TableCell>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 120)}>
-                    Order Item No
-                  </TableCell>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 120)}>
-                    Group No
-                  </TableCell>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 120)}>
-                    Photo No
-                  </TableCell>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 120)}>
-                    Log No.
-                  </TableCell>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 160)}>
-                    Item Name
-                  </TableCell>
-                  <TableCell sx={(theme) => getHeaderCellSx(theme, 160)}>
-                    Item Sub Category
-                  </TableCell>
-                </TableRow>
-              </TableHead>
+            <SingleSelectField
+              disabled={readOnly}
+              error={showRequiredErrors && !values.customerName}
+              label="Customer Name"
+              options={customerOptions}
+              required
+              value={values.customerName}
+              onChange={(nextValue) => {
+                setValues((current) => ({
+                  ...current,
+                  customerName: nextValue,
+                  orderCategories: [],
+                  productCategories: [],
+                  packingList: [],
+                }));
+                if (mode === "add") {
+                  setLoadedRecords([]);
+                }
+              }}
+            />
 
-              <TableBody>
-                {dispatchItems.length > 0 ? (
-                  dispatchItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.orderNo}
-                      </TableCell>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.salesItemName}
-                      </TableCell>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.alternateSalesItemName}
-                      </TableCell>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.orderItemNo}
-                      </TableCell>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.groupNo}
-                      </TableCell>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.photoNo}
-                      </TableCell>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.logNo}
-                      </TableCell>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.itemName}
-                      </TableCell>
-                      <TableCell sx={(theme) => getBodyCellSx(theme)}>
-                        {item.itemSubCategory}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={10}
-                      sx={(theme) => ({
-                        ...getBodyCellSx(theme),
-                        textAlign: "center",
-                        color: theme.customTokens.text.secondary,
-                      })}
-                    >
-                      No dispatch item is available.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+            <MultiSelectField
+              disabled={readOnly || !values.customerName}
+              error={showRequiredErrors && values.orderCategories.length === 0}
+              label="Order Category"
+              options={orderCategoryOptions}
+              required
+              value={values.orderCategories}
+              onChange={(nextValue) => {
+                setValues((current) => ({
+                  ...current,
+                  orderCategories: nextValue,
+                  productCategories: [],
+                  packingList: [],
+                }));
+                if (mode === "add") {
+                  setLoadedRecords([]);
+                }
+              }}
+            />
+
+            <MultiSelectField
+              disabled={readOnly || values.orderCategories.length === 0}
+              error={showRequiredErrors && values.productCategories.length === 0}
+              label="Product Category"
+              options={productCategoryOptions}
+              required
+              value={values.productCategories}
+              onChange={(nextValue) => {
+                setValues((current) => ({
+                  ...current,
+                  productCategories: nextValue,
+                  packingList: [],
+                }));
+                if (mode === "add") {
+                  setLoadedRecords([]);
+                }
+              }}
+            />
+
+            {canSelectPackingList ? (
+              <MultiSelectField
+                disabled={readOnly}
+                error={showRequiredErrors && values.packingList.length === 0}
+                label="Packing List"
+                labelAction={
+                  !readOnly ? (
+                  <Button
+                    disabled={values.packingList.length === 0}
+                    onClick={() => {
+                      const selectedRecords = packingListRecords.filter((record) =>
+                        values.packingList.includes(
+                          `${record.packingId} - ${record.orderNo}`,
+                        ),
+                      );
+                      setLoadedRecords(selectedRecords);
+                      setShowRequiredErrors(false);
+                    }}
+                    sx={loadButtonSx}
+                    variant="contained"
+                  >
+                    Load
+                  </Button>
+                  ) : null
+                }
+                options={packingListOptions}
+                required
+                showAllOption
+                showCheckboxes
+                value={values.packingList}
+                onChange={(nextValue) => {
+                  setValues((current) => ({
+                    ...current,
+                    packingList: nextValue,
+                  }));
+                  if (mode === "add") {
+                    setLoadedRecords([]);
+                  }
+                }}
+              />
+            ) : null}
+
+            <SingleSelectField
+              disabled={readOnly}
+              error={showRequiredErrors && !values.buyerAddress}
+              label="Address of Buyer"
+              options={buyerAddressOptions}
+              required
+              value={values.buyerAddress}
+              onChange={(nextValue) =>
+                setValues((current) => ({ ...current, buyerAddress: nextValue }))
+              }
+            />
+
+            <SingleSelectField
+              disabled={readOnly}
+              error={showRequiredErrors && !values.sellerAddress}
+              label="Address of Seller"
+              options={sellerAddressOptions}
+              required
+              value={values.sellerAddress}
+              onChange={(nextValue) =>
+                setValues((current) => ({ ...current, sellerAddress: nextValue }))
+              }
+            />
+
+            <SingleSelectField
+              disabled={readOnly}
+              error={showRequiredErrors && !values.transporter}
+              label="Transporter"
+              options={transporterMasterOptions}
+              required
+              value={values.transporter}
+              onChange={(nextValue) =>
+                setValues((current) => ({ ...current, transporter: nextValue }))
+              }
+            />
+
+            <SingleSelectField
+              disabled={readOnly}
+              error={showRequiredErrors && !values.transportMode}
+              label="Transport Mode"
+              options={transportModeOptions}
+              required
+              value={values.transportMode}
+              onChange={(nextValue) =>
+                setValues((current) => ({ ...current, transportMode: nextValue }))
+              }
+            />
+
+            <TextInputField
+              disabled={readOnly}
+              label="Remark"
+              value={values.remark}
+              onChange={(nextValue) =>
+                setValues((current) => ({ ...current, remark: nextValue }))
+              }
+            />
+          </Box>
+
+          {showRequiredErrors && !hasLoadedItems ? (
+            <Alert severity="warning">
+              Select customer, order category, product category, packing list and
+              click Load before submitting dispatch.
+            </Alert>
+          ) : null}
+
+          {hasLoadedItems ? (
+            <>
+              <DispatchItemsTable rows={dispatchItemRows} />
+              <DispatchSummaryTable row={dispatchSummaryRow} />
+            </>
+          ) : null}
 
           <Box
             sx={(theme) => ({
@@ -397,7 +525,7 @@ export function DispatchCreatePage({
                   Back
                 </Button>
 
-                {canEdit ? (
+                {canEdit && sourceRecord ? (
                   <Button
                     onClick={() => navigate(`/dispatch/edit/${sourceRecord.id}`)}
                     startIcon={<Pencil size={16} />}
@@ -422,33 +550,38 @@ export function DispatchCreatePage({
                 <Button
                   type="button"
                   onClick={() => {
-                    if (!canUseMode) {
-                      return;
-                    }
-
-                    setHasSubmitted(true);
+                    setShowRequiredErrors(true);
 
                     if (
-                      mode === "add" &&
-                      hasRequiredFieldErrors(activeFields, values)
+                      !values.customerName ||
+                      values.orderCategories.length === 0 ||
+                      values.productCategories.length === 0 ||
+                      values.packingList.length === 0 ||
+                      !values.buyerAddress ||
+                      !values.sellerAddress ||
+                      !values.transporter ||
+                      !values.transportMode ||
+                      !hasLoadedItems
                     ) {
                       return;
                     }
 
-                    createDispatchEntry(sourceRecord.id, {
-                      dispatchDate:
-                        values.removalDateTime instanceof Date
-                          ? values.removalDateTime
-                          : null,
-                      ...(typeof values.customerName === "string"
-                        ? { customerName: values.customerName }
-                        : {}),
-                      ...(typeof values.orderType === "string"
-                        ? { orderType: values.orderType }
-                        : {}),
-                      ...(typeof values.remark === "string"
-                        ? { remark: values.remark }
-                        : {}),
+                    loadedRecords.forEach((record) => {
+                      const itemAmount = parseAmount(record.amount);
+                      const grandTotal = itemAmount * 1.18;
+
+                      createDispatchEntry(record.id, {
+                        customerName: values.customerName,
+                        dispatchDate: new Date(),
+                        dispatchGrandTotal: formatAmount(grandTotal),
+                        dispatchTotalQuantity: record.noOfSheets,
+                        dispatchTotalSqf: record.sqf,
+                        dispatchTransporter: values.transporter,
+                        dispatchTransportMode: values.transportMode,
+                        orderType: values.orderCategories.join(", "),
+                        productCategory: values.productCategories.join(", "),
+                        remark: values.remark,
+                      });
                     });
                     navigate("/dispatch");
                   }}
@@ -475,76 +608,561 @@ export function DispatchViewPage() {
   return <DispatchCreatePage mode="view" />;
 }
 
-function buildDispatchInitialValues(
-  fields: readonly MasterFieldDefinition[],
-  record: PackingRecord | undefined,
-  mode: "add" | "edit" | "view",
-) {
-  return fields.reduce<Record<string, MasterFieldValue>>(
-    (accumulator, field) => {
-      if (field.type === "date") {
-        if (mode === "add") {
-          accumulator[field.key] = new Date();
-          return accumulator;
-        }
+function SingleSelectField({
+  disabled,
+  error,
+  label,
+  onChange,
+  options,
+  required,
+  value,
+}: {
+  disabled?: boolean;
+  error?: boolean;
+  label: string;
+  onChange: (value: string) => void;
+  options: readonly string[];
+  required?: boolean;
+  value: string;
+}) {
+  const normalizedOptions = uniqueStrings([value, ...options]);
 
-        const value =
-          field.key === "invoiceDateTime" ||
-          field.key === "removalDateTime" ||
-          field.key === "transDocDate"
-            ? record?.dispatchDate
-            : record?.[field.key as keyof PackingRecord];
-
-        accumulator[field.key] = value instanceof Date ? value : null;
-        return accumulator;
-      }
-
-      const value = getDispatchInitialStringValue(field.key, record);
-      accumulator[field.key] = typeof value === "string" ? value : "";
-      return accumulator;
-    },
-    {},
+  return (
+    <LabeledField label={label} required={Boolean(required)}>
+      <Autocomplete
+        disabled={disabled}
+        disablePortal
+        options={normalizedOptions}
+        value={value || null}
+        onChange={(_, nextValue) => onChange(nextValue ?? "")}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            error={error}
+            helperText={error ? `${label} is required` : undefined}
+            size="small"
+            sx={fieldSx}
+          />
+        )}
+        slotProps={{
+          paper: {
+            sx: dropdownPaperSx,
+          },
+        }}
+      />
+    </LabeledField>
   );
 }
 
-function uniqueDispatchOptions(
-  records: readonly PackingRecord[],
-  key: "customerName" | "orderNo" | "orderType",
-) {
-  return Array.from(new Set(records.map((record) => record[key]).filter(Boolean)));
+function MultiSelectField({
+  disabled,
+  error,
+  label,
+  labelAction,
+  onChange,
+  options,
+  required,
+  showAllOption = false,
+  showCheckboxes = false,
+  value,
+}: {
+  disabled?: boolean;
+  error?: boolean;
+  label: string;
+  labelAction?: ReactNode;
+  onChange: (value: string[]) => void;
+  options: readonly string[];
+  required?: boolean;
+  showAllOption?: boolean;
+  showCheckboxes?: boolean;
+  value: readonly string[];
+}) {
+  const normalizedOptions = uniqueStrings([...value, ...options]);
+  const finalOptions =
+    showAllOption && normalizedOptions.length > 0
+      ? [ALL_OPTION, ...normalizedOptions]
+      : normalizedOptions;
+
+  return (
+    <LabeledField
+      label={label}
+      labelAction={labelAction}
+      required={Boolean(required)}
+    >
+      <Autocomplete
+        multiple
+        disableCloseOnSelect
+        disabled={disabled}
+        disablePortal
+        options={finalOptions}
+        value={[...value]}
+        onChange={(_, nextValue) => {
+          if (nextValue.includes(ALL_OPTION)) {
+            const isAllAlreadySelected = value.length === normalizedOptions.length;
+            onChange(isAllAlreadySelected ? [] : normalizedOptions);
+            return;
+          }
+
+          onChange(nextValue.filter((item) => item !== ALL_OPTION));
+        }}
+        renderTags={(selectedValues, getTagProps) =>
+          selectedValues.map((option, index) => {
+            const { key, ...tagProps } = getTagProps({ index });
+            return (
+              <Chip
+                key={key}
+                label={option}
+                size="small"
+                {...tagProps}
+                sx={(theme) => ({
+                  height: 22,
+                  borderRadius: `${theme.customTokens.radius.pill}px`,
+                  backgroundColor: theme.customTokens.surfaces.paper,
+                  color: theme.customTokens.text.secondary,
+                  fontSize: theme.typography.caption.fontSize,
+                  "& .MuiChip-deleteIcon": {
+                    color: theme.customTokens.neutrals[500],
+                    fontSize: 15,
+                  },
+                })}
+              />
+            );
+          })
+        }
+        renderOption={(props, option) => {
+          const checked =
+            option === ALL_OPTION
+              ? value.length === options.length && options.length > 0
+              : value.includes(option);
+
+          return (
+            <Box
+              component="li"
+              {...props}
+              sx={(theme) => ({
+                alignItems: "center",
+                gap: showCheckboxes ? theme.spacing(1) : 0,
+                fontSize: theme.typography.body2.fontSize,
+              })}
+            >
+              {showCheckboxes ? (
+                <Checkbox
+                  checked={checked}
+                  size="small"
+                  sx={(theme) => ({
+                    color: theme.customTokens.neutrals[500],
+                    p: 0,
+                    "&.Mui-checked": {
+                      color: theme.palette.primary.main,
+                    },
+                  })}
+                />
+              ) : null}
+              {option}
+            </Box>
+          );
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            error={error}
+            helperText={error ? `${label} is required` : undefined}
+            size="small"
+            sx={fieldSx}
+          />
+        )}
+        slotProps={{
+          paper: {
+            sx: dropdownPaperSx,
+          },
+        }}
+      />
+    </LabeledField>
+  );
 }
 
-function getDispatchInitialStringValue(
-  key: string,
+function TextInputField({
+  disabled,
+  label,
+  onChange,
+  value,
+}: {
+  disabled?: boolean;
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <LabeledField label={label}>
+      <TextField
+        disabled={disabled}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        size="small"
+        sx={fieldSx}
+      />
+    </LabeledField>
+  );
+}
+
+function LabeledField({
+  children,
+  label,
+  labelAction,
+  required = false,
+}: {
+  children: ReactNode;
+  label: string;
+  labelAction?: ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <Stack
+      sx={(theme) => ({
+        gap: theme.spacing(0.75),
+      })}
+    >
+      <Box
+        sx={(theme) => ({
+          alignItems: "center",
+          display: "flex",
+          gap: theme.spacing(1),
+          justifyContent: "space-between",
+          minHeight: 24,
+        })}
+      >
+        <Typography
+          component="label"
+          sx={(theme) => ({
+            color: theme.customTokens.text.primary,
+            fontSize: theme.typography.caption.fontSize,
+            fontWeight: 700,
+            lineHeight: 1.2,
+          })}
+        >
+          {label}
+          {required ? (
+            <Box
+              component="span"
+              sx={(theme) => ({
+                color: theme.palette.error.main,
+                ml: theme.spacing(0.25),
+              })}
+            >
+              *
+            </Box>
+          ) : null}
+        </Typography>
+        {labelAction}
+      </Box>
+      {children}
+    </Stack>
+  );
+}
+
+function DispatchItemsTable({ rows }: { rows: readonly DispatchItemRow[] }) {
+  return (
+    <TableContainer sx={tableContainerSx}>
+      <Table sx={{ minWidth: 3000 }}>
+        <TableHead>
+          <TableRow>
+            {itemTableColumns.map((column) => (
+              <TableCell
+                key={column.key}
+                sx={(theme) => getHeaderCellSx(theme, column.minWidth)}
+              >
+                {column.label}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.id}>
+              {itemTableColumns.map((column) => (
+                <TableCell key={column.key} sx={(theme) => getBodyCellSx(theme)}>
+                  {row[column.key]}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+function DispatchSummaryTable({ row }: { row: DispatchSummaryRow }) {
+  return (
+    <TableContainer sx={tableContainerSx}>
+      <Table sx={{ minWidth: 1400 }}>
+        <TableHead>
+          <TableRow>
+            {summaryTableColumns.map((column) => (
+              <TableCell
+                key={column.key}
+                sx={(theme) => getHeaderCellSx(theme, column.minWidth)}
+              >
+                {column.label}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+
+        <TableBody>
+          <TableRow>
+            {summaryTableColumns.map((column) => (
+              <TableCell key={column.key} sx={(theme) => getBodyCellSx(theme)}>
+                {row[column.key]}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+function buildDispatchInitialValues(
   record: PackingRecord | undefined,
-) {
+): DispatchFormState {
   if (!record) {
-    return "";
+    return {
+      customerName: "",
+      orderCategories: [],
+      productCategories: [],
+      packingList: [],
+      buyerAddress: "",
+      sellerAddress: "",
+      transporter: "",
+      transportMode: "",
+      remark: "",
+    };
   }
 
-  const initialValueByKey: Record<string, string> = {
-    buyerAddress: "",
+  return {
     customerName: record.customerName,
-    invoiceNo: record.orderNo,
-    orderType: normalizeDispatchOrderCategory(record.orderType),
-    packingList: record.orderNo,
+    orderCategories: [record.orderType].filter(Boolean),
+    productCategories: [record.productCategory].filter(Boolean),
+    packingList: [`${record.packingId} - ${record.orderNo}`],
+    buyerAddress: buyerAddressOptions[0] ?? "",
+    sellerAddress: sellerAddressOptions[0] ?? "",
+    transporter: record.dispatchTransporter ?? transporterMasterOptions[0] ?? "",
+    transportMode: record.dispatchTransportMode ?? transportModeOptions[0] ?? "",
     remark: record.remark,
-    sellerAddress: "",
-    suppType: "B2B",
-    transDocNo: "",
-    transactionType: "Regular",
-    transporter: "",
-    transportMode: "",
   };
-
-  return initialValueByKey[key] ?? "";
 }
 
-function normalizeDispatchOrderCategory(orderType: string) {
-  return orderType.trim().toLowerCase() === "marquetry"
-    ? "Marquetry Order"
-    : orderType;
+function mapDispatchItemRow(
+  record: PackingRecord,
+  index: number,
+): DispatchItemRow {
+  const amount = parseAmount(record.amount);
+  const sqm = parseAmount(record.sqm);
+  const rate = sqm > 0 ? amount / sqm : 0;
+  const gstAmount = amount * 0.18;
+  const finalAmount = amount + gstAmount;
+
+  return {
+    id: `${record.id}-dispatch-item`,
+    srNo: String(index + 1),
+    orderNo: record.orderNo,
+    salesItemName: record.itemName,
+    orderItemNo: String(index + 1),
+    productCategory: record.productCategory,
+    groupNo: record.series || "-",
+    itemName: record.itemName,
+    itemSubCategory: record.grade || "-",
+    length: record.length,
+    width: record.width,
+    thickness: record.thickness,
+    noOfSheets: record.noOfSheets,
+    sqm: record.sqm,
+    rate: formatAmount(rate),
+    itemAmount: formatAmount(amount),
+    discountPercent: "0",
+    itemAmountWithDiscount: formatAmount(amount),
+    gstPercent: "18",
+    gstAmount: formatAmount(gstAmount),
+    igstAmount: "0.00",
+    finalAmount: formatAmount(finalAmount),
+    remark: record.remark || "-",
+  };
 }
+
+function buildSummaryRow(rows: readonly DispatchItemRow[]): DispatchSummaryRow {
+  const totalQuantity = rows.reduce(
+    (total, row) => total + parseAmount(row.noOfSheets),
+    0,
+  );
+  const totalSqm = rows.reduce((total, row) => total + parseAmount(row.sqm), 0);
+  const baseAmount = rows.reduce(
+    (total, row) => total + parseAmount(row.itemAmount),
+    0,
+  );
+  const otherAmount = 0;
+  const expenseAmountWithGst = otherAmount * 1.18;
+  const baseAmountWithGst = baseAmount * 1.18;
+  const grandTotal = baseAmountWithGst + expenseAmountWithGst;
+
+  return {
+    totalQuantity: formatPlainNumber(totalQuantity, 0),
+    totalSqm: formatPlainNumber(totalSqm, 3),
+    baseAmountWithoutGst: formatAmount(baseAmount),
+    otherAmount: formatAmount(otherAmount),
+    expenseAmountWithGst: formatAmount(expenseAmountWithGst),
+    baseAmountWithGst: formatAmount(baseAmountWithGst),
+    grandTotal: formatAmount(grandTotal),
+  };
+}
+
+function uniqueOptions(
+  records: readonly PackingRecord[],
+  key: keyof PackingRecord,
+) {
+  return uniqueStrings(records.map((record) => String(record[key] ?? "")));
+}
+
+function uniqueStrings(values: readonly string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function parseAmount(value: string) {
+  const numericValue = Number(value.replace(/,/g, ""));
+  return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function formatAmount(value: number) {
+  return value.toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  });
+}
+
+function formatPlainNumber(value: number, fractionDigits: number) {
+  return value.toLocaleString("en-IN", {
+    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: fractionDigits,
+  });
+}
+
+const fieldSx: SxProps<Theme> = (theme) => ({
+  "& .MuiOutlinedInput-root": {
+    border: `1px solid ${theme.customTokens.neutrals[400]}`,
+    height: 36,
+    minHeight: 36,
+    borderRadius: `${theme.customTokens.radius.md}px`,
+    backgroundColor: theme.palette.common.white,
+    boxSizing: "border-box",
+    color: theme.customTokens.text.primary,
+    fontSize: theme.typography.body2.fontSize,
+    py: 0,
+    "& .MuiOutlinedInput-notchedOutline": {
+      border: "none",
+    },
+    "&:hover": {
+      borderColor: theme.palette.primary.main,
+    },
+    "&.Mui-focused": {
+      borderColor: theme.palette.primary.main,
+    },
+    "&.Mui-error": {
+      borderColor: theme.palette.error.main,
+    },
+    "&.Mui-disabled": {
+      borderColor: theme.customTokens.neutrals[300],
+    },
+  },
+  "& .MuiInputBase-input": {
+    minHeight: 20,
+    py: theme.spacing(0.75),
+  },
+  "& .MuiAutocomplete-inputRoot": {
+    alignContent: "center",
+    flexWrap: "nowrap",
+    overflowX: "auto",
+    overflowY: "hidden",
+    scrollbarWidth: "none",
+    "&::-webkit-scrollbar": {
+      display: "none",
+    },
+  },
+  "& .MuiAutocomplete-tag": {
+    flexShrink: 0,
+    maxWidth: 180,
+  },
+  "& .MuiFormHelperText-root": {
+    fontSize: theme.typography.caption.fontSize,
+    mx: 0,
+  },
+});
+
+const loadButtonSx: SxProps<Theme> = (theme) => ({
+  minHeight: 28,
+  px: theme.spacing(1.75),
+  borderRadius: `${theme.customTokens.radius.md}px`,
+  backgroundColor: theme.customTokens.brand.primary,
+  color: theme.customTokens.text.inverse,
+  fontSize: theme.typography.caption.fontSize,
+  fontWeight: 700,
+  lineHeight: 1,
+  textTransform: "none",
+  boxShadow: "none",
+  "&:hover": {
+    backgroundColor: theme.customTokens.brand.primaryScale[800],
+    boxShadow: "none",
+  },
+  "&.Mui-disabled": {
+    backgroundColor: theme.customTokens.neutrals[200],
+    color: theme.customTokens.neutrals[500],
+  },
+});
+
+const dropdownPaperSx: SxProps<Theme> = (theme) => ({
+  border: `1px solid ${theme.customTokens.borders.default}`,
+  borderRadius: `${theme.customTokens.radius.md}px`,
+  boxShadow: "none",
+  mt: theme.spacing(0.5),
+  "& .MuiAutocomplete-listbox": {
+    maxHeight: 240,
+    overflowX: "hidden",
+    p: 0,
+    "&::-webkit-scrollbar": {
+      width: 8,
+    },
+    "&::-webkit-scrollbar-thumb": {
+      backgroundColor: theme.palette.primary.main,
+      borderRadius: theme.customTokens.radius.pill,
+    },
+    "&::-webkit-scrollbar-track": {
+      backgroundColor: theme.customTokens.surfaces.paper,
+    },
+  },
+  "& .MuiAutocomplete-option": {
+    minHeight: 34,
+    "&.Mui-focused, &[aria-selected='true']": {
+      backgroundColor: theme.customTokens.navigation.hoverBackground,
+    },
+  },
+});
+
+const tableContainerSx: SxProps<Theme> = (theme) => ({
+  border: `1px solid ${theme.customTokens.borders.default}`,
+  borderRadius: `${theme.customTokens.radius.md}px`,
+  overflowX: "auto",
+  overflowY: "hidden",
+  "&::-webkit-scrollbar": {
+    height: 8,
+  },
+  "&::-webkit-scrollbar-thumb": {
+    backgroundColor: theme.palette.primary.main,
+    borderRadius: theme.customTokens.radius.pill,
+  },
+  "&::-webkit-scrollbar-track": {
+    backgroundColor: theme.customTokens.surfaces.paper,
+  },
+});
 
 function getHeaderCellSx(theme: Theme, minWidth: number) {
   return {

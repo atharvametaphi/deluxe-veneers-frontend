@@ -188,7 +188,9 @@ export const SupplierContactPersonTable = forwardRef<
           <TableHead>
             <TableRow>
               {contactColumns.map((column) => (
-                <TableCell key={column.key}>{column.label}</TableCell>
+                <TableCell key={column.key}>
+                  <ColumnLabel label={column.label} required />
+                </TableCell>
               ))}
               <TableCell width={96}>Action</TableCell>
             </TableRow>
@@ -212,7 +214,10 @@ export const SupplierContactPersonTable = forwardRef<
                             : event.target.value,
                       }))
                     }
-                    sx={getCompactFieldSx(theme, "default")}
+                    sx={getCompactFieldSx(
+                      theme,
+                      draftErrors[column.key] ? "error" : "default",
+                    )}
                   />
                 </TableCell>
               ))}
@@ -268,3 +273,18 @@ export const SupplierContactPersonTable = forwardRef<
     </Stack>
   );
 });
+
+function ColumnLabel({
+  label,
+  required,
+}: {
+  label: string;
+  required: boolean;
+}) {
+  return (
+    <Stack component="span" direction="row" spacing={0.25}>
+      <span>{label}</span>
+      {required ? <span>*</span> : null}
+    </Stack>
+  );
+}

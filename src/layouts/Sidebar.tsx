@@ -44,6 +44,7 @@ import {
   getSidebarNavigation,
   type SidebarNavigationEntry,
   type SidebarNavigationGroup,
+  type SidebarNavigationItem,
   type SidebarMatchLocation,
 } from "./sidebarNavigation";
 
@@ -812,6 +813,7 @@ export function Sidebar({
 const navigationPermissionKeyById: Record<string, string> = {
   dashboard: "dashboard",
   dispatch: "dispatch",
+  order: "placeOrder",
   orders: "placeOrder",
   packing: "packing",
   "roles-permissions": "rolesPermissions",
@@ -831,7 +833,7 @@ function filterNavigationEntriesByPermissions(
   return entries.flatMap<SidebarNavigationEntry>((entry) => {
     if (isExpandableGroup(entry)) {
       const permittedItems = entry.items.filter((item) =>
-        canViewNavigationItem(item.id, user),
+        canViewNavigationItem(item, user),
       );
 
       if (permittedItems.length === 0) {
@@ -846,16 +848,19 @@ function filterNavigationEntriesByPermissions(
       ];
     }
 
-    return canViewNavigationItem(entry.id, user) ? [entry] : [];
+    return canViewNavigationItem(entry, user) ? [entry] : [];
   });
 }
 
 function canViewNavigationItem(
-  itemId: string,
+  item: SidebarNavigationEntry | SidebarNavigationItem,
   user: AuthenticatedUserProfile,
 ) {
+  const itemId = item.id;
   const permissionKey =
-    navigationPermissionKeyById[itemId] ?? masterPermissionKeyBySlug[itemId];
+    item.permissionKey ??
+    navigationPermissionKeyById[itemId] ??
+    masterPermissionKeyBySlug[itemId];
 
   if (permissionKey) {
     return canAccessAnyAction(permissionKey, user);
@@ -870,5 +875,5 @@ function canViewNavigationItem(
     return canAccessPermission("componentLibrary", "view", user);
   }
 
-  return true;
+  return false;
 }

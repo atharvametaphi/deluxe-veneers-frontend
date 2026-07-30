@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 
@@ -36,26 +47,16 @@ import {
   usePackingRecords,
 } from "./packingStore";
 
-const packingRecordFields: readonly MasterFieldDefinition[] = [
-  { key: "issuedFrom", label: "Issued From", type: "text" },
-  { key: "orderNo", label: "Order No", type: "text" },
+const packingDetailFields: readonly MasterFieldDefinition[] = [
+  { key: "packingId", label: "Packing ID", type: "text" },
+  { key: "packingDate", label: "Packing Date", required: true, type: "date" },
   { key: "customerName", label: "Customer Name", type: "text" },
   { key: "orderType", label: "Order Type", type: "text" },
-  { key: "productCategory", label: "Product Category", type: "text" },
-  { key: "itemName", label: "Item Name", type: "text" },
-  { key: "length", label: "Length", type: "text" },
-  { key: "width", label: "Width", type: "text" },
-  { key: "thickness", label: "Thickness", type: "text" },
-  { key: "series", label: "Series", type: "text" },
-  { key: "grade", label: "Grade", type: "text" },
-  { key: "amount", label: "Amount", type: "text" },
-  { key: "remark", label: "Remark", type: "text" },
-  { key: "packingDate", label: "Packing Date", type: "date" },
-  { key: "dispatchDate", label: "Dispatch Date", type: "date" },
-  { key: "createdBy", label: "Created By", type: "text" },
-  { key: "updatedBy", label: "Updated By", type: "text" },
-  { key: "createdDate", label: "Created Date", type: "date" },
-  { key: "updatedDate", label: "Updated Date", type: "date" },
+  { key: "productCategory", label: "Product Type", type: "text" },
+  { key: "orderNo", label: "Order No", type: "text" },
+  { key: "preparedBy", label: "Prepared By", type: "text" },
+  { key: "checkedBy", label: "Checked By", type: "text" },
+  { key: "remark", label: "Remarks", type: "text" },
 ];
 
 interface PackingSourceRow extends EnterpriseTableRow {
@@ -65,6 +66,7 @@ interface PackingSourceRow extends EnterpriseTableRow {
   orderItemNo: string;
   orderType: string;
   productCategory: string;
+  finishedType: string;
   itemName: string;
   groupNo: string;
   photoNo: string;
@@ -73,6 +75,7 @@ interface PackingSourceRow extends EnterpriseTableRow {
   thickness: string;
   noOfSheets: string;
   sqm: string;
+  sqf: string;
   amount: string;
 }
 
@@ -88,8 +91,32 @@ const packingSourceColumns: readonly EnterpriseTableColumn<PackingSourceRow>[] =
     { key: "width", label: "Width" },
     { key: "noOfSheets", label: "No of Sheets" },
     { key: "sqm", label: "SQM" },
+    { key: "sqf", label: "SQF" },
     { key: "amount", label: "Amount" },
   ];
+
+const packingItemDetailColumns: readonly {
+  key: keyof PackingRecord & string;
+  label: string;
+  minWidth: number;
+}[] = [
+  { key: "itemName", label: "Item Name", minWidth: 180 },
+  { key: "length", label: "Length", minWidth: 120 },
+  { key: "width", label: "Width", minWidth: 120 },
+  { key: "thickness", label: "Thickness", minWidth: 130 },
+  { key: "noOfSheets", label: "No of Sheets", minWidth: 140 },
+  { key: "sqm", label: "SQM", minWidth: 120 },
+  { key: "sqf", label: "SQF", minWidth: 120 },
+  { key: "amount", label: "Amount", minWidth: 140 },
+];
+
+const rawPackingProductCategoryOptions = ["Raw"] as const;
+const finishedPackingProductCategoryOptions = [
+  "Marquetry",
+  "Fluted",
+  "Embossed",
+  "Decorative",
+] as const;
 
 interface PackingRecordPageProps {
   mode: "add" | "edit" | "view";
@@ -117,54 +144,19 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
       ]),
     [orderRecords, packingRecords],
   );
-  const productCategoryOptions = useMemo(
+  const initialCreatePackingFields = useMemo(
     () =>
-      uniqueStringValues([
-        ...packingSourceRows.map((entry) => entry.productCategory),
-        ...packingRecords.map((entry) => entry.productCategory),
-      ]),
-    [packingRecords, packingSourceRows],
+      buildCreatePackingFields({
+        customerOptions,
+        orderNoOptions: [],
+        productCategoryOptions: [],
+      }),
+    [customerOptions],
   );
-  const createPackingFields = useMemo<readonly MasterFieldDefinition[]>(
-    () => [
-      {
-        key: "packingDate",
-        label: "Packing Date",
-        type: "date",
-      },
-      {
-        key: "customerName",
-        label: "Customer Name",
-        type: "select",
-        options: customerOptions,
-        placeholder: "Select Customer Name",
-      },
-      {
-        key: "orderType",
-        label: "Order Type",
-        type: "select",
-        options: [...packingOrderTypeOptions],
-        placeholder: "Select Order Type",
-      },
-      {
-        key: "productCategory",
-        label: "Product Category",
-        type: "select",
-        options: productCategoryOptions,
-        placeholder: "Select Product Category",
-      },
-      {
-        key: "remark",
-        label: "Remark",
-        type: "text",
-        placeholder: "Enter Remark",
-      },
-    ],
-    [customerOptions, productCategoryOptions],
-  );
-  const activeFields = mode === "add" ? createPackingFields : packingRecordFields;
+  const initialActiveFields =
+    mode === "add" ? initialCreatePackingFields : packingDetailFields;
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildPackingInitialValues(activeFields, record, mode),
+    buildPackingInitialValues(initialActiveFields, record, mode),
   );
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [selectedSourceRowIds, setSelectedSourceRowIds] = useState<string[]>([]);
@@ -174,10 +166,6 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
   const canUseMode =
     mode === "add" ? canCreate : mode === "edit" ? canEdit : canView;
 
-  useEffect(() => {
-    setValues(buildPackingInitialValues(activeFields, record, mode));
-  }, [activeFields, mode, record]);
-
   const selectedCustomerName =
     typeof values.customerName === "string" ? values.customerName.trim() : "";
   const selectedOrderType =
@@ -186,11 +174,64 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
     typeof values.productCategory === "string"
       ? values.productCategory.trim()
       : "";
+  const selectedOrderNo =
+    typeof values.orderNo === "string" ? values.orderNo.trim() : "";
+  const productCategoryOptions = useMemo(
+    () => getPackingProductCategoryOptions(selectedOrderType),
+    [selectedOrderType],
+  );
+  const orderNoOptions = useMemo(
+    () =>
+      uniqueStringValues(
+        packingSourceRows
+          .filter((row) => {
+            if (!matchesPackingOrderType(row.orderType, selectedOrderType)) {
+              return false;
+            }
+
+            if (
+              selectedProductCategory &&
+              row.productCategory !== selectedProductCategory
+            ) {
+              return false;
+            }
+
+            if (selectedCustomerName && row.customerName !== selectedCustomerName) {
+              return false;
+            }
+
+            return true;
+          })
+          .map((row) => row.orderNo),
+      ),
+    [
+      packingSourceRows,
+      selectedCustomerName,
+      selectedOrderType,
+      selectedProductCategory,
+    ],
+  );
+  const createPackingFields = useMemo<readonly MasterFieldDefinition[]>(
+    () =>
+      buildCreatePackingFields({
+        customerOptions,
+        orderNoOptions,
+        productCategoryOptions,
+      }),
+    [customerOptions, orderNoOptions, productCategoryOptions],
+  );
+  const activeFields = mode === "add" ? createPackingFields : packingDetailFields;
+
+  useEffect(() => {
+    setValues(buildPackingInitialValues(initialActiveFields, record, mode));
+  }, [initialActiveFields, mode, record]);
+
   const showOrderSourceTable =
     mode === "add" &&
     !record &&
     selectedOrderType.length > 0 &&
-    selectedProductCategory.length > 0;
+    selectedProductCategory.length > 0 &&
+    selectedOrderNo.length > 0;
   const filteredSourceRows = useMemo(() => {
     if (!showOrderSourceTable) {
       return [];
@@ -209,11 +250,16 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
         return false;
       }
 
+      if (selectedOrderNo && row.orderNo !== selectedOrderNo) {
+        return false;
+      }
+
       return true;
     });
   }, [
     packingSourceRows,
     selectedCustomerName,
+    selectedOrderNo,
     selectedOrderType,
     selectedProductCategory,
     showOrderSourceTable,
@@ -308,15 +354,36 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
               gridColumns: 4,
             }}
             onChange={(key, value) =>
-              setValues((current) => ({
-                ...current,
-                [key]: value,
-              }))
+              setValues((current) => {
+                const nextValues = {
+                  ...current,
+                  [key]: value,
+                };
+
+                if (key === "orderType") {
+                  nextValues.productCategory =
+                    typeof value === "string" &&
+                    getOrderVariantFromType(value) === "raw"
+                      ? "Raw"
+                      : "";
+                  nextValues.orderNo = "";
+                }
+
+                if (key === "customerName" || key === "productCategory") {
+                  nextValues.orderNo = "";
+                }
+
+                return nextValues;
+              })
             }
             readOnly={mode === "view"}
             showRequiredErrors={mode === "add" && hasSubmitted}
             values={values}
           />
+
+          {mode !== "add" && record ? (
+            <PackingItemDetailsTable record={record} />
+          ) : null}
 
           {showOrderSourceTable ? (
             <EnterpriseDataTable
@@ -426,14 +493,23 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                             issuedFrom: "Orders",
                             itemName: row.itemName,
                             length: row.length,
+                            noOfSheets: row.noOfSheets,
                             orderNo: row.orderNo,
                             orderType: normalizePackingOrderType(row.orderType),
                             packingDate,
                             productCategory:
                               selectedProductCategory || row.productCategory,
                             remark,
+                            sqf: row.sqf,
+                            sqm: row.sqm,
                             thickness: row.thickness,
                             width: row.width,
+                            ...(typeof values.preparedBy === "string"
+                              ? { preparedBy: values.preparedBy }
+                              : {}),
+                            ...(typeof values.checkedBy === "string"
+                              ? { checkedBy: values.checkedBy }
+                              : {}),
                           });
                         });
                       } else {
@@ -445,8 +521,17 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                           ...(typeof values.orderType === "string"
                             ? { orderType: values.orderType }
                             : {}),
+                          ...(typeof values.orderNo === "string"
+                            ? { orderNo: values.orderNo }
+                            : {}),
                           ...(typeof values.productCategory === "string"
                             ? { productCategory: values.productCategory }
+                            : {}),
+                          ...(typeof values.preparedBy === "string"
+                            ? { preparedBy: values.preparedBy }
+                            : {}),
+                          ...(typeof values.checkedBy === "string"
+                            ? { checkedBy: values.checkedBy }
                             : {}),
                           ...(typeof values.remark === "string"
                             ? { remark: values.remark }
@@ -477,6 +562,163 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
   );
 }
 
+function PackingItemDetailsTable({ record }: { record: PackingRecord }) {
+  return (
+    <Stack
+      sx={(theme) => ({
+        gap: theme.spacing(1),
+      })}
+    >
+      <Typography variant="body1" color="text.primary" fontWeight={600}>
+        Item Details
+      </Typography>
+
+      <Box
+        sx={(theme) => ({
+          border: `1px solid ${theme.customTokens.borders.default}`,
+          borderRadius: `${theme.customTokens.radius.sm}px`,
+          backgroundColor: theme.customTokens.surfaces.surface,
+          overflow: "hidden",
+        })}
+      >
+        <Box
+          sx={(theme) => ({
+            overflowX: "auto",
+            scrollbarColor: `${theme.palette.primary.main} transparent`,
+            scrollbarWidth: "thin",
+            "&::-webkit-scrollbar": {
+              height: 8,
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: theme.palette.primary.main,
+              borderRadius: theme.customTokens.radius.pill,
+            },
+            "&::-webkit-scrollbar-track": {
+              backgroundColor: "transparent",
+            },
+          })}
+        >
+          <Table
+            size="small"
+            sx={{
+              minWidth: 1070,
+              tableLayout: "fixed",
+            }}
+          >
+            <TableHead>
+              <TableRow>
+                {packingItemDetailColumns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    sx={(theme) => ({
+                      minWidth: column.minWidth,
+                      width: column.minWidth,
+                      backgroundColor: theme.palette.primary.main,
+                      borderRight: `1px solid ${theme.palette.primary.dark}`,
+                      color: theme.palette.primary.contrastText,
+                      fontSize: theme.typography.caption.fontSize,
+                      fontWeight: 700,
+                      px: theme.spacing(1.5),
+                      py: theme.spacing(1.25),
+                      whiteSpace: "nowrap",
+                    })}
+                  >
+                    {column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              <TableRow>
+                {packingItemDetailColumns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    sx={(theme) => ({
+                      borderRight: `1px solid ${theme.customTokens.borders.default}`,
+                      color: theme.palette.text.primary,
+                      fontSize: theme.typography.body2.fontSize,
+                      px: theme.spacing(1.5),
+                      py: theme.spacing(1.25),
+                      whiteSpace: "nowrap",
+                    })}
+                  >
+                    {formatPackingDetailValue(record[column.key])}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableBody>
+          </Table>
+        </Box>
+      </Box>
+    </Stack>
+  );
+}
+
+function buildCreatePackingFields({
+  customerOptions,
+  orderNoOptions,
+  productCategoryOptions,
+}: {
+  customerOptions: readonly string[];
+  orderNoOptions: readonly string[];
+  productCategoryOptions: readonly string[];
+}): readonly MasterFieldDefinition[] {
+  return [
+    {
+      key: "packingDate",
+      label: "Packing Date",
+      required: true,
+      type: "date",
+    },
+    {
+      key: "customerName",
+      label: "Customer Name",
+      options: [...customerOptions],
+      required: true,
+      type: "select",
+    },
+    {
+      key: "orderType",
+      label: "Order Type",
+      options: [...packingOrderTypeOptions],
+      required: true,
+      type: "select",
+    },
+    {
+      key: "productCategory",
+      label: "Product Category",
+      options: [...productCategoryOptions],
+      required: true,
+      type: "select",
+    },
+    {
+      key: "orderNo",
+      label: "Order No",
+      options: [...orderNoOptions],
+      required: true,
+      type: "select",
+    },
+    {
+      key: "preparedBy",
+      label: "Prepared By",
+      required: true,
+      type: "text",
+    },
+    {
+      key: "checkedBy",
+      label: "Checked By",
+      required: true,
+      type: "text",
+    },
+    {
+      key: "remark",
+      label: "Remarks",
+      required: false,
+      type: "text",
+    },
+  ];
+}
+
 function buildPackingInitialValues(
   fields: readonly MasterFieldDefinition[],
   record: PackingRecord | undefined,
@@ -492,6 +734,15 @@ function buildPackingInitialValues(
           return accumulator;
         }
 
+        if (
+          field.key === "packingDate" &&
+          !(value instanceof Date) &&
+          record?.createdDate instanceof Date
+        ) {
+          accumulator[field.key] = record.createdDate;
+          return accumulator;
+        }
+
         accumulator[field.key] = value instanceof Date ? value : null;
         return accumulator;
       }
@@ -504,7 +755,7 @@ function buildPackingInitialValues(
 }
 
 function buildPackingUpdatePayload(values: Record<string, MasterFieldValue>) {
-  return packingRecordFields.reduce<Partial<PackingRecord>>(
+  return packingDetailFields.reduce<Partial<PackingRecord>>(
     (accumulator, field) => {
       const value = values[field.key];
 
@@ -525,6 +776,22 @@ function buildPackingUpdatePayload(values: Record<string, MasterFieldValue>) {
   );
 }
 
+function formatPackingDetailValue(value: PackingRecord[keyof PackingRecord]) {
+  if (value instanceof Date) {
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(value);
+  }
+
+  if (value === null || typeof value === "undefined") {
+    return "";
+  }
+
+  return String(value);
+}
+
 function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
   return orderRecords.flatMap<PackingSourceRow>((record) => {
     const lineItems = getOrderLineItems(record.id);
@@ -535,6 +802,7 @@ function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
             {
               id: `${record.id}-line-1`,
               productCategory: record.productCategory,
+              finishedType: record.productCategory,
               itemName: record.itemName,
               subCategory: record.subCategory,
               series: record.series,
@@ -543,6 +811,7 @@ function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
               width: record.width,
               thickness: record.thickness,
               quantitySheets: record.quantitySheets,
+              sqm: record.sqm,
               totalSqm: record.totalSqm,
               amount: record.amount,
             },
@@ -554,8 +823,9 @@ function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
       customerName: record.customerName,
       orderNo: record.orderNo,
       orderItemNo: String(index + 1),
-      orderType: record.orderType,
-      productCategory: item.productCategory,
+      orderType: normalizePackingOrderType(record.orderType),
+      productCategory: getPackingSourceProductCategory(record, item),
+      finishedType: item.finishedType ?? "",
       itemName: item.itemName,
       groupNo: item.series || "-",
       photoNo: "-",
@@ -563,7 +833,8 @@ function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
       width: item.width,
       thickness: item.thickness,
       noOfSheets: item.quantitySheets,
-      sqm: item.totalSqm,
+      sqm: item.sqm,
+      sqf: item.totalSqm,
       amount: item.amount,
     }));
   });
@@ -571,6 +842,33 @@ function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
 
 function uniqueStringValues(values: readonly (string | null | undefined)[]) {
   return Array.from(new Set(values.filter(isNonEmptyString)));
+}
+
+function getPackingProductCategoryOptions(selectedOrderType: string) {
+  const orderVariant = getOrderVariantFromType(selectedOrderType);
+
+  if (orderVariant === "raw") {
+    return [...rawPackingProductCategoryOptions];
+  }
+
+  if (orderVariant === "finished") {
+    return [...finishedPackingProductCategoryOptions];
+  }
+
+  return [];
+}
+
+function getPackingSourceProductCategory(
+  record: OrderRecord,
+  item: Partial<ReturnType<typeof getOrderLineItems>[number]>,
+) {
+  const orderVariant = getOrderVariantFromType(record.orderType);
+
+  if (orderVariant === "raw") {
+    return "Raw";
+  }
+
+  return item.finishedType || record.productCategory;
 }
 
 function isNonEmptyString(
@@ -601,7 +899,5 @@ function matchesPackingOrderType(
 }
 
 function normalizePackingOrderType(orderType: string) {
-  return getOrderVariantFromType(orderType) === "marquetry"
-    ? "Marquetry"
-    : "Raw Order";
+  return getOrderVariantFromType(orderType) === "raw" ? "Raw" : "Finished";
 }

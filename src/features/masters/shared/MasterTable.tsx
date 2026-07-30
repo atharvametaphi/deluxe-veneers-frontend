@@ -174,6 +174,7 @@ export function MasterTable({
     pageStartIndex,
     pageStartIndex + rowsPerPage,
   );
+  const visiblePaginationPages = getVisiblePaginationPages(totalPages);
 
   useEffect(() => {
     if (page !== safePage) {
@@ -576,16 +577,30 @@ export function MasterTable({
                   <ChevronLeft size={13} />
                 </Button>
 
-                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                  (pageNumber) => (
-                    <Button
-                      key={pageNumber}
-                      size="small"
-                      variant={pageNumber === safePage ? "contained" : "outlined"}
-                      onClick={() => setPage(pageNumber)}
-                      sx={pageNumberButtonSx(pageNumber === safePage)}
+                {visiblePaginationPages.map((pageItem, index) =>
+                  pageItem === "ellipsis" ? (
+                    <Typography
+                      key={`pagination-ellipsis-${index}`}
+                      variant="caption"
+                      sx={(theme) => ({
+                        alignItems: "center",
+                        color: theme.palette.text.secondary,
+                        display: "inline-flex",
+                        height: 28,
+                        px: theme.spacing(0.5),
+                      })}
                     >
-                      {pageNumber}
+                      .....
+                    </Typography>
+                  ) : (
+                    <Button
+                      key={pageItem}
+                      size="small"
+                      variant={pageItem === safePage ? "contained" : "outlined"}
+                      onClick={() => setPage(pageItem)}
+                      sx={pageNumberButtonSx(pageItem === safePage)}
+                    >
+                      {pageItem}
                     </Button>
                   ),
                 )}
@@ -1217,4 +1232,16 @@ function clampPage(value: string, totalPages: number) {
   }
 
   return Math.min(parsed, totalPages);
+}
+
+function getVisiblePaginationPages(totalPages: number) {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  return [
+    ...Array.from({ length: 5 }, (_, index) => index + 1),
+    "ellipsis" as const,
+    totalPages,
+  ];
 }

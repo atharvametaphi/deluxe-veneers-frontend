@@ -62,6 +62,16 @@ export function PackingListingPage() {
 
   const issuedActions = useMemo<readonly EnterpriseTableAction<PackingRecord>[]>(
     () => [
+      ...(canViewPacking
+        ? [
+            {
+              id: "view",
+              label: "View",
+              icon: Eye,
+              onSelect: (row: PackingRecord) => navigate(paths.view(row.id)),
+            },
+          ]
+        : []),
       ...(canEditPacking
         ? [
             {
@@ -75,16 +85,6 @@ export function PackingListingPage() {
               label: "Revert",
               icon: RotateCcw,
               onSelect: (row: PackingRecord) => revertPackingRecord(row.id),
-            },
-          ]
-        : []),
-      ...(canViewPacking
-        ? [
-            {
-              id: "view",
-              label: "View",
-              icon: Eye,
-              onSelect: (row: PackingRecord) => navigate(paths.view(row.id)),
             },
           ]
         : []),

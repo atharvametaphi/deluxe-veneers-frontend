@@ -1,4 +1,10 @@
-import { useMemo, useState } from "react";
+import {
+  forwardRef,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import {
   Box,
@@ -19,6 +25,7 @@ import {
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import {
   WarehouseAAddStockLineItems,
+  type WarehouseAAddStockLineItemsHandle,
   type WarehouseAAddStockSlug,
 } from "./WarehouseAAddStockLineItems";
 
@@ -53,17 +60,26 @@ const defaultInvoiceDetailValues: InvoiceDetailValues = {
   totalItemAmount: "",
 };
 
-export function WarehouseAAddStockWorkspace({
+export interface WarehouseAAddStockWorkspaceHandle {
+  validate: () => boolean;
+}
+
+export const WarehouseAAddStockWorkspace = forwardRef<
+  WarehouseAAddStockWorkspaceHandle,
+  {
+    slug: WarehouseAAddStockSlug;
+  }
+>(function WarehouseAAddStockWorkspace({
   slug,
-}: {
-  slug: WarehouseAAddStockSlug;
-}) {
+}, ref) {
   const theme = useTheme();
+  const lineItemsRef = useRef<WarehouseAAddStockLineItemsHandle>(null);
   const [activeTab, setActiveTab] =
     useState<AddStockWorkspaceTab>("item-details");
   const [lineItemsAmountTotal, setLineItemsAmountTotal] = useState(0);
   const [invoiceDetailValues, setInvoiceDetailValues] =
     useState<InvoiceDetailValues>(defaultInvoiceDetailValues);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const formattedLineItemsAmount = useMemo(
     () => formatAmount(lineItemsAmountTotal),
@@ -113,6 +129,31 @@ export function WarehouseAAddStockWorkspace({
     }));
   };
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      validate: () => {
+        setHasSubmitted(true);
+
+        const lineItemsValid = lineItemsRef.current?.validate() ?? true;
+        const invoiceValid = !hasInvoiceRequiredErrors(invoiceDetailValues);
+
+        if (!lineItemsValid) {
+          setActiveTab("item-details");
+          return false;
+        }
+
+        if (!invoiceValid) {
+          setActiveTab("invoice-details");
+          return false;
+        }
+
+        return true;
+      },
+    }),
+    [invoiceDetailValues],
+  );
+
   return (
     <Stack
       sx={{
@@ -131,6 +172,7 @@ export function WarehouseAAddStockWorkspace({
         }}
       >
         <WarehouseAAddStockLineItems
+          ref={lineItemsRef}
           slug={slug}
           onAmountTotalChange={setLineItemsAmountTotal}
         />
@@ -152,9 +194,18 @@ export function WarehouseAAddStockWorkspace({
             },
           }}
         >
-          <InvoiceField label="Invoice Date*">
+          <InvoiceField
+            error={hasSubmitted && !invoiceDetailValues.invoiceDate}
+            label="Invoice Date"
+            required
+          >
             <ErpDatePickerField
               onChange={(value) => handleInvoiceFieldChange("invoiceDate", value)}
+              state={
+                hasSubmitted && !invoiceDetailValues.invoiceDate
+                  ? "error"
+                  : "default"
+              }
               value={invoiceDetailValues.invoiceDate}
             />
           </InvoiceField>
@@ -170,19 +221,37 @@ export function WarehouseAAddStockWorkspace({
             />
           </InvoiceField>
 
-          <InvoiceField label="GST Percentage*">
+          <InvoiceField
+            error={hasSubmitted && isBlank(invoiceDetailValues.gstPercentage)}
+            label="GST Percentage"
+            required
+          >
             <ErpSelectField
               onChange={handleGstPercentageChange}
               options={gstMasterOptions}
+              state={
+                hasSubmitted && isBlank(invoiceDetailValues.gstPercentage)
+                  ? "error"
+                  : "default"
+              }
               value={invoiceDetailValues.gstPercentage}
             />
           </InvoiceField>
 
-          <InvoiceField label="SGST Percentage*">
+          <InvoiceField
+            error={hasSubmitted && isBlank(invoiceDetailValues.sgstPercentage)}
+            label="SGST Percentage"
+            required
+          >
             <TextField
               fullWidth
               value={invoiceDetailValues.sgstPercentage}
-              sx={getCompactFieldSx(theme, "readOnly")}
+              sx={getCompactFieldSx(
+                theme,
+                hasSubmitted && isBlank(invoiceDetailValues.sgstPercentage)
+                  ? "error"
+                  : "readOnly",
+              )}
               slotProps={{
                 input: {
                   readOnly: true,
@@ -191,11 +260,20 @@ export function WarehouseAAddStockWorkspace({
             />
           </InvoiceField>
 
-          <InvoiceField label="CGST Percentage*">
+          <InvoiceField
+            error={hasSubmitted && isBlank(invoiceDetailValues.cgstPercentage)}
+            label="CGST Percentage"
+            required
+          >
             <TextField
               fullWidth
               value={invoiceDetailValues.cgstPercentage}
-              sx={getCompactFieldSx(theme, "readOnly")}
+              sx={getCompactFieldSx(
+                theme,
+                hasSubmitted && isBlank(invoiceDetailValues.cgstPercentage)
+                  ? "error"
+                  : "readOnly",
+              )}
               slotProps={{
                 input: {
                   readOnly: true,
@@ -272,23 +350,56 @@ export function WarehouseAAddStockWorkspace({
       </Box>
     </Stack>
   );
-}
+});
 
 function InvoiceField({
   children,
+  error = false,
   label,
+  required = false,
 }: {
   children: ReactNode;
+  error?: boolean;
   label: string;
+  required?: boolean;
 }) {
   return (
     <Stack spacing={0.75}>
       <Typography variant="subtitle2" color="text.primary">
         {label}
+        {required ? (
+          <Typography
+            component="span"
+            sx={(theme) => ({
+              color: theme.palette.error.main,
+              ml: theme.spacing(0.25),
+            })}
+          >
+            *
+          </Typography>
+        ) : null}
       </Typography>
       {children}
+      {error ? (
+        <Typography variant="caption" color="error">
+          {label} is required.
+        </Typography>
+      ) : null}
     </Stack>
   );
+}
+
+function hasInvoiceRequiredErrors(values: InvoiceDetailValues) {
+  return (
+    !values.invoiceDate ||
+    isBlank(values.gstPercentage) ||
+    isBlank(values.sgstPercentage) ||
+    isBlank(values.cgstPercentage)
+  );
+}
+
+function isBlank(value: string) {
+  return value.trim().length === 0;
 }
 
 function parseNumber(value: string) {

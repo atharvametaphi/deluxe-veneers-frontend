@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Box,
   Button,
   ClickAwayListener,
+  Dialog,
+  DialogContent,
   MenuList,
   MenuItem,
   Paper,
   Popper,
   Stack,
+  Typography,
 } from "@mui/material";
-import { ChevronDown, Eye, Pencil, XCircle } from "lucide-react";
+import { ChevronDown, CircleAlert, Eye, Pencil, XCircle } from "lucide-react";
 import type { MouseEvent } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
   EnterpriseDataTable,
@@ -20,13 +24,17 @@ import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessT
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
-import { getListingToolbarButtonSx } from "../../shared/buttonStyles";
+import {
+  getListingToolbarButtonSx,
+  recordFormActionButtonSx,
+} from "../../shared/buttonStyles";
 import {
   cancelOrderRecord,
-  orderCreateOptions,
   getOrdersPaths,
   getOrderVariantFromType,
   orderListingColumns,
+  ordersModuleConfig,
+  type OrderModuleConfig,
   type OrderCreateVariant,
   type OrderRecord,
   useOrderRecords,
@@ -34,25 +42,45 @@ import {
 import { OrderViewDetailsDialog } from "./OrderViewDetailsDialog";
 
 type OrderListingTab = OrderCreateVariant;
+type OrderListingLocationState = {
+  orderListingTab?: OrderListingTab;
+} | null;
 
-const orderTabs = orderCreateOptions.map((option) => ({
-  label: option.label.replace(/ Order$/, " Orders"),
-  value: option.value,
-}));
-
-export function OrdersListingPage() {
+export function OrdersListingPage({
+  moduleConfig = ordersModuleConfig,
+}: {
+  moduleConfig?: OrderModuleConfig;
+}) {
+  const location = useLocation();
   const navigate = useNavigate();
   const { id: viewOrderId } = useParams<{ id: string }>();
-  const paths = getOrdersPaths();
+  const paths = getOrdersPaths(moduleConfig.basePath);
   const rows = useOrderRecords();
-  const [activeTab, setActiveTab] = useState<OrderListingTab>("raw");
+  const requestedTab = getLocationOrderTab(location.state);
+  const orderTabs = useMemo(
+    () =>
+      moduleConfig.createOptions.map((option) => ({
+        label: option.label.replace(/ Order$/, " Orders"),
+        value: option.value,
+      })),
+    [moduleConfig.createOptions],
+  );
+  const [activeTab, setActiveTab] = useState<OrderListingTab>(
+    getDefaultOrderListingTab(moduleConfig, requestedTab),
+  );
   const [searchValue, setSearchValue] = useState("");
   const [createMenuAnchor, setCreateMenuAnchor] = useState<HTMLElement | null>(
     null,
   );
-  const canCreate = canAccessPermission("placeOrder", "create");
-  const canEdit = canAccessPermission("placeOrder", "edit");
-  const canView = canAccessPermission("placeOrder", "view");
+  const [cancelDialogOrder, setCancelDialogOrder] =
+    useState<OrderRecord | null>(null);
+  const canCreate = canAccessPermission(moduleConfig.permissionKey, "create");
+  const canEdit = canAccessPermission(moduleConfig.permissionKey, "edit");
+  const canView = canAccessPermission(moduleConfig.permissionKey, "view");
+
+  useEffect(() => {
+    setActiveTab(getDefaultOrderListingTab(moduleConfig, requestedTab));
+  }, [moduleConfig, requestedTab]);
 
   const filteredRows = useMemo(() => {
     return rows
@@ -78,10 +106,13 @@ export function OrdersListingPage() {
   useEffect(() => {
     const viewRecordVariant = getOrderVariantFromType(viewRecord?.orderType);
 
-    if (viewRecordVariant) {
+    if (
+      viewRecordVariant &&
+      moduleConfig.createOptions.some((option) => option.value === viewRecordVariant)
+    ) {
       setActiveTab(viewRecordVariant);
     }
-  }, [viewRecord?.orderType]);
+  }, [moduleConfig.createOptions, viewRecord?.orderType]);
 
   const rowActions = useMemo<readonly EnterpriseTableAction<OrderRecord>[]>(
     () => [
@@ -91,7 +122,13 @@ export function OrdersListingPage() {
               id: "view",
               label: "View",
               icon: Eye,
-              onSelect: (row: OrderRecord) => navigate(paths.view(row.id)),
+              onSelect: (row: OrderRecord) =>
+                navigate(paths.view(row.id), {
+                  state: {
+                    orderListingTab:
+                      getOrderVariantFromType(row.orderType) ?? activeTab,
+                  },
+                }),
             },
           ]
         : []),
@@ -106,7 +143,7 @@ export function OrdersListingPage() {
           ]
         : []),
     ],
-    [canEdit, canView, navigate, paths],
+    [activeTab, canEdit, canView, navigate, paths],
   );
 
   const getRowActions = (
@@ -120,7 +157,7 @@ export function OrdersListingPage() {
             id: "cancel-order",
             label: "Cancel Order",
             icon: XCircle,
-            onSelect: (selectedRow) => cancelOrderRecord(selectedRow.id),
+            onSelect: (selectedRow) => setCancelDialogOrder(selectedRow),
           },
         ];
 
@@ -133,10 +170,23 @@ export function OrdersListingPage() {
     navigate(`${paths.add}?type=${variant}`);
   };
 
+  const handleCloseCancelDialog = () => {
+    setCancelDialogOrder(null);
+  };
+
+  const handleConfirmCancelOrder = () => {
+    if (!cancelDialogOrder) {
+      return;
+    }
+
+    cancelOrderRecord(cancelDialogOrder.id);
+    setCancelDialogOrder(null);
+  };
+
   return (
     <MasterPageShell
-      breadcrumbs={[{ label: "Orders" }]}
-      title="Orders"
+      breadcrumbs={[{ label: moduleConfig.title }]}
+      title={moduleConfig.title}
     >
       <ModuleProcessTabs
         onChange={setActiveTab}
@@ -199,7 +249,7 @@ export function OrdersListingPage() {
                 })}
               >
                 <MenuList autoFocusItem dense>
-                  {orderCreateOptions.map((option) => (
+                  {moduleConfig.createOptions.map((option) => (
                     <MenuItem
                       key={option.value}
                       onClick={() => handleCreateVariantSelect(option.value)}
@@ -226,11 +276,148 @@ export function OrdersListingPage() {
 
       <OrderViewDetailsDialog
         onClose={() => {
-          navigate(paths.list);
+          navigate(paths.list, {
+            state: {
+              orderListingTab:
+                getOrderVariantFromType(viewRecord?.orderType) ?? activeTab,
+            },
+          });
         }}
+        onEdit={
+          canEdit && viewRecord
+            ? () =>
+                navigate(paths.edit(viewRecord.id), {
+                  state: {
+                    orderListingTab:
+                      getOrderVariantFromType(viewRecord.orderType) ?? activeTab,
+                  },
+                })
+            : undefined
+        }
         open={Boolean(viewOrderId)}
         record={viewRecord}
       />
+
+      <CancelOrderConfirmationDialog
+        onClose={handleCloseCancelDialog}
+        onConfirm={handleConfirmCancelOrder}
+        open={Boolean(cancelDialogOrder)}
+        orderNo={cancelDialogOrder?.orderNo}
+      />
     </MasterPageShell>
   );
+}
+
+function CancelOrderConfirmationDialog({
+  onClose,
+  onConfirm,
+  open,
+  orderNo,
+}: {
+  onClose: () => void;
+  onConfirm: () => void;
+  open: boolean;
+  orderNo: string | undefined;
+}) {
+  return (
+    <Dialog
+      fullWidth
+      maxWidth="xs"
+      onClose={onClose}
+      open={open}
+      slotProps={{
+        paper: {
+          sx: (theme) => ({
+            border: `1px solid ${theme.customTokens.borders.default}`,
+            borderRadius: `${theme.customTokens.radius.md}px`,
+            boxShadow: theme.shadows[0],
+            outline: "none",
+            "&:focus, &:focus-visible": {
+              outline: "none",
+            },
+          }),
+        },
+      }}
+    >
+      <DialogContent
+        sx={(theme) => ({
+          px: theme.spacing(4),
+          py: theme.spacing(4),
+        })}
+      >
+        <Stack alignItems="center" spacing={2.5}>
+          <Box
+            sx={(theme) => ({
+              alignItems: "center",
+              border: `3px solid ${theme.customTokens.semanticScale.warning[400]}`,
+              borderRadius: "50%",
+              color: theme.customTokens.semanticScale.warning[400],
+              display: "flex",
+              height: 76,
+              justifyContent: "center",
+              width: 76,
+            })}
+          >
+            <CircleAlert size={42} strokeWidth={2.25} />
+          </Box>
+
+          <Typography
+            align="center"
+            sx={(theme) => ({
+              color: theme.palette.text.primary,
+              fontSize: theme.typography.body1.fontSize,
+              fontWeight: 500,
+            })}
+          >
+            Are you sure you want to cancel order {orderNo ?? ""}?
+          </Typography>
+
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              disableElevation
+              onClick={onConfirm}
+              sx={recordFormActionButtonSx}
+              variant="contained"
+            >
+              Yes
+            </Button>
+
+            <Button
+              disableElevation
+              onClick={onClose}
+              sx={(theme) => ({
+                ...recordFormActionButtonSx,
+                backgroundColor: theme.customTokens.neutrals[600],
+                color: theme.customTokens.text.inverse,
+                "&:hover": {
+                  backgroundColor: theme.customTokens.neutrals[700],
+                },
+              })}
+              variant="contained"
+            >
+              No
+            </Button>
+          </Stack>
+        </Stack>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function getLocationOrderTab(state: unknown) {
+  return (state as OrderListingLocationState)?.orderListingTab ?? null;
+}
+
+function getDefaultOrderListingTab(
+  moduleConfig: OrderModuleConfig,
+  requestedTab: OrderListingTab | null,
+) {
+  if (
+    requestedTab &&
+    moduleConfig.createOptions.some((option) => option.value === requestedTab)
+  ) {
+    return requestedTab;
+  }
+
+  return moduleConfig.createOptions[0]?.value ?? "raw";
 }

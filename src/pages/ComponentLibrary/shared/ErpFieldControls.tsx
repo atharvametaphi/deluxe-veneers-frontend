@@ -36,6 +36,7 @@ type BaseFieldProps = {
 };
 
 export type ErpSelectFieldProps = BaseFieldProps & {
+  dropdownWidth?: number | string | undefined;
   maxVisibleOptions?: number | undefined;
   onChange: (value: string) => void;
   options: ReadonlyArray<string>;
@@ -581,6 +582,7 @@ function CalendarSurface({
 }
 
 export function ErpSelectField({
+  dropdownWidth,
   helperText,
   maxVisibleOptions = defaultVisibleOptionLimit,
   onChange,
@@ -794,7 +796,6 @@ export function ErpSelectField({
 
         <Popper
           anchorEl={anchorEl}
-          disablePortal
           open={open}
           placement="bottom-start"
           sx={{ zIndex: theme.zIndex.modal }}
@@ -802,7 +803,8 @@ export function ErpSelectField({
           <Paper
             sx={{
               mt: theme.spacing(0.75),
-              width: anchorEl ? anchorEl.clientWidth : theme.spacing(30),
+              width: dropdownWidth ?? (anchorEl ? anchorEl.clientWidth : theme.spacing(30)),
+              minWidth: anchorEl ? anchorEl.clientWidth : undefined,
               maxHeight: theme.spacing(30),
               border: `1px solid ${theme.customTokens.borders.default}`,
               borderRadius: `${theme.customTokens.radius.md}px`,

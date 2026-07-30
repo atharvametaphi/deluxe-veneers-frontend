@@ -46,6 +46,21 @@ export async function fetchUserManagementDetail(id: string) {
   return detail;
 }
 
+export async function fetchUserManagementDetailByEmail(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  return getUserStore().find(
+    (row) => row.email.trim().toLowerCase() === normalizedEmail,
+  );
+}
+
+export function isUserManagementPasswordValid(id: string, password: string) {
+  const passwordStore = getPasswordStore();
+  const currentPassword = passwordStore[id] ?? DEFAULT_USER_PASSWORD;
+
+  return password === currentPassword;
+}
+
 export async function createUserManagementRecord(
   values: Record<string, MasterFieldValue>,
   permissions?: Record<string, UserPermissionFlags>,

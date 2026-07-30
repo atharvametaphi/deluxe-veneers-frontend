@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Eye, Upload, X } from "lucide-react";
 import {
   getCountries,
@@ -46,6 +46,7 @@ type FormFieldLayoutDefinition = {
 
 interface MasterFormFieldsProps {
   definition: FormFieldLayoutDefinition;
+  fieldActions?: Partial<Record<string, ReactNode>>;
   onChange: (key: string, value: MasterFieldValue) => void;
   readOnly?: boolean;
   showRequiredErrors?: boolean;
@@ -164,6 +165,7 @@ const countryCodeOptions = Array.from(
 
 export function MasterFormFields({
   definition,
+  fieldActions,
   onChange,
   readOnly = false,
   showRequiredErrors = false,
@@ -290,6 +292,7 @@ export function MasterFormFields({
           const renderedFieldType = isStatusField(field) ? "toggle" : field.type;
           const isFullWidth = field.span === "full" || field.type === "textarea";
           const fieldIsReadOnly = readOnly || Boolean(field.readOnly);
+          const fieldRequired = isRequiredField(field);
           const fieldHasRequiredError =
             showRequiredErrors &&
             !fieldIsReadOnly &&
@@ -298,6 +301,10 @@ export function MasterFormFields({
             showRequiredErrors && !fieldIsReadOnly
               ? getFieldValidationError(field, fieldValue)
               : "";
+          const fieldHelperText =
+            fieldHasRequiredError
+              ? getRequiredFieldMessage(field)
+              : fieldValidationError || field.helperText;
           const fieldState = fieldHasRequiredError
             ? "error"
             : fieldValidationError
@@ -312,6 +319,7 @@ export function MasterFormFields({
               : fieldIsReadOnly
                 ? "disabled"
                 : "default";
+          const fieldAction = fieldActions?.[field.key] ?? null;
 
           return (
             <Stack
@@ -327,9 +335,19 @@ export function MasterFormFields({
                   : undefined,
               })}
             >
-              <Typography variant="subtitle2" color="text.primary">
-                {field.label}
-              </Typography>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={(theme) => ({
+                  gap: theme.spacing(0.75),
+                  minHeight: theme.spacing(2.5),
+                })}
+              >
+                <FieldLabel label={field.label} required={fieldRequired} />
+
+                {fieldAction}
+              </Stack>
 
               {field.type === "text" && isPhoneField(field) ? (
                 <Box
@@ -443,7 +461,7 @@ export function MasterFormFields({
                   <TextField
                     fullWidth
                     error={Boolean(fieldHasRequiredError || fieldValidationError)}
-                    helperText={fieldValidationError || field.helperText}
+                    helperText={fieldHelperText}
                     value={getPhoneDisplayValue(
                       fieldValue,
                       getPhoneCountryCode(values, field.key),
@@ -475,7 +493,7 @@ export function MasterFormFields({
                 <TextField
                   fullWidth
                   error={Boolean(fieldHasRequiredError || fieldValidationError)}
-                  helperText={fieldValidationError || field.helperText}
+                  helperText={fieldHelperText}
                   value={typeof fieldValue === "string" ? fieldValue : ""}
                   onChange={(event) => {
                     const nextValue = normalizeTextInputValue(
@@ -494,7 +512,7 @@ export function MasterFormFields({
                 <TextField
                   fullWidth
                   error={Boolean(fieldHasRequiredError || fieldValidationError)}
-                  helperText={fieldValidationError || field.helperText}
+                  helperText={fieldHelperText}
                   multiline
                   minRows={field.rows ?? 3}
                   value={typeof fieldValue === "string" ? fieldValue : ""}
@@ -510,7 +528,7 @@ export function MasterFormFields({
 
               {renderedFieldType === "select" || isLocationField(field) ? (
                 <ErpSelectField
-                  helperText={field.helperText}
+                  helperText={fieldHelperText}
                   maxVisibleOptions={
                     isLocationField(field)
                       ? locationSearchVisibleOptionLimit
@@ -526,7 +544,7 @@ export function MasterFormFields({
 
               {renderedFieldType === "date" ? (
                 <ErpDatePickerField
-                  helperText={field.helperText}
+                  helperText={fieldHelperText}
                   onChange={(value) => onChange(field.key, value)}
                   state={interactiveFieldState}
                   value={fieldValue instanceof Date ? fieldValue : null}
@@ -839,6 +857,39 @@ export function hasFormFieldErrors(
   );
 }
 
+function FieldLabel({
+  label,
+  required,
+}: {
+  label: string;
+  required: boolean;
+}) {
+  return (
+    <Typography variant="subtitle2" color="text.primary">
+      {getDisplayFieldLabel(label)}
+      {required ? (
+        <Typography
+          component="span"
+          sx={(theme) => ({
+            color: theme.palette.error.main,
+            ml: theme.spacing(0.25),
+          })}
+        >
+          *
+        </Typography>
+      ) : null}
+    </Typography>
+  );
+}
+
+function getDisplayFieldLabel(label: string) {
+  return label.trim().replace(/\s*\*+$/, "");
+}
+
+function getRequiredFieldMessage(field: MasterFieldDefinition) {
+  return `${getDisplayFieldLabel(field.label)} is required.`;
+}
+
 function getFieldValidationError(
   field: MasterFieldDefinition,
   value: MasterFieldValue | null,
@@ -866,7 +917,7 @@ function getFieldValidationError(
   }
 
   if (isGstOrHsnNumericField(field) && !/^\d+$/.test(textValue)) {
-    return `${field.label.replace("*", "")} should contain numbers only.`;
+    return `${getDisplayFieldLabel(field.label)} should contain numbers only.`;
   }
 
   if (isPincodeField(field) && !/^\d{6}$/.test(textValue)) {

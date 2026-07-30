@@ -15,11 +15,15 @@ import {
 import type { Theme } from "@mui/material/styles";
 
 import { formatMasterValue } from "../../masters/shared";
+import { recordFormActionButtonSx } from "../../shared/buttonStyles";
 import {
   getOrderLineItems,
+  getOrderVariantFromType,
+  type OrderCreateVariant,
   type OrderLineItem,
   type OrderRecord,
 } from "./ordersStore";
+import { Pencil } from "lucide-react";
 
 type DetailColumn<TRow> = {
   getValue: (row: TRow) => unknown;
@@ -32,6 +36,7 @@ const orderDetailColumns: readonly DetailColumn<OrderRecord>[] = [
   { label: "Order Date", minWidth: 130, getValue: (row) => row.orderDate },
   { label: "Customer Name", minWidth: 220, getValue: (row) => row.customerName },
   { label: "Order Type", minWidth: 150, getValue: (row) => row.orderType },
+  { label: "Priority", minWidth: 120, getValue: (row) => row.priority },
   { label: "Product Category", minWidth: 160, getValue: (row) => row.productCategory },
   { label: "Sales Coordinator", minWidth: 180, getValue: (row) => row.salesCoordinator },
   { label: "Status", minWidth: 130, getValue: (row) => row.status },
@@ -41,7 +46,7 @@ const orderDetailColumns: readonly DetailColumn<OrderRecord>[] = [
   { label: "Updated By", minWidth: 130, getValue: (row) => row.updatedBy },
 ];
 
-const itemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
+const rawItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
   { label: "Item Sub Category", minWidth: 160, getValue: (row) => row.subCategory },
   { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
   { label: "Series", minWidth: 130, getValue: (row) => row.series },
@@ -56,21 +61,43 @@ const itemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
   { label: "Amount", minWidth: 130, getValue: (row) => row.amount },
 ];
 
+const finishedItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
+  { label: "Finished Type", minWidth: 150, getValue: (row) => row.finishedType },
+  { label: "Sales Item Name", minWidth: 190, getValue: (row) => row.salesItemName },
+  { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
+  { label: "Length", minWidth: 120, getValue: (row) => row.length },
+  { label: "Width", minWidth: 120, getValue: (row) => row.width },
+  { label: "Thickness", minWidth: 120, getValue: (row) => row.thickness },
+  { label: "No. of Sheets", minWidth: 130, getValue: (row) => row.quantitySheets },
+  { label: "SQM", minWidth: 120, getValue: (row) => row.sqm },
+  { label: "SQF", minWidth: 120, getValue: (row) => row.totalSqm },
+  { label: "Base Type", minWidth: 130, getValue: (row) => row.baseType },
+  { label: "Base Name", minWidth: 160, getValue: (row) => row.baseName },
+  { label: "Base Length", minWidth: 130, getValue: (row) => row.baseLength },
+  { label: "Base Width", minWidth: 130, getValue: (row) => row.baseWidth },
+  { label: "Base Thickness", minWidth: 150, getValue: (row) => row.baseThickness },
+  { label: "Amount", minWidth: 130, getValue: (row) => row.amount },
+  { label: "Remark", minWidth: 200, getValue: (row) => row.remark },
+];
+
 export function OrderViewDetailsDialog({
   onClose,
+  onEdit,
   open,
   record,
 }: {
   onClose: () => void;
+  onEdit?: (() => void | Promise<void>) | undefined;
   open: boolean;
   record: OrderRecord | undefined;
 }) {
   const lineItems = record ? getOrderLineItems(record.id) : [];
+  const itemColumns = getItemDetailColumns(getOrderVariantFromType(record?.orderType));
 
   return (
     <Dialog
       fullWidth
-      maxWidth="xl"
+      maxWidth={false}
       onClose={onClose}
       open={open}
       slotProps={{
@@ -78,6 +105,12 @@ export function OrderViewDetailsDialog({
           sx: (theme) => ({
             borderRadius: `${theme.customTokens.radius.sm}px`,
             boxShadow: "0 16px 40px rgba(0, 0, 0, 0.22)",
+            maxHeight: "calc(100vh - 32px)",
+            outline: "none",
+            width: "min(1600px, calc(100vw - 32px))",
+            "&:focus, &:focus-visible": {
+              outline: "none",
+            },
           }),
         },
       }}
@@ -114,7 +147,7 @@ export function OrderViewDetailsDialog({
             />
 
             <OrderDetailTable
-              columns={itemDetailColumns}
+              columns={itemColumns}
               emptyLabel="No order items are available."
               rows={lineItems}
               title="Item Details"
@@ -123,13 +156,30 @@ export function OrderViewDetailsDialog({
             <Box
               sx={(theme) => ({
                 display: "flex",
+                gap: theme.spacing(1.5),
                 justifyContent: "center",
                 pt: theme.spacing(0.5),
               })}
             >
-              <Button onClick={onClose} variant="contained">
+              <Button
+                disableElevation
+                onClick={onClose}
+                sx={recordFormActionButtonSx}
+                variant="contained"
+              >
                 Close
               </Button>
+              {onEdit ? (
+                <Button
+                  disableElevation
+                  onClick={onEdit}
+                  startIcon={<Pencil size={16} />}
+                  sx={recordFormActionButtonSx}
+                  variant="contained"
+                >
+                  Edit
+                </Button>
+              ) : null}
             </Box>
           </Stack>
         ) : (
@@ -229,6 +279,10 @@ function formatDetailValue(value: unknown) {
   const text = String(value).trim();
 
   return text.length > 0 ? text : "-";
+}
+
+function getItemDetailColumns(variant: OrderCreateVariant | null) {
+  return variant === "finished" ? finishedItemDetailColumns : rawItemDetailColumns;
 }
 
 function getDetailTableMinWidth<TRow>(columns: readonly DetailColumn<TRow>[]) {

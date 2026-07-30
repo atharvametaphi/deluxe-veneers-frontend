@@ -3,6 +3,7 @@ import { Alert, Box, Button, Stack, Tab, Tabs, Typography } from "@mui/material"
 import { ChevronLeft, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 
+import { syncCurrentUserFromUserManagementDetail } from "../../auth";
 import {
   MasterFormFields,
   MasterPageShell,
@@ -161,10 +162,20 @@ export function UserManagementFormPage({
     setErrorMessage("");
 
     try {
+      let savedUser: UserManagementDetail | undefined;
+
       if (mode === "add") {
-        await createUserManagementRecord(values, permissions);
+        savedUser = await createUserManagementRecord(values, permissions);
       } else if (mode === "edit" && params.id) {
-        await updateUserManagementRecord(params.id, values, permissions);
+        savedUser = await updateUserManagementRecord(
+          params.id,
+          values,
+          permissions,
+        );
+      }
+
+      if (savedUser) {
+        syncCurrentUserFromUserManagementDetail(savedUser);
       }
 
       navigate(paths.list);

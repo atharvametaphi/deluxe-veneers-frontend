@@ -28,7 +28,7 @@ import {
   getFactoryPaths,
   slicingDefinition,
 } from "../../shared";
-import { recordFormActionButtonSx } from "../../../shared/buttonStyles";
+import { listingToolbarButtonSx, recordFormActionButtonSx } from "../../../shared/buttonStyles";
 
 type SourceRow = {
   id: string;
@@ -204,6 +204,9 @@ export function SlicingCreatePage() {
   );
   const [lineItems, setLineItems] = useState<SlicingLineItem[]>([]);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [draftSubmitAttempted, setDraftSubmitAttempted] = useState(false);
+  const [editingSubmitAttempted, setEditingSubmitAttempted] = useState(false);
   const [editingValues, setEditingValues] = useState<SlicingLineItemValues>(() =>
     createEmptyLineItemValues(),
   );
@@ -221,6 +224,14 @@ export function SlicingCreatePage() {
 
   const handleAddLineItem = () => {
     if (allLineItemValuesEmpty(draftValues)) {
+      setDraftSubmitAttempted(true);
+      return;
+    }
+
+    const validationErrors = getLineItemValidationErrors(draftValues);
+
+    if (hasValidationErrors(validationErrors)) {
+      setDraftSubmitAttempted(true);
       return;
     }
 
@@ -235,6 +246,7 @@ export function SlicingCreatePage() {
       },
     ]);
     setDraftValues(createDefaultLineItemValues(sourceSummary, sourceRow));
+    setDraftSubmitAttempted(false);
   };
 
   const handleDeleteLineItem = (rowId: string) => {
@@ -249,9 +261,17 @@ export function SlicingCreatePage() {
   const handleStartEdit = (row: SlicingLineItem) => {
     setEditingRowId(row.id);
     setEditingValues({ ...row.values });
+    setEditingSubmitAttempted(false);
   };
 
   const handleSaveEdit = (rowId: string) => {
+    const validationErrors = getLineItemValidationErrors(editingValues);
+
+    if (hasValidationErrors(validationErrors)) {
+      setEditingSubmitAttempted(true);
+      return;
+    }
+
     setLineItems((current) =>
       current.map((row) =>
         row.id === rowId
@@ -264,6 +284,7 @@ export function SlicingCreatePage() {
     );
     setEditingRowId(null);
     setEditingValues(createEmptyLineItemValues());
+    setEditingSubmitAttempted(false);
   };
 
   return (
@@ -333,20 +354,33 @@ export function SlicingCreatePage() {
             gap: currentTheme.spacing(2),
           })}
         >
-          <FieldWrapper label="Slicing Date*">
+          <FieldWrapper
+            label="Slicing Date"
+            required
+          >
             <ErpDatePickerField
+              helperText={hasSubmitted ? getSlicingFormError("slicingDate", formValues) : ""}
               onChange={(value) =>
                 setFormValues((current) => ({
                   ...current,
                   slicingDate: value,
                 }))
               }
+              state={
+                hasSubmitted && getSlicingFormError("slicingDate", formValues)
+                  ? "error"
+                  : "default"
+              }
               value={formValues.slicingDate}
             />
           </FieldWrapper>
 
-          <FieldWrapper label="Shift*">
+          <FieldWrapper
+            label="Shift"
+            required
+          >
             <ErpSelectField
+              helperText={hasSubmitted ? getSlicingFormError("shift", formValues) : ""}
               onChange={(value) =>
                 setFormValues((current) => ({
                   ...current,
@@ -354,13 +388,26 @@ export function SlicingCreatePage() {
                 }))
               }
               options={["Day", "General", "Evening", "Night"]}
+              state={
+                hasSubmitted && getSlicingFormError("shift", formValues)
+                  ? "error"
+                  : "default"
+              }
               value={formValues.shift}
             />
           </FieldWrapper>
 
-          <FieldWrapper label="No. of Workers*">
+          <FieldWrapper label="No. of Workers" required>
+            {(() => {
+              const errorText = hasSubmitted
+                ? getSlicingFormError("noOfWorkers", formValues)
+                : "";
+
+              return (
             <TextField
+              error={Boolean(errorText)}
               fullWidth
+              helperText={errorText}
               size="small"
               value={formValues.noOfWorkers}
               onChange={(event) =>
@@ -369,13 +416,23 @@ export function SlicingCreatePage() {
                   noOfWorkers: event.target.value,
                 }))
               }
-              sx={getCompactFieldSx(theme)}
+              sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
             />
+              );
+            })()}
           </FieldWrapper>
 
-          <FieldWrapper label="No. of Working Hours*">
+          <FieldWrapper label="No. of Working Hours" required>
+            {(() => {
+              const errorText = hasSubmitted
+                ? getSlicingFormError("noOfWorkingHours", formValues)
+                : "";
+
+              return (
             <TextField
+              error={Boolean(errorText)}
               fullWidth
+              helperText={errorText}
               size="small"
               value={formValues.noOfWorkingHours}
               onChange={(event) =>
@@ -384,13 +441,23 @@ export function SlicingCreatePage() {
                   noOfWorkingHours: event.target.value,
                 }))
               }
-              sx={getCompactFieldSx(theme)}
+              sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
             />
+              );
+            })()}
           </FieldWrapper>
 
-          <FieldWrapper label="No. of Total Hours*">
+          <FieldWrapper label="No. of Total Hours" required>
+            {(() => {
+              const errorText = hasSubmitted
+                ? getSlicingFormError("noOfTotalHours", formValues)
+                : "";
+
+              return (
             <TextField
+              error={Boolean(errorText)}
               fullWidth
+              helperText={errorText}
               size="small"
               value={formValues.noOfTotalHours}
               onChange={(event) =>
@@ -399,8 +466,10 @@ export function SlicingCreatePage() {
                   noOfTotalHours: event.target.value,
                 }))
               }
-              sx={getCompactFieldSx(theme)}
+              sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
             />
+              );
+            })()}
           </FieldWrapper>
         </Box>
 
@@ -422,7 +491,10 @@ export function SlicingCreatePage() {
                         key={column.key}
                         sx={getHeaderCellSx(theme, column.minWidth)}
                       >
-                        {column.label}
+                        <ColumnLabel
+                          label={column.label}
+                          required={isLineItemColumnRequired(column)}
+                        />
                       </TableCell>
                     ))}
                   </TableRow>
@@ -434,6 +506,9 @@ export function SlicingCreatePage() {
                       <TableCell key={column.key} sx={getBodyCellSx(theme)}>
                         {renderEditableField({
                           column,
+                          errorText: draftSubmitAttempted
+                            ? getFieldValidationError(column, draftValues)
+                            : "",
                           onChange: (value) =>
                             setDraftValues((current) => ({
                               ...current,
@@ -459,11 +534,11 @@ export function SlicingCreatePage() {
             <Button
               disableElevation
               onClick={handleAddLineItem}
-              startIcon={<Plus size={16} />}
-              sx={factoryCreateAddItemButtonSx}
+              startIcon={<Plus size={14} />}
+              sx={listingToolbarButtonSx}
               variant="contained"
             >
-              Add New Item
+              Add Item
             </Button>
           </Box>
 
@@ -488,7 +563,10 @@ export function SlicingCreatePage() {
                           key={column.key}
                           sx={getHeaderCellSx(theme, column.minWidth)}
                         >
-                          {column.label}
+                          <ColumnLabel
+                            label={column.label}
+                            required={isLineItemColumnRequired(column)}
+                          />
                         </TableCell>
                       ))}
                       <TableCell sx={getActionHeaderCellSx(theme, 120)}>
@@ -515,6 +593,9 @@ export function SlicingCreatePage() {
                               {isEditing
                                 ? renderEditableField({
                                     column,
+                                    errorText: editingSubmitAttempted
+                                      ? getFieldValidationError(column, editingValues)
+                                      : "",
                                     onChange: (value) =>
                                       setEditingValues((current) => ({
                                         ...current,
@@ -592,7 +673,27 @@ export function SlicingCreatePage() {
             variant="contained"
             disableElevation
             sx={recordFormActionButtonSx}
-            onClick={() => navigate(paths.list)}
+            onClick={() => {
+              setHasSubmitted(true);
+              const draftHasValues = !allLineItemValuesEmpty(draftValues);
+              const draftErrors = getLineItemValidationErrors(draftValues);
+              const editingErrors = getLineItemValidationErrors(editingValues);
+              const lineItemsInvalid =
+                lineItems.length === 0 ||
+                (draftHasValues && hasValidationErrors(draftErrors)) ||
+                Boolean(editingRowId && hasValidationErrors(editingErrors));
+
+              if (lineItemsInvalid) {
+                setDraftSubmitAttempted(true);
+                setEditingSubmitAttempted(Boolean(editingRowId));
+              }
+
+              if (hasSlicingFormErrors(formValues) || lineItemsInvalid) {
+                return;
+              }
+
+              navigate(paths.list);
+            }}
           >
             Submit
           </Button>
@@ -605,14 +706,25 @@ export function SlicingCreatePage() {
 function FieldWrapper({
   children,
   label,
+  required = false,
 }: {
   children: ReactNode;
   label: string;
+  required?: boolean;
 }) {
   return (
     <Stack sx={{ gap: 0.75 }}>
-      <Typography variant="subtitle2" color="text.primary">
-        {label}
+      <Typography
+        variant="subtitle2"
+        color="text.primary"
+        sx={{ display: "flex", gap: 0.25 }}
+      >
+        <span>{label}</span>
+        {required ? (
+          <Box component="span" sx={(theme) => ({ color: theme.palette.error.main })}>
+            *
+          </Box>
+        ) : null}
       </Typography>
       {children}
     </Stack>
@@ -683,6 +795,86 @@ function createEmptyLineItemValues(): SlicingLineItemValues {
 
 function allLineItemValuesEmpty(values: SlicingLineItemValues) {
   return Object.values(values).every((value) => value.trim().length === 0);
+}
+
+function hasSlicingFormErrors(values: SlicingFormValues) {
+  return (Object.keys(slicingFormFieldLabels) as (keyof SlicingFormValues)[]).some(
+    (key) => Boolean(getSlicingFormError(key, values)),
+  );
+}
+
+const slicingFormFieldLabels: Record<keyof SlicingFormValues, string> = {
+  noOfTotalHours: "No. of Total Hours",
+  noOfWorkers: "No. of Workers",
+  noOfWorkingHours: "No. of Working Hours",
+  shift: "Shift",
+  slicingDate: "Slicing Date",
+};
+
+function getSlicingFormError(
+  key: keyof SlicingFormValues,
+  values: SlicingFormValues,
+) {
+  const value = values[key];
+
+  if (value instanceof Date) {
+    return "";
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    return "";
+  }
+
+  return `${slicingFormFieldLabels[key]} is required.`;
+}
+
+function getLineItemValidationErrors(values: SlicingLineItemValues) {
+  return lineItemColumns.reduce<Record<string, string>>((errors, column) => {
+    const error = getFieldValidationError(column, values);
+
+    if (error) {
+      errors[column.key] = error;
+    }
+
+    return errors;
+  }, {});
+}
+
+function hasValidationErrors(errors: Record<string, string>) {
+  return Object.keys(errors).length > 0;
+}
+
+function getFieldValidationError(
+  column: LineItemColumn,
+  values: SlicingLineItemValues,
+) {
+  if (
+    isLineItemColumnRequired(column) &&
+    (values[column.key] ?? "").trim().length === 0
+  ) {
+    return `${column.label} is required.`;
+  }
+
+  return "";
+}
+
+function isLineItemColumnRequired(column: LineItemColumn) {
+  return column.key !== "remark";
+}
+
+function ColumnLabel({
+  label,
+  required,
+}: {
+  label: string;
+  required: boolean;
+}) {
+  return (
+    <Stack component="span" direction="row" spacing={0.25}>
+      <span>{label}</span>
+      {required ? <span>*</span> : null}
+    </Stack>
+  );
 }
 
 function getStringValue(sourceRow: SourceRow | undefined, keys: readonly string[]) {
@@ -806,50 +998,16 @@ function getActionButtonSx(theme: Theme) {
   } as const;
 }
 
-const factoryCreateActionButtonSx = {
-  alignItems: "center",
-  display: "inline-flex",
-  justifyContent: "center",
-  minHeight: 30,
-  minWidth: 66,
-  px: 1.35,
-  py: 0.5,
-  borderRadius: "12px",
-  fontSize: "0.75rem",
-  fontWeight: 700,
-  lineHeight: 1,
-  boxShadow: "none",
-  textTransform: "none",
-  "&.MuiButton-contained": {
-    boxShadow: "0 8px 18px rgba(143, 19, 22, 0.16)",
-  },
-  "&.MuiButton-contained:hover": {
-    boxShadow: "0 10px 20px rgba(143, 19, 22, 0.2)",
-  },
-  "& .MuiButton-endIcon, & .MuiButton-startIcon": {
-    alignItems: "center",
-    display: "inline-flex",
-    lineHeight: 0,
-    "& svg": {
-      height: 14,
-      width: 14,
-    },
-  },
-};
-
-const factoryCreateAddItemButtonSx = {
-  ...factoryCreateActionButtonSx,
-  borderRadius: "8px",
-  minWidth: 120,
-};
 
 function renderEditableField({
   column,
+  errorText,
   onChange,
   theme,
   value,
 }: {
   column: LineItemColumn;
+  errorText?: string;
   onChange: (value: string) => void;
   theme: Theme;
   value: string;
@@ -857,8 +1015,10 @@ function renderEditableField({
   if (column.type === "select") {
     return (
       <ErpSelectField
+        helperText={errorText}
         onChange={onChange}
         options={column.options ?? []}
+        state={errorText ? "error" : "default"}
         value={value}
       />
     );
@@ -866,7 +1026,9 @@ function renderEditableField({
 
   return (
     <TextField
+      error={Boolean(errorText)}
       fullWidth
+      helperText={errorText}
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
@@ -878,7 +1040,7 @@ function renderEditableField({
         event.preventDefault();
         onChange(getNextMeasurementValue(value, event.deltaY));
       }}
-      sx={getCompactFieldSx(theme)}
+      sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
     />
   );
 }

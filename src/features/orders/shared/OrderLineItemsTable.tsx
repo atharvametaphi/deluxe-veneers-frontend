@@ -1,7 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Stack,
   Table,
@@ -13,42 +23,59 @@ import {
   Typography,
 } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
-import { Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Info, Pencil, Plus, Save, Trash2 } from "lucide-react";
 
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
-import { itemSubCategoryMasterOptions } from "../../masters/shared/masterDefinitions";
+import type { MasterRecord } from "../../masters/shared";
+import { buildLocalMasterDefinition } from "../../masters/shared/localMasterStore";
+import {
+  itemMasterDefinition,
+  itemSubCategoryMasterOptions,
+} from "../../masters/shared/masterDefinitions";
+import { formatMasterValue } from "../../masters/shared";
+import {
+  listingToolbarButtonSx,
+  recordFormActionButtonSx,
+} from "../../shared/buttonStyles";
 import {
   gradeOptions,
   seriesOptions,
+  type OrderCreateVariant,
   type OrderLineItem,
 } from "./ordersStore";
 
 type OrderLineItemColumn = {
+  dropdownWidth?: number;
   key: keyof Omit<OrderLineItem, "id">;
   label: string;
   minWidth: number;
+  numeric?: boolean;
   options?: readonly string[];
-  placeholder: string;
+  readOnly?: boolean;
+  showItemDetails?: boolean;
   type: "select" | "text";
 };
 
 const actionsColumnWidth = 120;
+const sqmToSqf = 10.7639;
 
-const orderLineItemColumns: readonly OrderLineItemColumn[] = [
-  {
-    key: "itemName",
-    label: "Item Name",
-    minWidth: 180,
-    placeholder: "Enter Item Name",
-    type: "text",
-  },
+const finishedTypeOptions = [
+  "Marquetry",
+  "Fluted",
+  "Embossed",
+  "Decorative",
+] as const;
+
+const baseTypeOptions = ["Plywood", "MDF"] as const;
+
+const rawOrderLineItemColumns: readonly OrderLineItemColumn[] = [
+  { key: "itemName", label: "Item Name", minWidth: 180, type: "text" },
   {
     key: "subCategory",
     label: "Sub Category",
     minWidth: 165,
     options: itemSubCategoryMasterOptions,
-    placeholder: "Select Sub Category",
     type: "select",
   },
   {
@@ -56,7 +83,6 @@ const orderLineItemColumns: readonly OrderLineItemColumn[] = [
     label: "Series",
     minWidth: 150,
     options: seriesOptions,
-    placeholder: "Select Series",
     type: "select",
   },
   {
@@ -64,85 +90,180 @@ const orderLineItemColumns: readonly OrderLineItemColumn[] = [
     label: "Grade",
     minWidth: 110,
     options: gradeOptions,
-    placeholder: "Select Grade",
     type: "select",
   },
-  {
-    key: "length",
-    label: "Length",
-    minWidth: 120,
-    placeholder: "Enter Length",
-    type: "text",
-  },
-  {
-    key: "width",
-    label: "Width",
-    minWidth: 120,
-    placeholder: "Enter Width",
-    type: "text",
-  },
-  {
-    key: "thickness",
-    label: "Thickness",
-    minWidth: 120,
-    placeholder: "Enter Thickness",
-    type: "text",
-  },
+  { key: "length", label: "Length", minWidth: 120, numeric: true, type: "text" },
+  { key: "width", label: "Width", minWidth: 120, numeric: true, type: "text" },
+  { key: "thickness", label: "Thickness", minWidth: 120, numeric: true, type: "text" },
   {
     key: "quantitySheets",
     label: "Number of Sheets",
     minWidth: 145,
-    placeholder: "Enter Number of Sheets",
+    numeric: true,
     type: "text",
   },
-  {
-    key: "sqm",
-    label: "SQM",
-    minWidth: 130,
-    placeholder: "Enter SQM",
-    type: "text",
-  },
-  {
-    key: "totalSqm",
-    label: "SQF",
-    minWidth: 130,
-    placeholder: "Enter SQF",
-    type: "text",
-  },
+  { key: "sqm", label: "SQM", minWidth: 130, numeric: true, type: "text" },
+  { key: "totalSqm", label: "SQF", minWidth: 130, numeric: true, type: "text" },
   {
     key: "ratePerSqf",
     label: "Rate per SQF",
     minWidth: 140,
-    placeholder: "Enter Rate per SQF",
+    numeric: true,
     type: "text",
   },
   {
     key: "amount",
     label: "Amount",
     minWidth: 130,
-    placeholder: "Enter Amount",
+    numeric: true,
+    readOnly: true,
     type: "text",
   },
 ] as const;
 
-export function OrderLineItemsTable({
+const finishedOrderLineItemColumns: readonly OrderLineItemColumn[] = [
+  {
+    key: "finishedType",
+    label: "Finished Type",
+    minWidth: 155,
+    options: finishedTypeOptions,
+    type: "select",
+  },
+  {
+    key: "salesItemName",
+    label: "Sales Item Name",
+    minWidth: 190,
+    type: "text",
+  },
+  {
+    key: "itemName",
+    label: "Item Name",
+    dropdownWidth: 340,
+    minWidth: 320,
+    showItemDetails: true,
+    type: "select",
+  },
+  { key: "length", label: "Length", minWidth: 120, numeric: true, type: "text" },
+  { key: "width", label: "Width", minWidth: 120, numeric: true, type: "text" },
+  { key: "thickness", label: "Thickness", minWidth: 120, numeric: true, type: "text" },
+  {
+    key: "quantitySheets",
+    label: "Number of Sheets",
+    minWidth: 145,
+    numeric: true,
+    type: "text",
+  },
+  {
+    key: "sqm",
+    label: "SQM",
+    minWidth: 120,
+    numeric: true,
+    readOnly: true,
+    type: "text",
+  },
+  {
+    key: "totalSqm",
+    label: "SQF",
+    minWidth: 120,
+    numeric: true,
+    readOnly: true,
+    type: "text",
+  },
+  {
+    key: "ratePerSqf",
+    label: "Rate per SQF",
+    minWidth: 140,
+    numeric: true,
+    type: "text",
+  },
+  {
+    key: "baseType",
+    label: "Base Type",
+    minWidth: 140,
+    options: baseTypeOptions,
+    type: "select",
+  },
+  {
+    key: "baseName",
+    label: "Base Name",
+    dropdownWidth: 300,
+    minWidth: 240,
+    type: "select",
+  },
+  { key: "baseLength", label: "Base Length", minWidth: 140, numeric: true, type: "text" },
+  { key: "baseWidth", label: "Base Width", minWidth: 140, numeric: true, type: "text" },
+  {
+    key: "baseThickness",
+    label: "Base Thickness",
+    minWidth: 150,
+    numeric: true,
+    type: "text",
+  },
+  {
+    key: "amount",
+    label: "Amount",
+    minWidth: 130,
+    numeric: true,
+    readOnly: true,
+    type: "text",
+  },
+  { key: "remark", label: "Remark", minWidth: 200, type: "text" },
+] as const;
+
+const itemDetailColumns = [
+  { key: "itemName", label: "Item Name", minWidth: 180 },
+  { key: "itemCode", label: "Item Code", minWidth: 130 },
+  { key: "category", label: "Category", minWidth: 150 },
+  { key: "subCategory", label: "Sub Category", minWidth: 160 },
+  { key: "color", label: "Color", minWidth: 130 },
+  { key: "hsn", label: "HSN Code", minWidth: 130 },
+  { key: "gst", label: "GST No", minWidth: 120 },
+  { key: "remark", label: "Remark", minWidth: 220 },
+] as const;
+
+export interface OrderLineItemsTableHandle {
+  validate: () => boolean;
+}
+
+export const OrderLineItemsTable = forwardRef<
+  OrderLineItemsTableHandle,
+  {
+    items: readonly OrderLineItem[];
+    onChange: (items: OrderLineItem[]) => void;
+    readOnly?: boolean;
+    variant?: OrderCreateVariant | null;
+  }
+>(function OrderLineItemsTable({
   items,
   onChange,
   readOnly = false,
-}: {
-  items: readonly OrderLineItem[];
-  onChange: (items: OrderLineItem[]) => void;
-  readOnly?: boolean;
-}) {
+  variant,
+}, ref) {
+  const isFinishedOrder = variant === "finished";
+  const itemRows = useMemo(() => getItemMasterRows(), []);
+  const itemOptions = useMemo(() => getItemMasterOptions(itemRows), [itemRows]);
+  const columns = useMemo(
+    () =>
+      getOrderLineItemColumns(isFinishedOrder).map((column) =>
+        column.key === "itemName" && column.type === "select"
+          ? { ...column, options: itemOptions }
+          : column,
+      ),
+    [isFinishedOrder, itemOptions],
+  );
   const nextRowId = useRef(1);
   const [draftValues, setDraftValues] = useState<Record<string, string>>(() =>
-    createEmptyValues(),
+    createEmptyValues(columns),
   );
+  const [draftSubmitAttempted, setDraftSubmitAttempted] = useState(false);
   const [lineItems, setLineItems] = useState<OrderLineItem[]>(() => [...items]);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editingValues, setEditingValues] = useState<Record<string, string>>(() =>
-    createEmptyValues(),
+    createEmptyValues(columns),
   );
+  const [editingSubmitAttempted, setEditingSubmitAttempted] = useState(false);
+  const [selectedItemDetails, setSelectedItemDetails] =
+    useState<MasterRecord | null>(null);
 
   useEffect(() => {
     setLineItems([...items]);
@@ -152,13 +273,19 @@ export function OrderLineItemsTable({
     nextRowId.current = (numericIds.length > 0 ? Math.max(...numericIds) : 0) + 1;
   }, [items]);
 
+  useEffect(() => {
+    setDraftValues(createEmptyValues(columns));
+    setEditingValues(createEmptyValues(columns));
+    setEditingRowId(null);
+    setDraftSubmitAttempted(false);
+    setEditingSubmitAttempted(false);
+  }, [columns]);
+
   const tableMinWidth = useMemo(
     () =>
-      orderLineItemColumns.reduce(
-        (total, column) => total + column.minWidth,
-        0,
-      ) + actionsColumnWidth,
-    [],
+      columns.reduce((total, column) => total + column.minWidth, 0) +
+      actionsColumnWidth,
+    [columns],
   );
 
   const commitLineItems = (nextItems: OrderLineItem[]) => {
@@ -168,6 +295,18 @@ export function OrderLineItemsTable({
 
   const handleAddLineItem = () => {
     if (allValuesEmpty(draftValues)) {
+      setDraftSubmitAttempted(true);
+      return;
+    }
+
+    const validationErrors = getLineItemValidationErrors(
+      columns,
+      draftValues,
+      isFinishedOrder,
+    );
+
+    if (hasValidationErrors(validationErrors)) {
+      setDraftSubmitAttempted(true);
       return;
     }
 
@@ -180,7 +319,8 @@ export function OrderLineItemsTable({
     ];
     nextRowId.current += 1;
     commitLineItems(nextItems);
-    setDraftValues(createEmptyValues());
+    setDraftValues(createEmptyValues(columns));
+    setDraftSubmitAttempted(false);
   };
 
   const handleDeleteLineItem = (rowId: string) => {
@@ -189,16 +329,28 @@ export function OrderLineItemsTable({
 
     if (editingRowId === rowId) {
       setEditingRowId(null);
-      setEditingValues(createEmptyValues());
+      setEditingValues(createEmptyValues(columns));
     }
   };
 
   const handleStartEdit = (row: OrderLineItem) => {
     setEditingRowId(row.id);
     setEditingValues(mapLineItemToValues(row));
+    setEditingSubmitAttempted(false);
   };
 
   const handleSaveEdit = (rowId: string) => {
+    const validationErrors = getLineItemValidationErrors(
+      columns,
+      editingValues,
+      isFinishedOrder,
+    );
+
+    if (hasValidationErrors(validationErrors)) {
+      setEditingSubmitAttempted(true);
+      return;
+    }
+
     const nextItems = lineItems.map((row) =>
       row.id === rowId
         ? {
@@ -209,8 +361,76 @@ export function OrderLineItemsTable({
     );
     commitLineItems(nextItems);
     setEditingRowId(null);
-    setEditingValues(createEmptyValues());
+    setEditingValues(createEmptyValues(columns));
+    setEditingSubmitAttempted(false);
   };
+
+  const updateDraftValue = (key: keyof Omit<OrderLineItem, "id">, value: string) => {
+    setDraftValues((current) =>
+      getNextLineItemValues(current, key, value, isFinishedOrder),
+    );
+  };
+
+  const updateEditingValue = (
+    key: keyof Omit<OrderLineItem, "id">,
+    value: string,
+  ) => {
+    setEditingValues((current) =>
+      getNextLineItemValues(current, key, value, isFinishedOrder),
+    );
+  };
+
+  const openItemDetails = (itemName: string) => {
+    const itemDetails = getItemMasterRecord(itemRows, itemName);
+
+    if (itemDetails) {
+      setSelectedItemDetails(itemDetails);
+    }
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      validate: () => {
+        if (readOnly) {
+          return true;
+        }
+
+        const draftHasValues = !allValuesEmpty(draftValues);
+        const draftErrors = getLineItemValidationErrors(
+          columns,
+          draftValues,
+          isFinishedOrder,
+        );
+        const editingErrors = getLineItemValidationErrors(
+          columns,
+          editingValues,
+          isFinishedOrder,
+        );
+
+        if (lineItems.length === 0 || (draftHasValues && hasValidationErrors(draftErrors))) {
+          setDraftSubmitAttempted(true);
+          return false;
+        }
+
+        if (editingRowId && hasValidationErrors(editingErrors)) {
+          setEditingSubmitAttempted(true);
+          return false;
+        }
+
+        return true;
+      },
+    }),
+    [
+      columns,
+      draftValues,
+      editingRowId,
+      editingValues,
+      isFinishedOrder,
+      lineItems.length,
+      readOnly,
+    ],
+  );
 
   return (
     <Stack sx={{ gap: 2 }}>
@@ -228,30 +448,39 @@ export function OrderLineItemsTable({
               <Table size="small" sx={{ minWidth: tableMinWidth, tableLayout: "auto" }}>
                 <TableHead>
                   <TableRow>
-                    {orderLineItemColumns.map((column) => (
+                    {columns.map((column) => (
                       <TableCell
                         key={column.key}
                         sx={(theme) => getHeaderCellSx(theme, column.minWidth)}
                       >
-                        {column.label}
+                        <ColumnLabel
+                          label={column.label}
+                          required={isLineItemColumnRequired(column)}
+                        />
                       </TableCell>
                     ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   <TableRow>
-                    {orderLineItemColumns.map((column) => (
+                    {columns.map((column) => (
                       <TableCell
                         key={column.key}
                         sx={(theme) => getBodyCellSx(theme)}
                       >
                         {renderField({
                           column,
-                          onChange: (value) =>
-                            setDraftValues((current) => ({
-                              ...current,
-                              [column.key]: value,
-                            })),
+                          currentValues: draftValues,
+                          errorText: draftSubmitAttempted
+                            ? getFieldValidationError(
+                                column,
+                                draftValues,
+                                isFinishedOrder,
+                              )
+                            : "",
+                          itemRows,
+                          onChange: (value) => updateDraftValue(column.key, value),
+                          onOpenItemDetails: openItemDetails,
                           value: draftValues[column.key] ?? "",
                         })}
                       </TableCell>
@@ -266,7 +495,8 @@ export function OrderLineItemsTable({
             <Button
               disableElevation
               onClick={handleAddLineItem}
-              startIcon={<Plus size={16} />}
+              startIcon={<Plus size={14} />}
+              sx={listingToolbarButtonSx}
               variant="contained"
             >
               Add Item
@@ -287,16 +517,22 @@ export function OrderLineItemsTable({
           <Box sx={(theme) => getScrollableTableSx(theme)}>
             <Table
               size="small"
-              sx={{ minWidth: tableMinWidth + (readOnly ? 0 : 120), tableLayout: "auto" }}
+              sx={{
+                minWidth: tableMinWidth + (readOnly ? 0 : actionsColumnWidth),
+                tableLayout: "auto",
+              }}
             >
               <TableHead>
                 <TableRow>
-                  {orderLineItemColumns.map((column) => (
+                  {columns.map((column) => (
                     <TableCell
                       key={column.key}
                       sx={(theme) => getHeaderCellSx(theme, column.minWidth)}
                     >
-                      {column.label}
+                      <ColumnLabel
+                        label={column.label}
+                        required={isLineItemColumnRequired(column)}
+                      />
                     </TableCell>
                   ))}
                   {!readOnly ? (
@@ -316,7 +552,7 @@ export function OrderLineItemsTable({
 
                   return (
                     <TableRow key={row.id}>
-                      {orderLineItemColumns.map((column) => (
+                      {columns.map((column) => (
                         <TableCell
                           key={column.key}
                           sx={(theme) => getBodyCellSx(theme)}
@@ -324,26 +560,26 @@ export function OrderLineItemsTable({
                           {isEditing
                             ? renderField({
                                 column,
+                                currentValues: editingValues,
+                                errorText: editingSubmitAttempted
+                                  ? getFieldValidationError(
+                                      column,
+                                      editingValues,
+                                      isFinishedOrder,
+                                    )
+                                  : "",
+                                itemRows,
                                 onChange: (value) =>
-                                  setEditingValues((current) => ({
-                                    ...current,
-                                    [column.key]: value,
-                                  })),
+                                  updateEditingValue(column.key, value),
+                                onOpenItemDetails: openItemDetails,
                                 value: editingValues[column.key] ?? "",
                               })
-                            : (
-                              <Typography
-                                variant="body2"
-                                color="text.primary"
-                                sx={(theme) => ({
-                                  minHeight: theme.spacing(4.5),
-                                  display: "flex",
-                                  alignItems: "center",
-                                })}
-                              >
-                                {row[column.key]}
-                              </Typography>
-                            )}
+                            : renderDisplayValue({
+                                column,
+                                itemRows,
+                                onOpenItemDetails: openItemDetails,
+                                row,
+                              })}
                         </TableCell>
                       ))}
                       {!readOnly ? (
@@ -387,12 +623,24 @@ export function OrderLineItemsTable({
           </Box>
         </Box>
       ) : null}
+
+      <ItemDetailsDialog
+        item={selectedItemDetails}
+        onClose={() => setSelectedItemDetails(null)}
+        open={Boolean(selectedItemDetails)}
+      />
     </Stack>
   );
+});
+
+function getOrderLineItemColumns(isFinishedOrder: boolean) {
+  return isFinishedOrder
+    ? finishedOrderLineItemColumns
+    : rawOrderLineItemColumns;
 }
 
-function createEmptyValues() {
-  return orderLineItemColumns.reduce<Record<string, string>>((accumulator, column) => {
+function createEmptyValues(columns: readonly OrderLineItemColumn[]) {
+  return columns.reduce<Record<string, string>>((accumulator, column) => {
     accumulator[column.key] = "";
     return accumulator;
   }, {});
@@ -402,9 +650,68 @@ function allValuesEmpty(values: Record<string, string>) {
   return Object.values(values).every((value) => value.trim().length === 0);
 }
 
+function getLineItemValidationErrors(
+  columns: readonly OrderLineItemColumn[],
+  values: Record<string, string>,
+  isFinishedOrder: boolean,
+) {
+  return columns.reduce<Record<string, string>>((errors, column) => {
+    const error = getFieldValidationError(column, values, isFinishedOrder);
+
+    if (error) {
+      errors[column.key] = error;
+    }
+
+    return errors;
+  }, {});
+}
+
+function hasValidationErrors(errors: Record<string, string>) {
+  return Object.keys(errors).length > 0;
+}
+
+function getFieldValidationError(
+  column: OrderLineItemColumn,
+  values: Record<string, string>,
+  _isFinishedOrder: boolean,
+) {
+  const value = (values[column.key] ?? "").trim();
+
+  if (isLineItemColumnRequired(column) && value.length === 0) {
+    return `${column.label} is required`;
+  }
+
+  if (column.numeric && value.length > 0 && !isValidDoubleValue(value)) {
+    return `${column.label} must be a number`;
+  }
+
+  return "";
+}
+
+function isLineItemColumnRequired(column: OrderLineItemColumn) {
+  return !["remark", "remarks"].includes(String(column.key).toLowerCase());
+}
+
+function ColumnLabel({
+  label,
+  required,
+}: {
+  label: string;
+  required: boolean;
+}) {
+  return (
+    <Stack component="span" direction="row" spacing={0.25}>
+      <span>{label}</span>
+      {required ? <span>*</span> : null}
+    </Stack>
+  );
+}
+
 function mapValuesToLineItem(values: Record<string, string>): Omit<OrderLineItem, "id"> {
   return {
     productCategory: values.productCategory ?? "",
+    finishedType: values.finishedType ?? "",
+    salesItemName: values.salesItemName ?? "",
     itemName: values.itemName ?? "",
     subCategory: values.subCategory ?? "",
     series: values.series ?? "",
@@ -416,13 +723,21 @@ function mapValuesToLineItem(values: Record<string, string>): Omit<OrderLineItem
     sqm: values.sqm ?? "",
     totalSqm: values.totalSqm ?? "",
     ratePerSqf: values.ratePerSqf ?? "",
+    baseType: values.baseType ?? "",
+    baseName: values.baseName ?? "",
+    baseLength: values.baseLength ?? "",
+    baseWidth: values.baseWidth ?? "",
+    baseThickness: values.baseThickness ?? "",
     amount: values.amount ?? "",
+    remark: values.remark ?? "",
   };
 }
 
 function mapLineItemToValues(lineItem: OrderLineItem) {
   return {
     productCategory: lineItem.productCategory,
+    finishedType: lineItem.finishedType,
+    salesItemName: lineItem.salesItemName,
     itemName: lineItem.itemName,
     subCategory: lineItem.subCategory,
     series: lineItem.series,
@@ -434,37 +749,473 @@ function mapLineItemToValues(lineItem: OrderLineItem) {
     sqm: lineItem.sqm,
     totalSqm: lineItem.totalSqm,
     ratePerSqf: lineItem.ratePerSqf,
+    baseType: lineItem.baseType,
+    baseName: lineItem.baseName,
+    baseLength: lineItem.baseLength,
+    baseWidth: lineItem.baseWidth,
+    baseThickness: lineItem.baseThickness,
     amount: lineItem.amount,
+    remark: lineItem.remark,
   };
+}
+
+function getNextLineItemValues(
+  currentValues: Record<string, string>,
+  key: keyof Omit<OrderLineItem, "id">,
+  value: string,
+  isFinishedOrder: boolean,
+) {
+  const nextValue = isNumericLineItemKey(key) ? sanitizeDoubleInput(value) : value;
+  const nextValues = {
+    ...currentValues,
+    [key]: nextValue,
+  };
+
+  if (key === "baseType") {
+    nextValues.baseName = "";
+  }
+
+  return applyLineItemCalculations(nextValues, isFinishedOrder, key);
+}
+
+function applyLineItemCalculations(
+  values: Record<string, string>,
+  isFinishedOrder: boolean,
+  changedKey?: keyof Omit<OrderLineItem, "id">,
+) {
+  const areaValues: Record<string, string> = isFinishedOrder
+    ? applyFinishedAreaCalculations(values)
+    : { ...values };
+  const sqm = parsePositiveNumber(areaValues.sqm);
+  const nextValues: Record<string, string> =
+    !isFinishedOrder && changedKey === "sqm" && sqm > 0
+      ? { ...areaValues, totalSqm: formatAreaValue(sqm * sqmToSqf) }
+      : areaValues;
+  const sqf = parsePositiveNumber(nextValues.totalSqm);
+  const ratePerSqf = parsePositiveNumber(nextValues.ratePerSqf);
+
+  return {
+    ...nextValues,
+    amount: sqf > 0 && ratePerSqf > 0 ? formatMoneyValue(sqf * ratePerSqf) : "",
+  };
+}
+
+function applyFinishedAreaCalculations(
+  values: Record<string, string>,
+): Record<string, string> {
+  const length = parseDimensionToMeters(values.length);
+  const width = parseDimensionToMeters(values.width);
+  const sheets = parsePositiveNumber(values.quantitySheets);
+
+  if (length > 0 && width > 0 && sheets > 0) {
+    const sqm = length * width * sheets;
+
+    return {
+      ...values,
+      sqm: formatAreaValue(sqm),
+      totalSqm: formatAreaValue(sqm * sqmToSqf),
+    };
+  }
+
+  return {
+    ...values,
+    sqm: "",
+    totalSqm: "",
+  };
+}
+
+function parseDimensionToMeters(value: string | undefined) {
+  const numberValue = parsePositiveNumber(value);
+
+  if (numberValue <= 0) {
+    return 0;
+  }
+
+  return numberValue > 100 ? numberValue / 1000 : numberValue;
+}
+
+function parsePositiveNumber(value: string | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  const numericValue = Number(value.replace(/,/g, ""));
+
+  return Number.isNaN(numericValue) || numericValue < 0 ? 0 : numericValue;
+}
+
+function isValidDoubleValue(value: string) {
+  return /^\d+(\.\d+)?$/.test(value.replace(/,/g, ""));
+}
+
+function sanitizeDoubleInput(value: string) {
+  const sanitized = value.replace(/[^0-9.]/g, "");
+  const [integerPart = "", ...decimalParts] = sanitized.split(".");
+
+  if (decimalParts.length === 0) {
+    return integerPart;
+  }
+
+  return `${integerPart}.${decimalParts.join("")}`;
+}
+
+function isNumericLineItemKey(key: keyof Omit<OrderLineItem, "id">) {
+  return [
+    "length",
+    "width",
+    "thickness",
+    "quantitySheets",
+    "sqm",
+    "totalSqm",
+    "ratePerSqf",
+    "baseLength",
+    "baseWidth",
+    "baseThickness",
+    "amount",
+  ].includes(key);
+}
+
+function formatAreaValue(value: number) {
+  return value.toLocaleString("en-US", {
+    maximumFractionDigits: 3,
+    minimumFractionDigits: 3,
+  });
+}
+
+function formatMoneyValue(value: number) {
+  return value.toLocaleString("en-US", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  });
 }
 
 function renderField({
   column,
+  currentValues,
+  errorText,
+  itemRows,
   onChange,
+  onOpenItemDetails,
   value,
 }: {
   column: OrderLineItemColumn;
+  currentValues: Record<string, string>;
+  errorText?: string;
+  itemRows: readonly MasterRecord[];
   onChange: (value: string) => void;
+  onOpenItemDetails: (itemName: string) => void;
   value: string;
 }) {
-  if (column.type === "select") {
-    return (
+  const selectOptions = getColumnOptions(column, itemRows, currentValues);
+  const control =
+    column.type === "select" ? (
       <ErpSelectField
+        dropdownWidth={column.dropdownWidth}
+        helperText={errorText}
         onChange={onChange}
-        options={column.options ?? []}
+        options={selectOptions}
+        state={errorText ? "error" : column.readOnly ? "readOnly" : "default"}
         value={value}
       />
+    ) : (
+      <TextField
+        error={Boolean(errorText)}
+        fullWidth
+        helperText={errorText}
+        size="small"
+        value={value}
+        onChange={(event) =>
+          onChange(column.numeric ? sanitizeDoubleInput(event.target.value) : event.target.value)
+        }
+        slotProps={{
+          input: {
+            inputMode: column.numeric ? "decimal" : undefined,
+            readOnly: column.readOnly,
+          },
+        }}
+        sx={(theme) => ({
+          ...getCompactFieldSx(
+            theme,
+            errorText ? "error" : column.readOnly ? "readOnly" : "default",
+          ),
+          ...(column.readOnly
+            ? {
+                "& .MuiInputBase-root": {
+                  backgroundColor: theme.customTokens.surfaces.alt,
+                },
+              }
+            : {}),
+        })}
+      />
+    );
+
+  if (!column.showItemDetails) {
+    return control;
+  }
+
+  return (
+    <Stack direction="row" spacing={0.75} alignItems="center">
+      <Box sx={{ minWidth: 0, flex: 1 }}>{control}</Box>
+      <IconButton
+        aria-label="View item details"
+        disabled={!getItemMasterRecord(itemRows, value)}
+        onClick={() => onOpenItemDetails(value)}
+        size="small"
+        sx={(theme) => ({
+          color: theme.customTokens.navigation.activeText,
+          height: theme.spacing(4),
+          width: theme.spacing(4),
+          "&.Mui-disabled": {
+            color: theme.palette.text.disabled,
+          },
+          "&:hover": {
+            backgroundColor: theme.customTokens.navigation.hoverBackground,
+          },
+        })}
+      >
+        <Info size={14} />
+      </IconButton>
+    </Stack>
+  );
+}
+
+function renderDisplayValue({
+  column,
+  itemRows,
+  onOpenItemDetails,
+  row,
+}: {
+  column: OrderLineItemColumn;
+  itemRows: readonly MasterRecord[];
+  onOpenItemDetails: (itemName: string) => void;
+  row: OrderLineItem;
+}) {
+  const value = row[column.key];
+
+  if (!column.showItemDetails) {
+    return (
+      <Typography
+        variant="body2"
+        color="text.primary"
+        sx={(theme) => ({
+          minHeight: theme.spacing(4.5),
+          display: "flex",
+          alignItems: "center",
+        })}
+      >
+        {value}
+      </Typography>
     );
   }
 
   return (
-    <TextField
+    <Stack direction="row" spacing={0.75} alignItems="center">
+      <Typography
+        variant="body2"
+        color="text.primary"
+        sx={(theme) => ({
+          minHeight: theme.spacing(4.5),
+          display: "flex",
+          alignItems: "center",
+          flex: 1,
+        })}
+      >
+        {value}
+      </Typography>
+      <IconButton
+        aria-label="View item details"
+        disabled={!getItemMasterRecord(itemRows, value)}
+        onClick={() => onOpenItemDetails(value)}
+        size="small"
+        sx={(theme) => ({
+          color: theme.customTokens.navigation.activeText,
+          height: theme.spacing(4),
+          width: theme.spacing(4),
+          "&.Mui-disabled": {
+            color: theme.palette.text.disabled,
+          },
+          "&:hover": {
+            backgroundColor: theme.customTokens.navigation.hoverBackground,
+          },
+        })}
+      >
+        <Info size={14} />
+      </IconButton>
+    </Stack>
+  );
+}
+
+function ItemDetailsDialog({
+  item,
+  onClose,
+  open,
+}: {
+  item: MasterRecord | null;
+  onClose: () => void;
+  open: boolean;
+}) {
+  return (
+    <Dialog
       fullWidth
-      size="small"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      sx={(theme) => getCompactFieldSx(theme)}
-    />
+      maxWidth="lg"
+      onClose={onClose}
+      open={open}
+      slotProps={{
+        paper: {
+          sx: (theme) => ({
+            borderRadius: `${theme.customTokens.radius.md}px`,
+            boxShadow: theme.customTokens.elevation.md,
+            outline: "none",
+            "&:focus, &:focus-visible": {
+              outline: "none",
+            },
+          }),
+        },
+      }}
+    >
+      <DialogTitle
+        sx={(theme) => ({
+          borderBottom: `1px solid ${theme.customTokens.borders.default}`,
+          fontSize: theme.typography.h3.fontSize,
+          fontWeight: 700,
+          px: theme.spacing(2),
+          py: theme.spacing(1.5),
+        })}
+      >
+        Item Details
+      </DialogTitle>
+
+      <DialogContent
+        sx={(theme) => ({
+          px: theme.spacing(2),
+          py: theme.spacing(2),
+        })}
+      >
+        <Stack sx={(theme) => ({ gap: theme.spacing(2) })}>
+          <Box
+            sx={(theme) => ({
+              border: `1px solid ${theme.customTokens.borders.default}`,
+              borderRadius: `${theme.customTokens.radius.sm}px`,
+              overflow: "hidden",
+              backgroundColor: theme.customTokens.surfaces.surface,
+            })}
+          >
+            <Box sx={(theme) => getScrollableTableSx(theme)}>
+              <Table
+                size="small"
+                sx={{
+                  minWidth: itemDetailColumns.reduce(
+                    (total, column) => total + column.minWidth,
+                    0,
+                  ),
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    {itemDetailColumns.map((column) => (
+                      <TableCell
+                        key={column.key}
+                        sx={(theme) => getHeaderCellSx(theme, column.minWidth)}
+                      >
+                        {column.label}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow>
+                    {itemDetailColumns.map((column) => (
+                      <TableCell
+                        key={column.key}
+                        sx={(theme) => getBodyCellSx(theme)}
+                      >
+                        {formatMasterValue(item?.[column.key])}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </Box>
+          </Box>
+
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            <Button
+              disableElevation
+              onClick={onClose}
+              sx={recordFormActionButtonSx}
+              variant="contained"
+            >
+              Close
+            </Button>
+          </Box>
+        </Stack>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function getItemMasterRows() {
+  return buildLocalMasterDefinition(itemMasterDefinition).rows;
+}
+
+function getItemMasterOptions(rows: readonly MasterRecord[]) {
+  return Array.from(
+    new Set(
+      rows
+        .filter(
+          (row) => String(row.status ?? "Active").toLowerCase() !== "inactive",
+        )
+        .map((row) => String(row.itemName ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getColumnOptions(
+  column: OrderLineItemColumn,
+  itemRows: readonly MasterRecord[],
+  values: Record<string, string>,
+) {
+  if (column.key === "baseName") {
+    return getBaseNameOptions(itemRows, values.baseType);
+  }
+
+  return column.options ?? [];
+}
+
+function getBaseNameOptions(rows: readonly MasterRecord[], baseType: string | undefined) {
+  const normalizedBaseType = String(baseType ?? "").trim().toLowerCase();
+
+  if (!normalizedBaseType) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      rows
+        .filter(
+          (row) => String(row.status ?? "Active").toLowerCase() !== "inactive",
+        )
+        .filter((row) =>
+          [row.category, row.subCategory, row.itemName].some((fieldValue) =>
+            String(fieldValue ?? "").toLowerCase().includes(normalizedBaseType),
+          ),
+        )
+        .map((row) => String(row.itemName ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getItemMasterRecord(rows: readonly MasterRecord[], itemName: string) {
+  const normalizedName = itemName.trim().toLowerCase();
+
+  if (!normalizedName) {
+    return undefined;
+  }
+
+  return rows.find(
+    (row) => String(row.itemName ?? "").trim().toLowerCase() === normalizedName,
   );
 }
 

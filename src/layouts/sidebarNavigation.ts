@@ -60,6 +60,7 @@ const matchesAnyWarehouseInventoryRecordRoute = (
 export type SidebarNavigationItem = {
   id: string;
   label: string;
+  permissionKey?: string;
   to: string;
   match: (location: SidebarMatchLocation) => boolean;
 };
@@ -69,6 +70,7 @@ type SidebarNavigationBase = {
   label: string;
   icon: LucideIcon;
   filledIcon?: boolean;
+  permissionKey?: string;
 };
 
 export type SidebarNavigationLink = SidebarNavigationBase & {
@@ -131,11 +133,26 @@ const buildWarehouseNavigationItems = (
   ...dynamicWarehouses.map<SidebarNavigationItem>((warehouse) => ({
     id: `dynamic-warehouse-${warehouse.slug}`,
     label: warehouse.label,
+    permissionKey: getWarehousePermissionKeyByType(warehouse.warehouseType),
     to: `/warehouses/${warehouse.slug}`,
     match: (location: SidebarMatchLocation) =>
       matchesPath(location, `/warehouses/${warehouse.slug}`),
   })),
 ];
+
+function getWarehousePermissionKeyByType(warehouseType: string) {
+  const normalizedType = warehouseType.trim().toLowerCase();
+
+  if (normalizedType === "inward") {
+    return "warehouseA";
+  }
+
+  if (normalizedType === "production") {
+    return "warehouseC";
+  }
+
+  return "warehouseB";
+}
 
 const buildWarehousesNavigationEntry = (
   dynamicWarehouses: readonly DynamicWarehouseSidebarItem[] = [],
@@ -333,6 +350,13 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
     icon: ShoppingCart,
     to: "/orders",
     match: (location) => matchesPath(location, "/orders"),
+  },
+  {
+    id: "order",
+    label: "Order",
+    icon: ShoppingCart,
+    to: "/order",
+    match: (location) => matchesPath(location, "/order"),
   },
   {
     id: "packing",

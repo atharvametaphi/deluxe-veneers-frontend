@@ -1,7 +1,12 @@
 import {
   buildDefaultUserPermissions,
   type UserPermissionFlags,
+  type UserManagementDetail,
 } from "../user-management/shared/userManagementConfig";
+import {
+  fetchUserManagementDetailByEmail,
+  isUserManagementPasswordValid,
+} from "../user-management/shared/userManagementApi";
 
 const AUTH_STORAGE_KEY = "deluxe-veneers-erp-authenticated";
 const AUTH_TOKEN_STORAGE_KEY = "deluxe-veneers-erp-token";
@@ -90,18 +95,32 @@ export async function signIn(email: string, password: string) {
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  if (normalizedEmail !== demoCredentials.email) {
+  if (normalizedEmail === demoCredentials.email) {
+    if (
+      password !== demoCredentials.password &&
+      password !== getCurrentPassword()
+    ) {
+      return false;
+    }
+
+    persistAuthenticatedSession(DEMO_AUTH_TOKEN, demoUserProfile);
+    return true;
+  }
+
+  const userRecord = await fetchUserManagementDetailByEmail(normalizedEmail);
+
+  if (!userRecord || !userRecord.isActive) {
     return false;
   }
 
-  if (
-    password !== demoCredentials.password &&
-    password !== getCurrentPassword()
-  ) {
+  if (!isUserManagementPasswordValid(userRecord.id, password)) {
     return false;
   }
 
-  persistAuthenticatedSession(DEMO_AUTH_TOKEN, demoUserProfile);
+  persistAuthenticatedSession(
+    DEMO_AUTH_TOKEN,
+    mapUserManagementDetailToProfile(userRecord),
+  );
   return true;
 }
 
@@ -162,8 +181,49 @@ export function saveCurrentUser(profile: AuthenticatedUserProfile) {
   persistCurrentUser(profile);
 }
 
+export function getDefaultAuthenticatedRoute(
+  user: AuthenticatedUserProfile = getCurrentUser(),
+) {
+  if (
+    user.accountRole === "Super Admin" ||
+    getAccountRole(user.role, user.userType) === "Super Admin"
+  ) {
+    return "/dashboard";
+  }
+
+  const route = defaultPermissionRoutes.find(({ permissionKey }) =>
+    hasAnyPermission(user, permissionKey),
+  );
+
+  return route?.path ?? "/profile";
+}
+
 export async function refreshCurrentUserPermissions() {
   return getCurrentUser();
+}
+
+export function syncCurrentUserFromUserManagementDetail(
+  detail: UserManagementDetail,
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const currentUser = getCurrentUser();
+  const isCurrentUser =
+    Boolean(currentUser.id && currentUser.id === detail.id) ||
+    Boolean(
+      currentUser.email &&
+        detail.email &&
+        currentUser.email.trim().toLowerCase() ===
+          detail.email.trim().toLowerCase(),
+    );
+
+  if (!isCurrentUser) {
+    return;
+  }
+
+  persistCurrentUser(mapUserManagementDetailToProfile(detail));
 }
 
 export function getUserDisplayName(profile: AuthenticatedUserProfile) {
@@ -215,3 +275,102 @@ function getCurrentPassword() {
     demoCredentials.password
   );
 }
+
+function mapUserManagementDetailToProfile(
+  detail: UserManagementDetail,
+): AuthenticatedUserProfile {
+  return {
+    accountRole: getAccountRole(detail.role, detail.userType),
+    address: detail.address,
+    age: detail.age,
+    approver: detail.approver,
+    bloodGroup: detail.bloodGroup,
+    city: detail.city,
+    country: detail.country,
+    dateOfBirth: detail.dateOfBirth,
+    department: detail.department,
+    email: detail.email,
+    firstName: detail.firstName,
+    gender: detail.gender,
+    id: detail.id,
+    lastName: detail.lastName,
+    phoneNo: detail.phoneNo,
+    pincode: detail.pincode,
+    permissions: detail.isActive
+      ? detail.permissions
+      : buildDefaultUserPermissions(),
+    remarks: detail.remarks,
+    role: detail.role,
+    state: detail.state,
+    userName: detail.userName,
+    userType: detail.userType,
+  };
+}
+
+function getAccountRole(
+  role: string,
+  userType: string,
+): AuthenticatedUserProfile["accountRole"] {
+  const normalizedValue = `${role} ${userType}`.toLowerCase();
+
+  if (normalizedValue.includes("super admin")) {
+    return "Super Admin";
+  }
+
+  if (normalizedValue.includes("admin")) {
+    return "Admin";
+  }
+
+  return "Staff";
+}
+
+function hasAnyPermission(
+  user: AuthenticatedUserProfile,
+  permissionKey: string,
+) {
+  const permission = user.permissions?.[permissionKey];
+
+  return Boolean(permission?.view || permission?.edit || permission?.create);
+}
+
+const defaultPermissionRoutes = [
+  { permissionKey: "dashboard", path: "/dashboard" },
+  { permissionKey: "userManagement", path: "/user-management" },
+  { permissionKey: "warehouseA", path: "/warehouse-a" },
+  { permissionKey: "warehouseB", path: "/warehouse-b" },
+  { permissionKey: "warehouseC", path: "/warehouse-c" },
+  { permissionKey: "colorMaster", path: "/masters/color-master" },
+  { permissionKey: "currencyMaster", path: "/masters/currency-master" },
+  { permissionKey: "customerMaster", path: "/masters/customer-master" },
+  { permissionKey: "cutMaster", path: "/masters/cut-master" },
+  { permissionKey: "departmentMaster", path: "/masters/department-master" },
+  { permissionKey: "gradeMaster", path: "/masters/grade-master" },
+  { permissionKey: "gstMaster", path: "/masters/gst-master" },
+  { permissionKey: "hsnMaster", path: "/masters/hsn-master" },
+  { permissionKey: "itemCategoryMaster", path: "/masters/item-category-master" },
+  { permissionKey: "itemMaster", path: "/masters/item-name-master" },
+  {
+    permissionKey: "itemSubCategoryMaster",
+    path: "/masters/item-sub-category-master",
+  },
+  { permissionKey: "supplierMaster", path: "/masters/supplier-master" },
+  { permissionKey: "transporterMaster", path: "/masters/transporter-master" },
+  { permissionKey: "unitMaster", path: "/masters/unit-master" },
+  {
+    permissionKey: "warehouseLocationMaster",
+    path: "/masters/warehouse-location-master",
+  },
+  { permissionKey: "slicing", path: "/factory/slicing" },
+  { permissionKey: "drying", path: "/factory/drying" },
+  { permissionKey: "marquetry", path: "/factory/marquetry" },
+  { permissionKey: "grouping", path: "/factory/grouping" },
+  { permissionKey: "splicing", path: "/factory/splicing" },
+  { permissionKey: "pressing", path: "/factory/pressing" },
+  { permissionKey: "cncFluting", path: "/factory/cnc-fluting" },
+  { permissionKey: "embossing", path: "/factory/embossing" },
+  { permissionKey: "finishing", path: "/factory/finishing" },
+  { permissionKey: "placeOrder", path: "/order" },
+  { permissionKey: "packing", path: "/packing" },
+  { permissionKey: "dispatch", path: "/dispatch" },
+  { permissionKey: "componentLibrary", path: "/tools/component-library" },
+] as const;

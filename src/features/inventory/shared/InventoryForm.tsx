@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Alert,
@@ -22,7 +22,7 @@ import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldC
 import {
   MasterFormFields,
   MasterSectionCard,
-  hasRequiredFieldErrors,
+  hasFormFieldErrors,
   type MasterFieldDefinition,
   type MasterFieldValue,
 } from "../../masters/shared";
@@ -48,7 +48,10 @@ import { InventoryPageShell } from "./InventoryPageShell";
 import {
   isWarehouseAAddStockSlug,
 } from "./WarehouseAAddStockLineItems";
-import { WarehouseAAddStockWorkspace } from "./WarehouseAAddStockWorkspace";
+import {
+  WarehouseAAddStockWorkspace,
+  type WarehouseAAddStockWorkspaceHandle,
+} from "./WarehouseAAddStockWorkspace";
 import {
   buildInventoryInitialValues,
   getInventoryPageTitle,
@@ -143,6 +146,7 @@ export function InventoryForm<Row extends InventoryRecord>({
     buildInventoryInitialValues(fields, row),
   );
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const warehouseAWorkspaceRef = useRef<WarehouseAAddStockWorkspaceHandle>(null);
 
   useEffect(() => {
     setValues(buildInventoryInitialValues(fields, row));
@@ -287,14 +291,17 @@ export function InventoryForm<Row extends InventoryRecord>({
               }
               readOnly={mode === "view"}
               showRequiredErrors={
-                mode === "add" && !warehouseAAddStockSlug && hasSubmitted
+                mode !== "view" && hasSubmitted
               }
               values={values}
             />
           )}
 
           {warehouseAAddStockSlug ? (
-            <WarehouseAAddStockWorkspace slug={warehouseAAddStockSlug} />
+            <WarehouseAAddStockWorkspace
+              ref={warehouseAWorkspaceRef}
+              slug={warehouseAAddStockSlug}
+            />
           ) : null}
 
           <Box
@@ -345,13 +352,19 @@ export function InventoryForm<Row extends InventoryRecord>({
                   sx={recordFormActionButtonSx}
                   onClick={() => {
                     setHasSubmitted(true);
+
+                    const workspaceIsValid =
+                      warehouseAAddStockSlug
+                        ? warehouseAWorkspaceRef.current?.validate() ?? true
+                        : true;
+
                     if (
-                      mode === "add" &&
-                      !warehouseAAddStockSlug &&
-                      hasRequiredFieldErrors(fields, values)
+                      hasFormFieldErrors(fields, values) ||
+                      !workspaceIsValid
                     ) {
                       return;
                     }
+
                     navigate(paths.list);
                   }}
                 >

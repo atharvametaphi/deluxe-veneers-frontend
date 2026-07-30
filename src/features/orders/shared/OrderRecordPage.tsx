@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
   Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   Stack,
   Table,
   TableBody,
@@ -12,7 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
-import { ChevronLeft, Pencil, Save } from "lucide-react";
+import { ChevronLeft, Info, Pencil, Save } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
@@ -20,9 +24,10 @@ import {
   MasterPageShell,
   MasterSectionCard,
   formatMasterValue,
-  hasRequiredFieldErrors,
+  hasFormFieldErrors,
   type MasterFieldDefinition,
   type MasterFieldValue,
+  type MasterRecord,
 } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
 import {
@@ -32,24 +37,31 @@ import {
 import {
   createOrderRecord,
   getCreateOrderFormFields,
+  getOrderCustomerRows,
+  getOrderFormFields,
   getOrderLineItems,
   getOrdersPaths,
   getOrderCreateVariant,
   getOrderVariantFromType,
   getOrderVariantLabel,
-  orderFormFields,
+  ordersModuleConfig,
   orderViewFields,
   type OrderDraft,
   type OrderCreateVariant,
   type OrderLineItem,
+  type OrderModuleConfig,
   type OrderRecord,
   updateOrderRecord,
   useOrderRecords,
 } from "./ordersStore";
-import { OrderLineItemsTable } from "./OrderLineItemsTable";
+import {
+  OrderLineItemsTable,
+  type OrderLineItemsTableHandle,
+} from "./OrderLineItemsTable";
 
 interface OrderRecordPageProps {
   mode: "add" | "edit" | "view";
+  moduleConfig?: OrderModuleConfig;
 }
 
 type DetailColumn<TRow> = {
@@ -63,6 +75,7 @@ const orderDetailColumns: readonly DetailColumn<OrderRecord>[] = [
   { label: "Order Date", minWidth: 130, getValue: (row) => row.orderDate },
   { label: "Customer Name", minWidth: 220, getValue: (row) => row.customerName },
   { label: "Order Type", minWidth: 150, getValue: (row) => row.orderType },
+  { label: "Priority", minWidth: 120, getValue: (row) => row.priority },
   { label: "Product Category", minWidth: 160, getValue: (row) => row.productCategory },
   { label: "Sales Coordinator", minWidth: 180, getValue: (row) => row.salesCoordinator },
   { label: "Status", minWidth: 130, getValue: (row) => row.status },
@@ -72,7 +85,7 @@ const orderDetailColumns: readonly DetailColumn<OrderRecord>[] = [
   { label: "Updated By", minWidth: 130, getValue: (row) => row.updatedBy },
 ];
 
-const itemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
+const rawItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
   { label: "Item Sub Category", minWidth: 160, getValue: (row) => row.subCategory },
   { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
   { label: "Series", minWidth: 130, getValue: (row) => row.series },
@@ -87,12 +100,49 @@ const itemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
   { label: "Amount", minWidth: 130, getValue: (row) => row.amount },
 ];
 
-export function OrderRecordPage({ mode }: OrderRecordPageProps) {
+const finishedItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
+  { label: "Finished Type", minWidth: 150, getValue: (row) => row.finishedType },
+  { label: "Sales Item Name", minWidth: 190, getValue: (row) => row.salesItemName },
+  { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
+  { label: "Length", minWidth: 120, getValue: (row) => row.length },
+  { label: "Width", minWidth: 120, getValue: (row) => row.width },
+  { label: "Thickness", minWidth: 120, getValue: (row) => row.thickness },
+  { label: "No. of Sheets", minWidth: 130, getValue: (row) => row.quantitySheets },
+  { label: "SQM", minWidth: 120, getValue: (row) => row.sqm },
+  { label: "SQF", minWidth: 120, getValue: (row) => row.totalSqm },
+  { label: "Base Type", minWidth: 130, getValue: (row) => row.baseType },
+  { label: "Base Name", minWidth: 160, getValue: (row) => row.baseName },
+  { label: "Base Length", minWidth: 130, getValue: (row) => row.baseLength },
+  { label: "Base Width", minWidth: 130, getValue: (row) => row.baseWidth },
+  { label: "Base Thickness", minWidth: 150, getValue: (row) => row.baseThickness },
+  { label: "Amount", minWidth: 130, getValue: (row) => row.amount },
+  { label: "Remark", minWidth: 200, getValue: (row) => row.remark },
+];
+
+const customerDetailColumns: readonly DetailColumn<MasterRecord>[] = [
+  { label: "Customer Name", minWidth: 180, getValue: (row) => row.customerName },
+  { label: "Company Name", minWidth: 200, getValue: (row) => row.companyName },
+  { label: "Customer Type", minWidth: 150, getValue: (row) => row.customerType },
+  { label: "Email", minWidth: 220, getValue: (row) => row.email },
+  { label: "Phone No", minWidth: 150, getValue: (row) => row.phoneNumber },
+  { label: "GST No", minWidth: 170, getValue: (row) => row.gstNo },
+  { label: "PAN No", minWidth: 140, getValue: (row) => row.panNo },
+  { label: "Pincode", minWidth: 120, getValue: (row) => row.pincode },
+  { label: "Country", minWidth: 120, getValue: (row) => row.country },
+  { label: "State", minWidth: 140, getValue: (row) => row.state },
+  { label: "City", minWidth: 140, getValue: (row) => row.city },
+  { label: "Remark", minWidth: 220, getValue: (row) => row.remark },
+];
+
+export function OrderRecordPage({
+  mode,
+  moduleConfig = ordersModuleConfig,
+}: OrderRecordPageProps) {
   const records = useOrderRecords();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
-  const paths = getOrdersPaths();
+  const paths = getOrdersPaths(moduleConfig.basePath);
   const record = useMemo(
     () => records.find((entry) => entry.id === id),
     [id, records],
@@ -112,7 +162,7 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
         ? orderViewFields
         : activeVariant
           ? getCreateOrderFormFields(activeVariant)
-          : orderFormFields,
+          : getOrderFormFields(),
     [activeVariant, mode],
   );
   const pageTitle = getOrderPageTitle(mode, activeVariant);
@@ -120,12 +170,23 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
     buildOrderInitialValues(activeFields, record, activeVariant),
   );
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const lineItemsTableRef = useRef<OrderLineItemsTableHandle>(null);
+  const [isCustomerDetailsOpen, setIsCustomerDetailsOpen] = useState(false);
   const [lineItems, setLineItems] = useState<OrderLineItem[]>(() =>
     record ? getOrderLineItems(record.id) : [],
   );
-  const canCreate = canAccessPermission("placeOrder", "create");
-  const canEdit = canAccessPermission("placeOrder", "edit");
-  const canView = canAccessPermission("placeOrder", "view");
+  const selectedCustomerName =
+    typeof values.customerName === "string" ? values.customerName : "";
+  const selectedCustomer = useMemo(
+    () =>
+      getOrderCustomerRows().find(
+        (row) => String(row.customerName ?? "") === selectedCustomerName,
+      ),
+    [selectedCustomerName],
+  );
+  const canCreate = canAccessPermission(moduleConfig.permissionKey, "create");
+  const canEdit = canAccessPermission(moduleConfig.permissionKey, "edit");
+  const canView = canAccessPermission(moduleConfig.permissionKey, "view");
   const canUseMode =
     mode === "add" ? canCreate : mode === "edit" ? canEdit : canView;
 
@@ -141,10 +202,10 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
     return (
       <MasterPageShell
         breadcrumbs={[
-          { label: "Orders", to: paths.list },
+          { label: moduleConfig.title, to: paths.list },
           { label: "Not Found" },
         ]}
-        title="Orders"
+        title={moduleConfig.title}
       >
         <MasterSectionCard>
           <Typography variant="body2" color="text.secondary">
@@ -159,7 +220,7 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
     return (
       <MasterPageShell
         breadcrumbs={[
-          { label: "Orders", to: paths.list },
+          { label: moduleConfig.title, to: paths.list },
           { label: pageTitle },
         ]}
         title={pageTitle}
@@ -177,7 +238,7 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
     return (
       <MasterPageShell
         breadcrumbs={[
-          { label: "Orders", to: paths.list },
+          { label: moduleConfig.title, to: paths.list },
           { label: pageTitle },
         ]}
         title={pageTitle}
@@ -205,7 +266,7 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
             />
 
             <OrderDetailTable
-              columns={itemDetailColumns}
+              columns={getItemDetailColumns(recordVariant)}
               emptyLabel="No order items are available."
               rows={lineItems}
               title="Item Details"
@@ -229,11 +290,11 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
   }
 
   return (
-      <MasterPageShell
-        breadcrumbs={[
-          { label: "Orders", to: paths.list },
-          { label: pageTitle },
-        ]}
+    <MasterPageShell
+      breadcrumbs={[
+        { label: moduleConfig.title, to: paths.list },
+        { label: pageTitle },
+      ]}
       title={pageTitle}
     >
       <MasterSectionCard>
@@ -247,6 +308,30 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
               fields: activeFields as MasterFieldDefinition[],
               gridColumns: 4,
             }}
+            fieldActions={{
+              customerName: (
+                <IconButton
+                  aria-label="View customer details"
+                  disabled={!selectedCustomer}
+                  onClick={() => setIsCustomerDetailsOpen(true)}
+                  size="small"
+                  sx={(theme) => ({
+                    color: selectedCustomer
+                      ? theme.customTokens.navigation.activeText
+                      : theme.palette.text.disabled,
+                    height: theme.spacing(2),
+                    minHeight: theme.spacing(2),
+                    p: 0,
+                    width: theme.spacing(2),
+                    "&:hover": {
+                      backgroundColor: theme.customTokens.navigation.hoverBackground,
+                    },
+                  })}
+                >
+                  <Info size={12} />
+                </IconButton>
+              ),
+            }}
             onChange={(key, value) =>
               setValues((current) => ({
                 ...current,
@@ -254,14 +339,16 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
               }))
             }
             readOnly={mode === "view"}
-            showRequiredErrors={mode === "add" && hasSubmitted}
+            showRequiredErrors={mode !== "view" && hasSubmitted}
             values={values}
           />
 
           <OrderLineItemsTable
+            ref={lineItemsTableRef}
             items={lineItems}
             onChange={setLineItems}
             readOnly={mode === "view"}
+            variant={activeVariant}
           />
 
           <Box
@@ -316,9 +403,12 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
 
                     setHasSubmitted(true);
 
+                    const lineItemsAreValid =
+                      lineItemsTableRef.current?.validate() ?? true;
+
                     if (
-                      mode === "add" &&
-                      hasRequiredFieldErrors(activeFields, values)
+                      hasFormFieldErrors(activeFields, values) ||
+                      !lineItemsAreValid
                     ) {
                       return;
                     }
@@ -348,7 +438,81 @@ export function OrderRecordPage({ mode }: OrderRecordPageProps) {
           </Box>
         </Stack>
       </MasterSectionCard>
+
+      <CustomerDetailsDialog
+        customer={selectedCustomer}
+        onClose={() => setIsCustomerDetailsOpen(false)}
+        open={isCustomerDetailsOpen}
+      />
     </MasterPageShell>
+  );
+}
+
+function CustomerDetailsDialog({
+  customer,
+  onClose,
+  open,
+}: {
+  customer: MasterRecord | undefined;
+  onClose: () => void;
+  open: boolean;
+}) {
+  return (
+    <Dialog
+      fullWidth
+      maxWidth="lg"
+      onClose={onClose}
+      open={open}
+      slotProps={{
+        paper: {
+          sx: (theme) => ({
+            borderRadius: `${theme.customTokens.radius.md}px`,
+            boxShadow: theme.customTokens.elevation.md,
+            outline: "none",
+            "&:focus": {
+              outline: "none",
+            },
+            "&:focus-visible": {
+              outline: "none",
+            },
+          }),
+        },
+      }}
+    >
+      <DialogTitle
+        sx={(theme) => ({
+          borderBottom: `1px solid ${theme.customTokens.borders.default}`,
+          fontSize: theme.typography.h3.fontSize,
+          fontWeight: 700,
+          px: theme.spacing(2),
+          py: theme.spacing(1.5),
+        })}
+      >
+        Customer Details
+      </DialogTitle>
+
+      <DialogContent
+        sx={(theme) => ({
+          px: theme.spacing(2),
+          py: theme.spacing(2),
+        })}
+      >
+        <Stack sx={(theme) => ({ gap: theme.spacing(2) })}>
+          <OrderDetailTable
+            columns={customerDetailColumns}
+            emptyLabel="Customer details are not available."
+            rows={customer ? [customer] : []}
+            title="Selected Customer"
+          />
+
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            <Button onClick={onClose} variant="contained">
+              Close
+            </Button>
+          </Box>
+        </Stack>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -438,6 +602,10 @@ function formatDetailValue(value: unknown) {
   return text.length > 0 ? text : "-";
 }
 
+function getItemDetailColumns(variant: OrderCreateVariant | null) {
+  return variant === "finished" ? finishedItemDetailColumns : rawItemDetailColumns;
+}
+
 function getDetailTableMinWidth<TRow>(columns: readonly DetailColumn<TRow>[]) {
   return columns.reduce((total, column) => total + (column.minWidth ?? 130), 0);
 }
@@ -502,6 +670,11 @@ function buildOrderInitialValues(
       return accumulator;
     }
 
+    if (!record && field.key === "priority") {
+      accumulator[field.key] = "Standard";
+      return accumulator;
+    }
+
     if (field.type === "date") {
       accumulator[field.key] = value instanceof Date ? value : null;
       return accumulator;
@@ -546,6 +719,7 @@ function buildOrderPayload(
   assignDateValue(payload, "orderDate", values.orderDate);
   assignStringValue(payload, "orderNo", values.orderNo);
   assignStringValue(payload, "orderType", values.orderType);
+  assignStringValue(payload, "priority", values.priority);
   assignStringValue(payload, "productCategory", values.productCategory);
   assignStringValue(payload, "quantitySheets", values.quantitySheets);
   assignStringValue(payload, "salesCoordinator", values.salesCoordinator);
