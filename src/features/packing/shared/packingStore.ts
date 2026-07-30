@@ -30,6 +30,8 @@ export interface PackingRecord extends EnterpriseTableRow {
   grade: string;
   amount: string;
   remark: string;
+  dispatchBuyerAddress?: string;
+  dispatchSellerAddress?: string;
   dispatchTransporter?: string;
   dispatchTransportMode?: string;
   dispatchTotalQuantity?: string;
@@ -263,6 +265,8 @@ export function createDispatchEntry(
     dispatchGrandTotal?: string;
     dispatchTotalQuantity?: string;
     dispatchTotalSqf?: string;
+    dispatchBuyerAddress?: string;
+    dispatchSellerAddress?: string;
     dispatchTransporter?: string;
     dispatchTransportMode?: string;
     orderType?: string;
@@ -284,6 +288,14 @@ export function createDispatchEntry(
             productCategory: normalizeString(
               payload.productCategory,
               record.productCategory,
+            ),
+            dispatchBuyerAddress: normalizeString(
+              payload.dispatchBuyerAddress,
+              record.dispatchBuyerAddress ?? "",
+            ),
+            dispatchSellerAddress: normalizeString(
+              payload.dispatchSellerAddress,
+              record.dispatchSellerAddress ?? "",
             ),
             dispatchTransporter: normalizeString(
               payload.dispatchTransporter,
@@ -394,6 +406,18 @@ function createPackingRecords(): PackingRecord[] {
     "Blue Sky Air Cargo",
   ] as const;
   const dispatchTransportModes = ["Road", "Air", "Rail", "Ship"] as const;
+  const dispatchBuyerAddresses = [
+    "At Bhatpore",
+    "Corporate Office, SG Highway",
+    "Factory Billing Address",
+    "Northwood Projects Registered Office",
+  ] as const;
+  const dispatchSellerAddresses = [
+    "Plot No 317 325, Vill Karoli",
+    "Deluxe Veneers Factory",
+    "Deluxe Veneers Warehouse",
+    "Deluxe Veneers Dispatch Office",
+  ] as const;
   const pickValue = <Value,>(values: readonly Value[], index: number) =>
     values[index % values.length]!;
 
@@ -438,6 +462,8 @@ function createPackingRecords(): PackingRecord[] {
       remark: "",
       ...(packingState === "dispatched"
         ? {
+            dispatchBuyerAddress: pickValue(dispatchBuyerAddresses, index),
+            dispatchSellerAddress: pickValue(dispatchSellerAddresses, index),
             dispatchTransporter: pickValue(dispatchTransporters, index),
             dispatchTransportMode: pickValue(dispatchTransportModes, index),
           }

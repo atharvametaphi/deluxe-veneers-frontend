@@ -149,20 +149,6 @@ const summaryTableColumns: readonly {
   { key: "grandTotal", label: "Grand Total", minWidth: 150 },
 ];
 
-const buyerAddressOptions = [
-  "At Bhatpore",
-  "Corporate Office, SG Highway",
-  "Factory Billing Address",
-  "Northwood Projects Registered Office",
-];
-
-const sellerAddressOptions = [
-  "Plot No 317 325, Vill Karoli",
-  "Deluxe Veneers Factory",
-  "Deluxe Veneers Warehouse",
-  "Deluxe Veneers Dispatch Office",
-];
-
 const transportModeOptions = ["Road", "Air", "Rail", "Ship"];
 
 export function DispatchCreatePage({
@@ -434,11 +420,10 @@ export function DispatchCreatePage({
               />
             ) : null}
 
-            <SingleSelectField
+            <TextInputField
               disabled={readOnly}
               error={showRequiredErrors && !values.buyerAddress}
               label="Address of Buyer"
-              options={buyerAddressOptions}
               required
               value={values.buyerAddress}
               onChange={(nextValue) =>
@@ -446,11 +431,10 @@ export function DispatchCreatePage({
               }
             />
 
-            <SingleSelectField
+            <TextInputField
               disabled={readOnly}
               error={showRequiredErrors && !values.sellerAddress}
               label="Address of Seller"
-              options={sellerAddressOptions}
               required
               value={values.sellerAddress}
               onChange={(nextValue) =>
@@ -576,6 +560,8 @@ export function DispatchCreatePage({
                         dispatchGrandTotal: formatAmount(grandTotal),
                         dispatchTotalQuantity: record.noOfSheets,
                         dispatchTotalSqf: record.sqf,
+                        dispatchBuyerAddress: values.buyerAddress,
+                        dispatchSellerAddress: values.sellerAddress,
                         dispatchTransporter: values.transporter,
                         dispatchTransportMode: values.transportMode,
                         orderType: values.orderCategories.join(", "),
@@ -783,19 +769,25 @@ function MultiSelectField({
 
 function TextInputField({
   disabled,
+  error,
   label,
   onChange,
+  required,
   value,
 }: {
   disabled?: boolean;
+  error?: boolean;
   label: string;
   onChange: (value: string) => void;
+  required?: boolean;
   value: string;
 }) {
   return (
-    <LabeledField label={label}>
+    <LabeledField label={label} required={Boolean(required)}>
       <TextField
         disabled={disabled}
+        error={error}
+        helperText={error ? `${label} is required` : undefined}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         size="small"
@@ -946,8 +938,8 @@ function buildDispatchInitialValues(
     orderCategories: [record.orderType].filter(Boolean),
     productCategories: [record.productCategory].filter(Boolean),
     packingList: [`${record.packingId} - ${record.orderNo}`],
-    buyerAddress: buyerAddressOptions[0] ?? "",
-    sellerAddress: sellerAddressOptions[0] ?? "",
+    buyerAddress: record.dispatchBuyerAddress ?? "",
+    sellerAddress: record.dispatchSellerAddress ?? "",
     transporter: record.dispatchTransporter ?? transporterMasterOptions[0] ?? "",
     transportMode: record.dispatchTransportMode ?? transportModeOptions[0] ?? "",
     remark: record.remark,
