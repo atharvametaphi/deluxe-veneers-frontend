@@ -170,8 +170,7 @@ export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] 
 export const orderTypeOptions = orderCreateOptions.map((option) => option.label);
 
 export const productCategoryOptions = [
-  "Raw Veneer",
-  "Veneer Blocks",
+  "Veneer",
   "Plywood",
   "MDF",
 ] as const;

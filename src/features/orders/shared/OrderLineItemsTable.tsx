@@ -40,6 +40,7 @@ import {
 } from "../../shared/buttonStyles";
 import {
   gradeOptions,
+  productCategoryOptions,
   seriesOptions,
   type OrderCreateVariant,
   type OrderLineItem,
@@ -71,6 +72,13 @@ const baseTypeOptions = ["Plywood", "MDF"] as const;
 
 const rawOrderLineItemColumns: readonly OrderLineItemColumn[] = [
   { key: "itemName", label: "Item Name", minWidth: 180, type: "text" },
+  {
+    key: "productCategory",
+    label: "Product Type",
+    minWidth: 150,
+    options: productCategoryOptions,
+    type: "select",
+  },
   {
     key: "subCategory",
     label: "Sub Category",

@@ -36,6 +36,7 @@ import {
   recordFormActionButtonSx,
   recordViewActionButtonSx,
 } from "../../shared/buttonStyles";
+import { ErpDatePickerField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 
 const ALL_OPTION = "All";
 
@@ -44,12 +45,14 @@ interface DispatchRecordPageProps {
 }
 
 interface DispatchFormState {
+  dispatchDate: Date | null;
   customerName: string;
   orderCategories: string[];
   productCategories: string[];
   packingList: string[];
   buyerAddress: string;
   sellerAddress: string;
+  transactionType: string;
   transporter: string;
   transportMode: string;
   remark: string;
@@ -150,6 +153,12 @@ const summaryTableColumns: readonly {
 ];
 
 const transportModeOptions = ["Road", "Air", "Rail", "Ship"];
+const transactionTypeOptions = [
+  "REGULAR",
+  "BILL TO SHIP TO",
+  "BILL FORM DISPATCH FROM",
+  "BILL TO SHIP TO AND BILL FROM DISPATCH FROM",
+] as const;
 
 export function DispatchCreatePage({
   mode = "add",
@@ -318,6 +327,30 @@ export function DispatchCreatePage({
               alignItems: "start",
             })}
           >
+            <LabeledField label="Dispatch Date" required>
+              <ErpDatePickerField
+                helperText={
+                  showRequiredErrors && !values.dispatchDate
+                    ? "Dispatch Date is required"
+                    : ""
+                }
+                onChange={(nextValue) =>
+                  setValues((current) => ({
+                    ...current,
+                    dispatchDate: nextValue,
+                  }))
+                }
+                state={
+                  readOnly
+                    ? "readOnly"
+                    : showRequiredErrors && !values.dispatchDate
+                      ? "error"
+                      : "default"
+                }
+                value={values.dispatchDate}
+              />
+            </LabeledField>
+
             <SingleSelectField
               disabled={readOnly}
               error={showRequiredErrors && !values.customerName}
@@ -444,6 +477,21 @@ export function DispatchCreatePage({
 
             <SingleSelectField
               disabled={readOnly}
+              error={showRequiredErrors && !values.transactionType}
+              label="Transaction Type"
+              options={transactionTypeOptions}
+              required
+              value={values.transactionType}
+              onChange={(nextValue) =>
+                setValues((current) => ({
+                  ...current,
+                  transactionType: nextValue,
+                }))
+              }
+            />
+
+            <SingleSelectField
+              disabled={readOnly}
               error={showRequiredErrors && !values.transporter}
               label="Transporter"
               options={transporterMasterOptions}
@@ -537,12 +585,14 @@ export function DispatchCreatePage({
                     setShowRequiredErrors(true);
 
                     if (
+                      !values.dispatchDate ||
                       !values.customerName ||
                       values.orderCategories.length === 0 ||
                       values.productCategories.length === 0 ||
                       values.packingList.length === 0 ||
                       !values.buyerAddress ||
                       !values.sellerAddress ||
+                      !values.transactionType ||
                       !values.transporter ||
                       !values.transportMode ||
                       !hasLoadedItems
@@ -556,12 +606,13 @@ export function DispatchCreatePage({
 
                       createDispatchEntry(record.id, {
                         customerName: values.customerName,
-                        dispatchDate: new Date(),
+                        dispatchDate: values.dispatchDate,
                         dispatchGrandTotal: formatAmount(grandTotal),
                         dispatchTotalQuantity: record.noOfSheets,
                         dispatchTotalSqf: record.sqf,
                         dispatchBuyerAddress: values.buyerAddress,
                         dispatchSellerAddress: values.sellerAddress,
+                        dispatchTransactionType: values.transactionType,
                         dispatchTransporter: values.transporter,
                         dispatchTransportMode: values.transportMode,
                         orderType: values.orderCategories.join(", "),
@@ -921,12 +972,14 @@ function buildDispatchInitialValues(
 ): DispatchFormState {
   if (!record) {
     return {
+      dispatchDate: new Date(),
       customerName: "",
       orderCategories: [],
       productCategories: [],
       packingList: [],
       buyerAddress: "",
       sellerAddress: "",
+      transactionType: "",
       transporter: "",
       transportMode: "",
       remark: "",
@@ -934,12 +987,14 @@ function buildDispatchInitialValues(
   }
 
   return {
+    dispatchDate: record.dispatchDate ?? new Date(),
     customerName: record.customerName,
     orderCategories: [record.orderType].filter(Boolean),
     productCategories: [record.productCategory].filter(Boolean),
     packingList: [`${record.packingId} - ${record.orderNo}`],
     buyerAddress: record.dispatchBuyerAddress ?? "",
     sellerAddress: record.dispatchSellerAddress ?? "",
+    transactionType: record.dispatchTransactionType ?? transactionTypeOptions[0] ?? "",
     transporter: record.dispatchTransporter ?? transporterMasterOptions[0] ?? "",
     transportMode: record.dispatchTransportMode ?? transportModeOptions[0] ?? "",
     remark: record.remark,

@@ -88,6 +88,7 @@ const orderDetailColumns: readonly DetailColumn<OrderRecord>[] = [
 const rawItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
   { label: "Item Sub Category", minWidth: 160, getValue: (row) => row.subCategory },
   { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
+  { label: "Product Type", minWidth: 150, getValue: (row) => row.productCategory },
   { label: "Series", minWidth: 130, getValue: (row) => row.series },
   { label: "Grade", minWidth: 110, getValue: (row) => row.grade },
   { label: "Length", minWidth: 120, getValue: (row) => row.length },

@@ -96,6 +96,7 @@ interface EnterpriseDataTableProps<Row extends EnterpriseTableRow> {
   defaultRowsPerPage?: number;
   emptyStateLabel?: string;
   getRowActions?: (row: Row) => readonly EnterpriseTableAction<Row>[];
+  hidePagination?: boolean;
   initialSort?: EnterpriseTableSortConfig<Row>;
   isStatusChangeDisabled?: (row: Row) => boolean;
   maxBodyHeight?: number;
@@ -116,6 +117,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   defaultRowsPerPage = 10,
   emptyStateLabel = "No records found.",
   getRowActions,
+  hidePagination = false,
   initialSort = null,
   isStatusChangeDisabled,
   maxBodyHeight = 440,
@@ -231,10 +233,9 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / rowsPerPage));
   const safePage = Math.min(page, totalPages);
   const pageStartIndex = (safePage - 1) * rowsPerPage;
-  const currentPageRows = sortedRows.slice(
-    pageStartIndex,
-    pageStartIndex + rowsPerPage,
-  );
+  const currentPageRows = hidePagination
+    ? sortedRows
+    : sortedRows.slice(pageStartIndex, pageStartIndex + rowsPerPage);
   const visiblePaginationPages = getVisiblePaginationPages(totalPages);
   const currentPageIds = currentPageRows.map((row) => row.id);
   const allCurrentPageSelected =
@@ -630,18 +631,19 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
           </Table>
         </TableContainer>
 
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: theme.spacing(2),
-            flexWrap: "wrap",
-            borderTop: `1px solid ${theme.customTokens.borders.default}`,
-            px: { xs: theme.spacing(1.5), md: theme.spacing(2) },
-            py: theme.spacing(1),
-            backgroundColor: theme.customTokens.surfaces.surface,
-          }}
-        >
+        {!hidePagination ? (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: theme.spacing(2),
+              flexWrap: "wrap",
+              borderTop: `1px solid ${theme.customTokens.borders.default}`,
+              px: { xs: theme.spacing(1.5), md: theme.spacing(2) },
+              py: theme.spacing(1),
+              backgroundColor: theme.customTokens.surfaces.surface,
+            }}
+          >
           <Box
             sx={{
               display: "flex",
@@ -793,7 +795,8 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
               </Stack>
             </Box>
           </Box>
-        </Box>
+          </Box>
+        ) : null}
       </Box>
 
       <Menu

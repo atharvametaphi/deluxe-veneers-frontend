@@ -54,6 +54,7 @@ const packingDetailFields: readonly MasterFieldDefinition[] = [
   { key: "orderType", label: "Order Type", type: "text" },
   { key: "productCategory", label: "Product Type", type: "text" },
   { key: "orderNo", label: "Order No", type: "text" },
+  { key: "orderItemNo", label: "Order Item Number", type: "text" },
   { key: "preparedBy", label: "Prepared By", type: "text" },
   { key: "checkedBy", label: "Checked By", type: "text" },
   { key: "remark", label: "Remarks", type: "text" },
@@ -83,7 +84,7 @@ const packingSourceColumns: readonly EnterpriseTableColumn<PackingSourceRow>[] =
   [
     { key: "orderNo", label: "Order No" },
     { key: "orderItemNo", label: "Order Item No" },
-    { key: "productCategory", label: "Product Category" },
+    { key: "productCategory", label: "Product Type" },
     { key: "itemName", label: "Item Name" },
     { key: "groupNo", label: "Group No" },
     { key: "photoNo", label: "Photo No" },
@@ -110,7 +111,7 @@ const packingItemDetailColumns: readonly {
   { key: "amount", label: "Amount", minWidth: 140 },
 ];
 
-const rawPackingProductCategoryOptions = ["Raw"] as const;
+const rawPackingProductCategoryOptions = ["Veneer", "Plywood", "MDF"] as const;
 const finishedPackingProductCategoryOptions = [
   "Marquetry",
   "Fluted",
@@ -149,7 +150,6 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
       buildCreatePackingFields({
         customerOptions,
         orderNoOptions: [],
-        productCategoryOptions: [],
       }),
     [customerOptions],
   );
@@ -170,16 +170,8 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
     typeof values.customerName === "string" ? values.customerName.trim() : "";
   const selectedOrderType =
     typeof values.orderType === "string" ? values.orderType.trim() : "";
-  const selectedProductCategory =
-    typeof values.productCategory === "string"
-      ? values.productCategory.trim()
-      : "";
   const selectedOrderNo =
     typeof values.orderNo === "string" ? values.orderNo.trim() : "";
-  const productCategoryOptions = useMemo(
-    () => getPackingProductCategoryOptions(selectedOrderType),
-    [selectedOrderType],
-  );
   const orderNoOptions = useMemo(
     () =>
       uniqueStringValues(
@@ -189,36 +181,19 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
               return false;
             }
 
-            if (
-              selectedProductCategory &&
-              row.productCategory !== selectedProductCategory
-            ) {
-              return false;
-            }
-
-            if (selectedCustomerName && row.customerName !== selectedCustomerName) {
-              return false;
-            }
-
             return true;
           })
           .map((row) => row.orderNo),
       ),
-    [
-      packingSourceRows,
-      selectedCustomerName,
-      selectedOrderType,
-      selectedProductCategory,
-    ],
+    [packingSourceRows, selectedOrderType],
   );
   const createPackingFields = useMemo<readonly MasterFieldDefinition[]>(
     () =>
       buildCreatePackingFields({
         customerOptions,
         orderNoOptions,
-        productCategoryOptions,
       }),
-    [customerOptions, orderNoOptions, productCategoryOptions],
+    [customerOptions, orderNoOptions],
   );
   const activeFields = mode === "add" ? createPackingFields : packingDetailFields;
 
@@ -230,7 +205,6 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
     mode === "add" &&
     !record &&
     selectedOrderType.length > 0 &&
-    selectedProductCategory.length > 0 &&
     selectedOrderNo.length > 0;
   const filteredSourceRows = useMemo(() => {
     if (!showOrderSourceTable) {
@@ -242,14 +216,6 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
         return false;
       }
 
-      if (selectedProductCategory && row.productCategory !== selectedProductCategory) {
-        return false;
-      }
-
-      if (selectedCustomerName && row.customerName !== selectedCustomerName) {
-        return false;
-      }
-
       if (selectedOrderNo && row.orderNo !== selectedOrderNo) {
         return false;
       }
@@ -258,10 +224,8 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
     });
   }, [
     packingSourceRows,
-    selectedCustomerName,
     selectedOrderNo,
     selectedOrderType,
-    selectedProductCategory,
     showOrderSourceTable,
   ]);
   const selectedSourceRows = useMemo(
@@ -361,16 +325,19 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                 };
 
                 if (key === "orderType") {
-                  nextValues.productCategory =
-                    typeof value === "string" &&
-                    getOrderVariantFromType(value) === "raw"
-                      ? "Raw"
-                      : "";
                   nextValues.orderNo = "";
                 }
 
-                if (key === "customerName" || key === "productCategory") {
-                  nextValues.orderNo = "";
+                if (key === "orderNo" && typeof value === "string") {
+                  const selectedOrder = packingSourceRows.find(
+                    (row) =>
+                      row.orderNo === value &&
+                      matchesPackingOrderType(row.orderType, selectedOrderType),
+                  );
+
+                  if (selectedOrder) {
+                    nextValues.customerName = selectedOrder.customerName;
+                  }
                 }
 
                 return nextValues;
@@ -387,32 +354,17 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
 
           {showOrderSourceTable ? (
             <EnterpriseDataTable
-              actionColumnLabel="Action"
-              actionColumnWidth={120}
               columns={packingSourceColumns}
               defaultRowsPerPage={10}
               emptyStateLabel="No order items match the selected filters."
+              hidePagination
               maxBodyHeight={420}
-              renderActionCell={(row) => {
-                const isSelected = selectedSourceRowIds.includes(row.id);
-
-                return (
-                  <Button
-                    onClick={() =>
-                      setSelectedSourceRowIds((current) =>
-                        current.includes(row.id)
-                          ? current.filter((entryId) => entryId !== row.id)
-                          : [...current, row.id],
-                      )
-                    }
-                    size="small"
-                    variant={isSelected ? "outlined" : "contained"}
-                  >
-                    {isSelected ? "Added" : "Create"}
-                  </Button>
-                );
-              }}
+              onSelectionChange={(selectedRows) =>
+                setSelectedSourceRowIds(selectedRows.map((row) => row.id))
+              }
               rows={filteredSourceRows}
+              selectable
+              selectionResetKey={`${selectedOrderType}-${selectedOrderNo}`}
             />
           ) : null}
 
@@ -477,6 +429,14 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                       return;
                     }
 
+                    if (
+                      mode === "add" &&
+                      showOrderSourceTable &&
+                      selectedSourceRows.length === 0
+                    ) {
+                      return;
+                    }
+
                     if (mode === "add") {
                       const packingDate =
                         values.packingDate instanceof Date
@@ -495,10 +455,11 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                             length: row.length,
                             noOfSheets: row.noOfSheets,
                             orderNo: row.orderNo,
+                            orderItemNo: row.orderItemNo,
                             orderType: normalizePackingOrderType(row.orderType),
                             packingDate,
                             productCategory:
-                              selectedProductCategory || row.productCategory,
+                              row.productCategory,
                             remark,
                             sqf: row.sqf,
                             sqm: row.sqm,
@@ -657,11 +618,9 @@ function PackingItemDetailsTable({ record }: { record: PackingRecord }) {
 function buildCreatePackingFields({
   customerOptions,
   orderNoOptions,
-  productCategoryOptions,
 }: {
   customerOptions: readonly string[];
   orderNoOptions: readonly string[];
-  productCategoryOptions: readonly string[];
 }): readonly MasterFieldDefinition[] {
   return [
     {
@@ -685,13 +644,6 @@ function buildCreatePackingFields({
       type: "select",
     },
     {
-      key: "productCategory",
-      label: "Product Category",
-      options: [...productCategoryOptions],
-      required: true,
-      type: "select",
-    },
-    {
       key: "orderNo",
       label: "Order No",
       options: [...orderNoOptions],
@@ -701,13 +653,11 @@ function buildCreatePackingFields({
     {
       key: "preparedBy",
       label: "Prepared By",
-      required: true,
       type: "text",
     },
     {
       key: "checkedBy",
       label: "Checked By",
-      required: true,
       type: "text",
     },
     {
@@ -824,7 +774,7 @@ function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
       orderNo: record.orderNo,
       orderItemNo: String(index + 1),
       orderType: normalizePackingOrderType(record.orderType),
-      productCategory: getPackingSourceProductCategory(record, item),
+      productCategory: getPackingSourceProductCategory(record, item, index),
       finishedType: item.finishedType ?? "",
       itemName: item.itemName,
       groupNo: item.series || "-",
@@ -844,31 +794,41 @@ function uniqueStringValues(values: readonly (string | null | undefined)[]) {
   return Array.from(new Set(values.filter(isNonEmptyString)));
 }
 
-function getPackingProductCategoryOptions(selectedOrderType: string) {
-  const orderVariant = getOrderVariantFromType(selectedOrderType);
-
-  if (orderVariant === "raw") {
-    return [...rawPackingProductCategoryOptions];
-  }
-
-  if (orderVariant === "finished") {
-    return [...finishedPackingProductCategoryOptions];
-  }
-
-  return [];
-}
-
 function getPackingSourceProductCategory(
   record: OrderRecord,
   item: Partial<ReturnType<typeof getOrderLineItems>[number]>,
+  index: number,
 ) {
   const orderVariant = getOrderVariantFromType(record.orderType);
 
   if (orderVariant === "raw") {
-    return "Raw";
+    return normalizeRawPackingProductCategory(
+      item.productCategory || record.productCategory,
+      index,
+    );
   }
 
   return item.finishedType || record.productCategory;
+}
+
+function normalizeRawPackingProductCategory(value: string | undefined, index: number) {
+  const normalizedValue = value?.trim().toLowerCase() ?? "";
+
+  if (normalizedValue.includes("plywood")) {
+    return "Plywood";
+  }
+
+  if (normalizedValue.includes("mdf")) {
+    return "MDF";
+  }
+
+  if (normalizedValue.includes("veneer")) {
+    return "Veneer";
+  }
+
+  return rawPackingProductCategoryOptions[
+    index % rawPackingProductCategoryOptions.length
+  ]!;
 }
 
 function isNonEmptyString(

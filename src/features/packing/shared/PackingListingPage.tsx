@@ -40,6 +40,13 @@ export function PackingListingPage() {
   const canEditPacking = canAccessPermission("packing", "edit");
   const canViewPacking = canAccessPermission("packing", "view");
   const canCreateDispatch = canAccessPermission("dispatch", "create");
+  const columns = useMemo(
+    () =>
+      activeTab === "issued"
+        ? packingListingColumns.filter((column) => column.key !== "packingId")
+        : packingListingColumns,
+    [activeTab],
+  );
 
   const rows = useMemo(() => {
     const tabRows = records.filter((record) =>
@@ -163,7 +170,7 @@ export function PackingListingPage() {
 
         <EnterpriseDataTable
           actions={activeTab === "issued" ? issuedActions : doneActions}
-          columns={packingListingColumns}
+          columns={columns}
           defaultRowsPerPage={10}
           emptyStateLabel={`No records are currently available in ${activeTab === "issued" ? "Issued for Packing" : "Packing Done"}.`}
           initialSort={{ key: "updatedDate", direction: "desc" }}

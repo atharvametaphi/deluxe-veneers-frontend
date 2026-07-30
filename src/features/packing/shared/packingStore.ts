@@ -14,6 +14,7 @@ export interface PackingRecord extends EnterpriseTableRow {
   packingId: string;
   issuedFrom: string;
   orderNo: string;
+  orderItemNo: string;
   customerName: string;
   orderType: string;
   productCategory: string;
@@ -32,6 +33,7 @@ export interface PackingRecord extends EnterpriseTableRow {
   remark: string;
   dispatchBuyerAddress?: string;
   dispatchSellerAddress?: string;
+  dispatchTransactionType?: string;
   dispatchTransporter?: string;
   dispatchTransportMode?: string;
   dispatchTotalQuantity?: string;
@@ -50,6 +52,7 @@ export const packingListingColumns: readonly EnterpriseTableColumn<PackingRecord
   [
     { key: "packingId", label: "Packing ID" },
     { key: "orderNo", label: "Order No" },
+    { key: "orderItemNo", label: "Order Item Number" },
     { key: "customerName", label: "Customer Name" },
     { key: "orderType", label: "Order Type" },
     { key: "productCategory", label: "Product Type" },
@@ -169,6 +172,7 @@ export function createPackingEntry(
     length?: string;
     noOfSheets?: string;
     orderNo?: string;
+    orderItemNo?: string;
     orderType?: string;
     packingDate?: Date | null;
     preparedBy?: string;
@@ -196,6 +200,7 @@ export function createPackingEntry(
           payload.orderNo,
           `ORD-PK-${String(1000 + nextRecordNumber).padStart(4, "0")}`,
         ),
+        orderItemNo: normalizeString(payload.orderItemNo, "1"),
         customerName: normalizeString(payload.customerName, "New Customer"),
         orderType: normalizeString(payload.orderType, "Raw Order"),
         productCategory: normalizeString(
@@ -236,6 +241,7 @@ export function createPackingEntry(
             ...record,
             customerName: normalizeString(payload.customerName, record.customerName),
             orderNo: normalizeString(payload.orderNo, record.orderNo),
+            orderItemNo: normalizeString(payload.orderItemNo, record.orderItemNo),
             orderType: normalizeString(payload.orderType, record.orderType),
             productCategory: normalizeString(
               payload.productCategory,
@@ -267,6 +273,7 @@ export function createDispatchEntry(
     dispatchTotalSqf?: string;
     dispatchBuyerAddress?: string;
     dispatchSellerAddress?: string;
+    dispatchTransactionType?: string;
     dispatchTransporter?: string;
     dispatchTransportMode?: string;
     orderType?: string;
@@ -296,6 +303,10 @@ export function createDispatchEntry(
             dispatchSellerAddress: normalizeString(
               payload.dispatchSellerAddress,
               record.dispatchSellerAddress ?? "",
+            ),
+            dispatchTransactionType: normalizeString(
+              payload.dispatchTransactionType,
+              record.dispatchTransactionType ?? "",
             ),
             dispatchTransporter: normalizeString(
               payload.dispatchTransporter,
@@ -369,8 +380,12 @@ function createPackingRecords(): PackingRecord[] {
     "Warehouse C",
   ] as const;
   const orderTypes = [...packingOrderTypeOptions];
-  const productCategories = [
-    "Raw",
+  const rawProductCategories = [
+    "Veneer",
+    "Plywood",
+    "MDF",
+  ] as const;
+  const finishedProductCategories = [
     "Marquetry",
     "Fluted",
     "Embossed",
@@ -406,6 +421,12 @@ function createPackingRecords(): PackingRecord[] {
     "Blue Sky Air Cargo",
   ] as const;
   const dispatchTransportModes = ["Road", "Air", "Rail", "Ship"] as const;
+  const dispatchTransactionTypes = [
+    "REGULAR",
+    "BILL TO SHIP TO",
+    "BILL FORM DISPATCH FROM",
+    "BILL TO SHIP TO AND BILL FROM DISPATCH FROM",
+  ] as const;
   const dispatchBuyerAddresses = [
     "At Bhatpore",
     "Corporate Office, SG Highway",
@@ -432,6 +453,8 @@ function createPackingRecords(): PackingRecord[] {
     const sqf = sqm * 10.7639;
     const packingState: PackingRecordState =
       index < 25 ? "issued" : index < 50 ? "done" : "dispatched";
+    const orderType = pickValue(orderTypes, index);
+    const isRawOrder = orderType === "Raw";
     const updatedBy =
       packingState === "issued"
         ? "Packing Supervisor"
@@ -441,12 +464,18 @@ function createPackingRecords(): PackingRecord[] {
 
     return {
       id: `packing-${rowNumber}`,
-      packingId: `PKG-2026-${String(rowNumber).padStart(4, "0")}`,
+      packingId:
+        packingState === "issued"
+          ? ""
+          : `PKG-2026-${String(rowNumber).padStart(4, "0")}`,
       issuedFrom: pickValue(issuedFromValues, index),
       orderNo: `ORD-PK-${String(1000 + rowNumber).padStart(4, "0")}`,
+      orderItemNo: String((index % 5) + 1),
       customerName: pickValue(customerNames, index),
-      orderType: pickValue(orderTypes, index),
-      productCategory: pickValue(productCategories, index),
+      orderType,
+      productCategory: isRawOrder
+        ? pickValue(rawProductCategories, index)
+        : pickValue(finishedProductCategories, index),
       preparedBy: "Packing Supervisor",
       checkedBy: "Quality Coordinator",
       itemName: pickValue(itemNames, index),
@@ -464,6 +493,7 @@ function createPackingRecords(): PackingRecord[] {
         ? {
             dispatchBuyerAddress: pickValue(dispatchBuyerAddresses, index),
             dispatchSellerAddress: pickValue(dispatchSellerAddresses, index),
+            dispatchTransactionType: pickValue(dispatchTransactionTypes, index),
             dispatchTransporter: pickValue(dispatchTransporters, index),
             dispatchTransportMode: pickValue(dispatchTransportModes, index),
           }
