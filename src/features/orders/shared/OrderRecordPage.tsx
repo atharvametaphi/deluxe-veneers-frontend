@@ -722,6 +722,7 @@ function buildOrderPayload(
   assignStringValue(payload, "priority", values.priority);
   assignStringValue(payload, "productCategory", values.productCategory);
   assignStringValue(payload, "quantitySheets", values.quantitySheets);
+  assignStringValue(payload, "remark", values.remark);
   assignStringValue(payload, "salesCoordinator", values.salesCoordinator);
   assignStringValue(payload, "series", values.series);
   assignStringValue(payload, "status", values.status);

@@ -218,6 +218,7 @@ export function getOrderFormFields(): readonly MasterFieldDefinition[] {
       key: "orderDate",
       label: "Order Date",
       type: "date",
+      required: true,
     },
     {
       key: "customerName",
@@ -231,6 +232,12 @@ export function getOrderFormFields(): readonly MasterFieldDefinition[] {
       type: "select",
       options: [...priorityOptions],
     },
+    {
+      key: "remark",
+      label: "Remark",
+      type: "text",
+      required: false,
+    },
   ];
 }
 
@@ -239,16 +246,18 @@ export function getCreateOrderFormFields(
 ): readonly MasterFieldDefinition[] {
   const orderTypeLabel = getOrderVariantLabel(variant);
 
-  return getOrderFormFields().map((field) =>
-    field.key === "orderType"
-      ? {
-          ...field,
-          options: [orderTypeLabel],
-          placeholder: orderTypeLabel,
-          readOnly: true,
-        }
-      : field,
-  );
+  return getOrderFormFields()
+    .filter((field) => field.key !== "orderNo")
+    .map((field) =>
+      field.key === "orderType"
+        ? {
+            ...field,
+            options: [orderTypeLabel],
+            placeholder: orderTypeLabel,
+            readOnly: true,
+          }
+        : field,
+    );
 }
 
 export function getOrderCustomerRows(): MasterRecord[] {

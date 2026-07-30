@@ -119,6 +119,7 @@ const rawOrderLineItemColumns: readonly OrderLineItemColumn[] = [
     readOnly: true,
     type: "text",
   },
+  { key: "remark", label: "Remark", minWidth: 200, type: "text" },
 ] as const;
 
 const finishedOrderLineItemColumns: readonly OrderLineItemColumn[] = [
@@ -453,10 +454,7 @@ export const OrderLineItemsTable = forwardRef<
                         key={column.key}
                         sx={(theme) => getHeaderCellSx(theme, column.minWidth)}
                       >
-                        <ColumnLabel
-                          label={column.label}
-                          required={isLineItemColumnRequired(column)}
-                        />
+                        <ColumnLabel label={column.label} />
                       </TableCell>
                     ))}
                   </TableRow>
@@ -529,10 +527,7 @@ export const OrderLineItemsTable = forwardRef<
                       key={column.key}
                       sx={(theme) => getHeaderCellSx(theme, column.minWidth)}
                     >
-                      <ColumnLabel
-                        label={column.label}
-                        required={isLineItemColumnRequired(column)}
-                      />
+                      <ColumnLabel label={column.label} />
                     </TableCell>
                   ))}
                   {!readOnly ? (
@@ -692,17 +687,10 @@ function isLineItemColumnRequired(column: OrderLineItemColumn) {
   return !["remark", "remarks"].includes(String(column.key).toLowerCase());
 }
 
-function ColumnLabel({
-  label,
-  required,
-}: {
-  label: string;
-  required: boolean;
-}) {
+function ColumnLabel({ label }: { label: string }) {
   return (
     <Stack component="span" direction="row" spacing={0.25}>
       <span>{label}</span>
-      {required ? <span>*</span> : null}
     </Stack>
   );
 }
