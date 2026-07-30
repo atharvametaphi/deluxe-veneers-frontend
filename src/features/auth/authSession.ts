@@ -369,7 +369,7 @@ const defaultPermissionRoutes = [
   { permissionKey: "cncFluting", path: "/factory/cnc-fluting" },
   { permissionKey: "embossing", path: "/factory/embossing" },
   { permissionKey: "finishing", path: "/factory/finishing" },
-  { permissionKey: "placeOrder", path: "/order" },
+  { permissionKey: "placeOrder", path: "/orders" },
   { permissionKey: "packing", path: "/packing" },
   { permissionKey: "dispatch", path: "/dispatch" },
   { permissionKey: "componentLibrary", path: "/tools/component-library" },

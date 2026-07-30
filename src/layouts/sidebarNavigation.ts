@@ -102,43 +102,43 @@ export interface DynamicWarehouseSidebarItem {
 const buildWarehouseNavigationItems = (
   dynamicWarehouses: readonly DynamicWarehouseSidebarItem[] = [],
 ): SidebarNavigationItem[] => [
-  {
-    id: "warehouse-a",
-    label: "Warehouse A",
-    to: "/warehouse-a",
-    match: (location) =>
-      matchesPath(location, "/warehouse-a") ||
-      matchesAnyWarehouseInventoryRecordRoute(location, "warehouse-a"),
-  },
-  {
-    id: "warehouse-b",
-    label: "Warehouse B",
-    to: "/warehouse-b",
-    match: (location) =>
-      matchesPath(location, "/warehouse-b") ||
-      inventorySlugs
-        .filter((slug) => slug !== "consumables")
-        .some((slug) =>
-          matchesInventoryRecordRoute(location, slug, "warehouse-b"),
-        ),
-  },
-  {
-    id: "warehouse-c",
-    label: "Warehouse C",
-    to: "/warehouse-c",
-    match: (location) =>
-      matchesPath(location, "/warehouse-c") ||
-      matchesAnyWarehouseInventoryRecordRoute(location, "warehouse-c"),
-  },
-  ...dynamicWarehouses.map<SidebarNavigationItem>((warehouse) => ({
-    id: `dynamic-warehouse-${warehouse.slug}`,
-    label: warehouse.label,
-    permissionKey: getWarehousePermissionKeyByType(warehouse.warehouseType),
-    to: `/warehouses/${warehouse.slug}`,
-    match: (location: SidebarMatchLocation) =>
-      matchesPath(location, `/warehouses/${warehouse.slug}`),
-  })),
-];
+    {
+      id: "warehouse-a",
+      label: "Warehouse A",
+      to: "/warehouse-a",
+      match: (location) =>
+        matchesPath(location, "/warehouse-a") ||
+        matchesAnyWarehouseInventoryRecordRoute(location, "warehouse-a"),
+    },
+    {
+      id: "warehouse-b",
+      label: "Warehouse B",
+      to: "/warehouse-b",
+      match: (location) =>
+        matchesPath(location, "/warehouse-b") ||
+        inventorySlugs
+          .filter((slug) => slug !== "consumables")
+          .some((slug) =>
+            matchesInventoryRecordRoute(location, slug, "warehouse-b"),
+          ),
+    },
+    {
+      id: "warehouse-c",
+      label: "Warehouse C",
+      to: "/warehouse-c",
+      match: (location) =>
+        matchesPath(location, "/warehouse-c") ||
+        matchesAnyWarehouseInventoryRecordRoute(location, "warehouse-c"),
+    },
+    ...dynamicWarehouses.map<SidebarNavigationItem>((warehouse) => ({
+      id: `dynamic-warehouse-${warehouse.slug}`,
+      label: warehouse.label,
+      permissionKey: getWarehousePermissionKeyByType(warehouse.warehouseType),
+      to: `/warehouses/${warehouse.slug}`,
+      match: (location: SidebarMatchLocation) =>
+        matchesPath(location, `/warehouses/${warehouse.slug}`),
+    })),
+  ];
 
 function getWarehousePermissionKeyByType(warehouseType: string) {
   const normalizedType = warehouseType.trim().toLowerCase();
@@ -345,18 +345,11 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
     ],
   },
   {
-    id: "orders",
+    id: "order",
     label: "Orders",
     icon: ShoppingCart,
     to: "/orders",
     match: (location) => matchesPath(location, "/orders"),
-  },
-  {
-    id: "order",
-    label: "Order",
-    icon: ShoppingCart,
-    to: "/order",
-    match: (location) => matchesPath(location, "/order"),
   },
   {
     id: "packing",

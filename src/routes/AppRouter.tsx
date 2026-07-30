@@ -13,7 +13,6 @@ import { factoryRoutes } from "../features/factory";
 import { inventoryRoutes } from "../features/inventory";
 import { masterRoutes } from "../features/masters";
 import { orderRoutes } from "../features/order";
-import { ordersRoutes } from "../features/orders";
 import { packingRoutes } from "../features/packing";
 import { ProfilePage } from "../features/profile";
 import { rolesPermissionsRoutes } from "../features/roles-permissions";
@@ -68,7 +67,6 @@ const router = createBrowserRouter([
         path: "warehouses/:warehouseSlug",
         Component: DynamicWarehousePage,
       },
-      ...ordersRoutes,
       {
         path: "inventory",
         element: (

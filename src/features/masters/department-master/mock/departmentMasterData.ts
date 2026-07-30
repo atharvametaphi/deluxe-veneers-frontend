@@ -88,7 +88,7 @@ export const departmentAccessSections: readonly DepartmentAccessSection[] = [
   },
   {
     id: "order",
-    label: "Order",
+    label: "Orders",
     items: [{ key: "orders", label: "Orders" }],
   },
   {

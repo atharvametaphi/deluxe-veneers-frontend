@@ -185,8 +185,8 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
   },
   {
     id: "orders",
-    label: "Order",
-    items: [{ key: "placeOrder", label: "Order" }],
+    label: "Orders",
+    items: [{ key: "placeOrder", label: "Orders" }],
   },
   {
     id: "packing",

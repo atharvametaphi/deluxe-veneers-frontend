@@ -142,10 +142,10 @@ export const ordersModuleConfig: OrderModuleConfig = {
 };
 
 export const orderModuleConfig: OrderModuleConfig = {
-  basePath: "/order",
+  basePath: "/orders",
   createOptions: orderModuleCreateOptions,
   permissionKey: "placeOrder",
-  title: "Order",
+  title: "Orders",
 };
 
 export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] =

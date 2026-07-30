@@ -8,8 +8,8 @@ import {
 } from "./pages";
 
 export const orderRoutes: RouteObject[] = [
-  { path: "order", Component: OrderPage },
-  { path: "order/add", Component: AddOrderModulePage },
-  { path: "order/edit/:id", Component: EditOrderModulePage },
-  { path: "order/view/:id", Component: ViewOrderModulePage },
+  { path: "orders", Component: OrderPage },
+  { path: "orders/add", Component: AddOrderModulePage },
+  { path: "orders/edit/:id", Component: EditOrderModulePage },
+  { path: "orders/view/:id", Component: ViewOrderModulePage },
 ];
