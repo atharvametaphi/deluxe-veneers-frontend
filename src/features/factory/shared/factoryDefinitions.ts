@@ -90,7 +90,7 @@ const fields = (
 ) => specs.map(([key, label]) => field(key, label, rows));
 
 const names = [
-  "Atharva Khan",
+  "Kunal Kamra",
   "Neha Shah",
   "Rohit Jain",
   "Aditi Desai",
