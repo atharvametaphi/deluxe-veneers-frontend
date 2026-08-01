@@ -70,7 +70,6 @@ interface PackingSourceRow extends EnterpriseTableRow {
   finishedType: string;
   itemName: string;
   groupNo: string;
-  photoNo: string;
   length: string;
   width: string;
   thickness: string;
@@ -87,9 +86,9 @@ const packingSourceColumns: readonly EnterpriseTableColumn<PackingSourceRow>[] =
     { key: "productCategory", label: "Product Type" },
     { key: "itemName", label: "Item Name" },
     { key: "groupNo", label: "Group No" },
-    { key: "photoNo", label: "Photo No" },
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
+    { key: "thickness", label: "Thickness" },
     { key: "noOfSheets", label: "No of Sheets" },
     { key: "sqm", label: "SQM" },
     { key: "sqf", label: "SQF" },
@@ -778,7 +777,6 @@ function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
       finishedType: item.finishedType ?? "",
       itemName: item.itemName,
       groupNo: item.series || "-",
-      photoNo: "-",
       length: item.length,
       width: item.width,
       thickness: item.thickness,

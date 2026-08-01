@@ -71,12 +71,18 @@ const finishedTypeOptions = [
 const baseTypeOptions = ["Plywood", "MDF"] as const;
 
 const rawOrderLineItemColumns: readonly OrderLineItemColumn[] = [
-  { key: "itemName", label: "Item Name", minWidth: 180, type: "text" },
   {
     key: "productCategory",
     label: "Product Type",
     minWidth: 150,
     options: productCategoryOptions,
+    type: "select",
+  },
+  {
+    key: "itemName",
+    label: "Item Name",
+    dropdownWidth: 320,
+    minWidth: 240,
     type: "select",
   },
   {
