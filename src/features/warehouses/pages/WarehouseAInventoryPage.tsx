@@ -62,10 +62,12 @@ export function WarehouseAInventoryPage() {
 
 interface WarehouseAInventoryModulePageProps {
   warehouseName?: string;
+  warehouseRootPath?: string;
 }
 
 export function WarehouseAInventoryModulePage({
   warehouseName = "Warehouse A",
+  warehouseRootPath = "/warehouse-a",
 }: WarehouseAInventoryModulePageProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -78,6 +80,7 @@ export function WarehouseAInventoryModulePage({
   const canCreate = canAccessPermission("warehouseA", "create");
   const canEdit = canAccessPermission("warehouseA", "edit");
   const canView = canAccessPermission("warehouseA", "view");
+  const activeInventoryListPath = `${warehouseRootPath}?inventory=${activeInventory}`;
   const resolvedRows = useMemo(
     () => resolveWarehouseQcRows(activeConfig.rows),
     [activeConfig.rows, qcStatusRevision],
@@ -116,8 +119,13 @@ export function WarehouseAInventoryModulePage({
               icon: Eye,
               onSelect: (row: WarehouseInventoryRow) =>
                 navigate(
-                  getInventoryPaths(row.inventorySlug, "issued", "warehouse-a").view(
-                    row.inventoryRecordId,
+                  addReturnToQuery(
+                    getInventoryPaths(
+                      row.inventorySlug,
+                      "issued",
+                      "warehouse-a",
+                    ).view(row.inventoryRecordId),
+                    activeInventoryListPath,
                   ),
                 ),
             },
@@ -131,8 +139,13 @@ export function WarehouseAInventoryModulePage({
               icon: Pencil,
               onSelect: (row: WarehouseInventoryRow) =>
                 navigate(
-                  getInventoryPaths(row.inventorySlug, "issued", "warehouse-a").edit(
-                    row.inventoryRecordId,
+                  addReturnToQuery(
+                    getInventoryPaths(
+                      row.inventorySlug,
+                      "issued",
+                      "warehouse-a",
+                    ).edit(row.inventoryRecordId),
+                    activeInventoryListPath,
                   ),
                 ),
             },
@@ -154,7 +167,7 @@ export function WarehouseAInventoryModulePage({
 
       return actions;
     },
-    [canEdit, canView, navigate],
+    [activeInventoryListPath, canEdit, canView, navigate],
   );
 
   return (
@@ -202,7 +215,10 @@ export function WarehouseAInventoryModulePage({
             {canCreate ? (
               <Button
                 component={RouterLink}
-                to={getInventoryPaths(activeInventory, "issued", "warehouse-a").add}
+                to={addReturnToQuery(
+                  getInventoryPaths(activeInventory, "issued", "warehouse-a").add,
+                  activeInventoryListPath,
+                )}
                 startIcon={<Plus size={16} />}
                 variant="contained"
                 sx={inventoryToolbarButtonSx}
@@ -233,6 +249,12 @@ export function WarehouseAInventoryModulePage({
       </Stack>
     </MasterPageShell>
   );
+}
+
+function addReturnToQuery(path: string, returnTo: string) {
+  const separator = path.includes("?") ? "&" : "?";
+
+  return `${path}${separator}returnTo=${encodeURIComponent(returnTo)}`;
 }
 
 function getActiveWarehouseAInventory(

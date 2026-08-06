@@ -113,6 +113,9 @@ export function MasterFormPage({
   );
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const formDefinition = getMasterFormDefinitionForMode(localDefinition, mode);
+  const handleCancel = () => {
+    navigate(cancelPath, { replace: true });
+  };
 
   useEffect(() => {
     setValues(buildMasterInitialValues(localDefinition, row));
@@ -296,7 +299,7 @@ export function MasterFormPage({
                 <Button
                   type="button"
                   variant="outlined"
-                  onClick={() => navigate(cancelPath)}
+                  onClick={handleCancel}
                   sx={recordFormActionButtonSx}
                 >
                   Cancel

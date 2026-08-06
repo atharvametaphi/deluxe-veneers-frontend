@@ -47,7 +47,10 @@ export function DynamicWarehousePage() {
 
   if (warehouse.warehouseType === "Inward") {
     return (
-      <WarehouseAInventoryModulePage warehouseName={warehouse.warehouseName} />
+      <WarehouseAInventoryModulePage
+        warehouseName={warehouse.warehouseName}
+        warehouseRootPath={`/warehouses/${warehouse.slug}`}
+      />
     );
   }
 

@@ -105,6 +105,8 @@ export function InventoryForm<Row extends InventoryRecord>({
     activeProcessTab,
     activeWarehouse,
   );
+  const returnToPath = searchParams.get("returnTo");
+  const listPath = returnToPath?.startsWith("/") ? returnToPath : paths.list;
   const warehouseLabel = getWarehouseLabel(activeWarehouse);
   const warehouseRootPath = getWarehouseRootPath(activeWarehouse);
   const inventoryListPath = getWarehouseInventoryListPath(
@@ -124,6 +126,9 @@ export function InventoryForm<Row extends InventoryRecord>({
     isWarehouseAAddStockSlug(definition.slug)
       ? definition.slug
       : null;
+  const closeInventoryForm = () => {
+    navigate(listPath, { replace: true, flushSync: true });
+  };
 
   const baseFields =
     mode === "add"
@@ -327,7 +332,7 @@ export function InventoryForm<Row extends InventoryRecord>({
                 <Button
                   variant="outlined"
                   startIcon={<ChevronLeft size={16} />}
-                  onClick={() => navigate(paths.list)}
+                  onClick={closeInventoryForm}
                   sx={recordViewActionButtonSx}
                 >
                   Back
@@ -349,7 +354,7 @@ export function InventoryForm<Row extends InventoryRecord>({
                 <Button
                   type="button"
                   variant="outlined"
-                  onClick={() => navigate(paths.list)}
+                  onClick={closeInventoryForm}
                   sx={recordFormActionButtonSx}
                 >
                   Cancel
@@ -381,7 +386,7 @@ export function InventoryForm<Row extends InventoryRecord>({
                       return;
                     }
 
-                    navigate(paths.list);
+                    closeInventoryForm();
                   }}
                 >
                   {primaryLabel}
