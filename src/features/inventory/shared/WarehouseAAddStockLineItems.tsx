@@ -25,7 +25,6 @@ import type { Theme } from "@mui/material/styles";
 import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 
 import {
-  cutMasterOptions,
   itemSubCategoryMasterOptions,
   unitMasterOptions,
 } from "../../masters/shared/masterDefinitions";
@@ -93,28 +92,6 @@ const warehouseAAddStockTableConfigs: Record<
 > = {
   "veneer-blocks": [
     {
-      key: "supplierItemName",
-      label: "Supplier Item Name",
-      minWidth: 190,
-      placeholder: "Enter Supplier Item Name",
-      type: "text",
-    },
-    {
-      key: "supplierCode",
-      label: "Supplier Code",
-      minWidth: 150,
-      placeholder: "Enter Supplier Code",
-      type: "text",
-    },
-    {
-      key: "itemSubCategory",
-      label: "Item Sub Category",
-      minWidth: 170,
-      options: itemSubCategoryMasterOptions,
-      placeholder: "Select Item Sub Category",
-      type: "select",
-    },
-    {
       key: "itemName",
       label: "Item Name",
       minWidth: 170,
@@ -123,11 +100,11 @@ const warehouseAAddStockTableConfigs: Record<
       type: "select",
     },
     {
-      key: "cut",
-      label: "Cut",
-      minWidth: 150,
-      options: cutMasterOptions,
-      placeholder: "Select Cut",
+      key: "itemSubCategory",
+      label: "Item Sub Category",
+      minWidth: 170,
+      options: itemSubCategoryMasterOptions,
+      placeholder: "Select Item Sub Category",
       type: "select",
     },
     {
@@ -203,18 +180,12 @@ const warehouseAAddStockTableConfigs: Record<
   ],
   "raw-veneer": [
     {
-      key: "supplierItemName",
-      label: "Supplier Item Name",
-      minWidth: 190,
-      placeholder: "Enter Supplier Item Name",
-      type: "text",
-    },
-    {
-      key: "supplierCode",
-      label: "Supplier Code",
-      minWidth: 150,
-      placeholder: "Enter Supplier Code",
-      type: "text",
+      key: "itemName",
+      label: "Item Name",
+      minWidth: 170,
+      options: veneerItemOptions,
+      placeholder: "Select Item Name",
+      type: "select",
     },
     {
       key: "itemSubCategory",
@@ -222,14 +193,6 @@ const warehouseAAddStockTableConfigs: Record<
       minWidth: 170,
       options: itemSubCategoryMasterOptions,
       placeholder: "Select Item Sub Category",
-      type: "select",
-    },
-    {
-      key: "itemName",
-      label: "Item Name",
-      minWidth: 170,
-      options: veneerItemOptions,
-      placeholder: "Select Item Name",
       type: "select",
     },
     {
@@ -305,21 +268,6 @@ const warehouseAAddStockTableConfigs: Record<
   ],
   plywood: [
     {
-      key: "supplierItemName",
-      label: "Supplier Item Name",
-      minWidth: 190,
-      placeholder: "Enter Supplier Item Name",
-      type: "text",
-    },
-    {
-      key: "itemSubCategory",
-      label: "Item Sub Category",
-      minWidth: 170,
-      options: itemSubCategoryMasterOptions,
-      placeholder: "Select Item Sub Category",
-      type: "select",
-    },
-    {
       key: "itemName",
       label: "Item Name",
       minWidth: 170,
@@ -330,6 +278,14 @@ const warehouseAAddStockTableConfigs: Record<
         "Architectural Plywood",
       ],
       placeholder: "Select Item Name",
+      type: "select",
+    },
+    {
+      key: "itemSubCategory",
+      label: "Item Sub Category",
+      minWidth: 170,
+      options: itemSubCategoryMasterOptions,
+      placeholder: "Select Item Sub Category",
       type: "select",
     },
     {
@@ -407,21 +363,6 @@ const warehouseAAddStockTableConfigs: Record<
   ],
   mdf: [
     {
-      key: "supplierItemName",
-      label: "Supplier Item Name",
-      minWidth: 190,
-      placeholder: "Enter Supplier Item Name",
-      type: "text",
-    },
-    {
-      key: "itemSubCategory",
-      label: "Item Sub Category",
-      minWidth: 170,
-      options: itemSubCategoryMasterOptions,
-      placeholder: "Select Item Sub Category",
-      type: "select",
-    },
-    {
       key: "itemName",
       label: "Item Name",
       minWidth: 170,
@@ -432,6 +373,14 @@ const warehouseAAddStockTableConfigs: Record<
         "High Density MDF",
       ],
       placeholder: "Select Item Name",
+      type: "select",
+    },
+    {
+      key: "itemSubCategory",
+      label: "Item Sub Category",
+      minWidth: 170,
+      options: itemSubCategoryMasterOptions,
+      placeholder: "Select Item Sub Category",
       type: "select",
     },
     {

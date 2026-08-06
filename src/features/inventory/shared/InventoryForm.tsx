@@ -50,6 +50,7 @@ import {
 } from "./WarehouseAAddStockLineItems";
 import {
   WarehouseAAddStockWorkspace,
+  type AddStockWorkspaceTab,
   type WarehouseAAddStockWorkspaceHandle,
 } from "./WarehouseAAddStockWorkspace";
 import {
@@ -147,10 +148,16 @@ export function InventoryForm<Row extends InventoryRecord>({
   );
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const warehouseAWorkspaceRef = useRef<WarehouseAAddStockWorkspaceHandle>(null);
+  const [warehouseAAddStockTab, setWarehouseAAddStockTab] =
+    useState<AddStockWorkspaceTab>("item-details");
 
   useEffect(() => {
     setValues(buildInventoryInitialValues(fields, row));
   }, [fields, row]);
+
+  useEffect(() => {
+    setWarehouseAAddStockTab("item-details");
+  }, [warehouseAAddStockSlug]);
 
   if ((mode === "edit" || mode === "view") && !row) {
     return (
@@ -276,7 +283,8 @@ export function InventoryForm<Row extends InventoryRecord>({
                 />
               )}
             </Stack>
-          ) : (
+          ) : !warehouseAAddStockSlug ||
+            warehouseAAddStockTab === "item-details" ? (
             <MasterFormFields
               key={`${definition.slug}-${mode}-${row?.id ?? "new"}`}
               definition={{
@@ -295,10 +303,12 @@ export function InventoryForm<Row extends InventoryRecord>({
               }
               values={values}
             />
-          )}
+          ) : null}
 
           {warehouseAAddStockSlug ? (
             <WarehouseAAddStockWorkspace
+              activeTab={warehouseAAddStockTab}
+              onTabChange={setWarehouseAAddStockTab}
               ref={warehouseAWorkspaceRef}
               slug={warehouseAAddStockSlug}
             />
@@ -358,10 +368,16 @@ export function InventoryForm<Row extends InventoryRecord>({
                         ? warehouseAWorkspaceRef.current?.validate() ?? true
                         : true;
 
-                    if (
-                      hasFormFieldErrors(fields, values) ||
-                      !workspaceIsValid
-                    ) {
+                    const hasBaseFieldErrors = hasFormFieldErrors(
+                      fields,
+                      values,
+                    );
+
+                    if (warehouseAAddStockSlug && hasBaseFieldErrors) {
+                      setWarehouseAAddStockTab("item-details");
+                    }
+
+                    if (hasBaseFieldErrors || !workspaceIsValid) {
                       return;
                     }
 
@@ -382,21 +398,29 @@ export function InventoryForm<Row extends InventoryRecord>({
 function getWarehouseAAddStockFormFields(
   fields: readonly MasterFieldDefinition[],
 ) {
-  return fields.map<MasterFieldDefinition>((field) => {
-    if (field.key !== "inwardType" && field.key !== "shift") {
-      return field;
-    }
+  return fields
+    .filter((field) => !warehouseAAddStockRemovedFieldKeys.has(field.key))
+    .map<MasterFieldDefinition>((field) => {
+      if (field.key !== "inwardType") {
+        return field;
+      }
 
-    const { options: _options, ...fieldWithoutOptions } = field;
+      const { options: _options, ...fieldWithoutOptions } = field;
 
-    return {
-      ...fieldWithoutOptions,
-      placeholder:
-        field.key === "inwardType" ? "Enter Inward Type" : "Enter Shift",
-      type: "text",
-    };
-  });
+      return {
+        ...fieldWithoutOptions,
+        placeholder: "Enter Inward Type",
+        type: "text",
+      };
+    });
 }
+
+const warehouseAAddStockRemovedFieldKeys = new Set([
+  "shift",
+  "workers",
+  "noOfWorkingHours",
+  "noOfTotalHours",
+]);
 
 const inventoryItemDetailFieldKeys = new Set([
   "amount",

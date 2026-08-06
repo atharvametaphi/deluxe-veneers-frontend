@@ -7,6 +7,7 @@ import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessT
 import {
   EnterpriseDataTable,
   type EnterpriseTableAction,
+  type EnterpriseTableColumn,
 } from "../../../components/data-display/EnterpriseDataTable";
 import {
   canAccessPermission,
@@ -39,6 +40,10 @@ export function FactoryListing<Row extends FactoryRecord>({
   const [activeTab, setActiveTab] = useState<FactoryProcessTab>("issued");
   const [searchValue, setSearchValue] = useState("");
   const [revertedRowIds, setRevertedRowIds] = useState<string[]>([]);
+  const [inspectionDoneRowIds, setInspectionDoneRowIds] = useState<string[]>(
+    [],
+  );
+  const isDryingDoneTab = definition.slug === "drying" && activeTab === "done";
   const tabs = useMemo(
     () => getFactoryProcessTabs(definition.title),
     [definition.title],
@@ -61,6 +66,44 @@ export function FactoryListing<Row extends FactoryRecord>({
       ),
     );
   }, [searchValue, tabRows]);
+  const tableColumns = useMemo<readonly EnterpriseTableColumn<Row>[]>(() => {
+    if (!isDryingDoneTab) {
+      return definition.listColumns;
+    }
+
+    const inspectionStatusColumn: EnterpriseTableColumn<Row> = {
+      key: "inspectionStatus",
+      label: "Inspection Status",
+    };
+    const remarkColumnIndex = definition.listColumns.findIndex(
+      (column) => column.key === "remark",
+    );
+
+    if (remarkColumnIndex === -1) {
+      return [...definition.listColumns, inspectionStatusColumn];
+    }
+
+    return [
+      ...definition.listColumns.slice(0, remarkColumnIndex),
+      inspectionStatusColumn,
+      ...definition.listColumns.slice(remarkColumnIndex),
+    ];
+  }, [definition.listColumns, isDryingDoneTab]);
+  const tableRows = useMemo<readonly Row[]>(() => {
+    if (!isDryingDoneTab) {
+      return filteredRows;
+    }
+
+    return filteredRows.map(
+      (row) =>
+        ({
+          ...row,
+          inspectionStatus: inspectionDoneRowIds.includes(row.id)
+            ? "Done"
+            : "Pending",
+        }) as Row,
+    );
+  }, [filteredRows, inspectionDoneRowIds, isDryingDoneTab]);
 
   const rowActions = useMemo<ReadonlyArray<EnterpriseTableAction<Row>>>(
     () => {
@@ -113,6 +156,31 @@ export function FactoryListing<Row extends FactoryRecord>({
   const getRowActions = useMemo<
     ((row: Row) => readonly EnterpriseTableAction<Row>[]) | undefined
   >(() => {
+    if (isDryingDoneTab) {
+      return (row) => {
+        const isInspectionDone = inspectionDoneRowIds.includes(row.id);
+        const inspectionAction: EnterpriseTableAction<Row> = isInspectionDone
+          ? {
+              id: "move-to-warehouse-c",
+              label: "Move to Warehouse C",
+              onSelect: () =>
+                navigate("/warehouse-c?section=inventory&inventory=raw-veneer"),
+            }
+          : {
+              id: "mark-inspection-done",
+              label: "Mark as Inspection Done",
+              onSelect: (selectedRow) =>
+                setInspectionDoneRowIds((current) =>
+                  current.includes(selectedRow.id)
+                    ? current
+                    : [...current, selectedRow.id],
+                ),
+            };
+
+        return [...rowActions, inspectionAction];
+      };
+    }
+
     if (activeTab !== "done") {
       return undefined;
     }
@@ -130,7 +198,14 @@ export function FactoryListing<Row extends FactoryRecord>({
 
       return [...rowActions, ...nextProcessActions];
     };
-  }, [activeTab, definition.slug, navigate, rowActions]);
+  }, [
+    activeTab,
+    definition.slug,
+    inspectionDoneRowIds,
+    isDryingDoneTab,
+    navigate,
+    rowActions,
+  ]);
 
   return (
     <FactoryPageShell
@@ -172,9 +247,9 @@ export function FactoryListing<Row extends FactoryRecord>({
         <EnterpriseDataTable
           key={`${definition.slug}-${activeTab}`}
           actions={rowActions}
-          columns={definition.listColumns}
+          columns={tableColumns}
           defaultRowsPerPage={10}
-          rows={canView ? filteredRows : []}
+          rows={canView ? tableRows : []}
           {...(getRowActions ? { getRowActions } : {})}
           {...(definition.initialSort
             ? { initialSort: definition.initialSort }

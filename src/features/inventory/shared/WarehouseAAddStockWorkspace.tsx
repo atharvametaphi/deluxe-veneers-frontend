@@ -29,7 +29,7 @@ import {
   type WarehouseAAddStockSlug,
 } from "./WarehouseAAddStockLineItems";
 
-type AddStockWorkspaceTab = "item-details" | "invoice-details";
+export type AddStockWorkspaceTab = "item-details" | "invoice-details";
 
 type InvoiceDetailValues = {
   additionalCharges: string;
@@ -67,19 +67,29 @@ export interface WarehouseAAddStockWorkspaceHandle {
 export const WarehouseAAddStockWorkspace = forwardRef<
   WarehouseAAddStockWorkspaceHandle,
   {
+    activeTab?: AddStockWorkspaceTab;
+    onTabChange?: (tab: AddStockWorkspaceTab) => void;
     slug: WarehouseAAddStockSlug;
   }
 >(function WarehouseAAddStockWorkspace({
+  activeTab: controlledActiveTab,
+  onTabChange,
   slug,
 }, ref) {
   const theme = useTheme();
   const lineItemsRef = useRef<WarehouseAAddStockLineItemsHandle>(null);
-  const [activeTab, setActiveTab] =
+  const [internalActiveTab, setInternalActiveTab] =
     useState<AddStockWorkspaceTab>("item-details");
+  const activeTab = controlledActiveTab ?? internalActiveTab;
   const [lineItemsAmountTotal, setLineItemsAmountTotal] = useState(0);
   const [invoiceDetailValues, setInvoiceDetailValues] =
     useState<InvoiceDetailValues>(defaultInvoiceDetailValues);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  const handleTabChange = (nextTab: AddStockWorkspaceTab) => {
+    setInternalActiveTab(nextTab);
+    onTabChange?.(nextTab);
+  };
 
   const formattedLineItemsAmount = useMemo(
     () => formatAmount(lineItemsAmountTotal),
@@ -139,12 +149,12 @@ export const WarehouseAAddStockWorkspace = forwardRef<
         const invoiceValid = !hasInvoiceRequiredErrors(invoiceDetailValues);
 
         if (!lineItemsValid) {
-          setActiveTab("item-details");
+          handleTabChange("item-details");
           return false;
         }
 
         if (!invoiceValid) {
-          setActiveTab("invoice-details");
+          handleTabChange("invoice-details");
           return false;
         }
 
@@ -161,7 +171,7 @@ export const WarehouseAAddStockWorkspace = forwardRef<
       }}
     >
       <ModuleProcessTabs
-        onChange={setActiveTab}
+        onChange={handleTabChange}
         tabs={workspaceTabs}
         value={activeTab}
       />
