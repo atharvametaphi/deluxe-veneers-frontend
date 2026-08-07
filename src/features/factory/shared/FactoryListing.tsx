@@ -570,10 +570,9 @@ function getFactoryNextProcessActions<Row extends FactoryRecord>(
   }
 
   if (slug === "grouping") {
-    return [
-      createGroupingSampleIssueAction<Row>(onOpenGroupingSampleIssue),
-      createFactoryIssueAction<Row>("Finishing", navigate),
-    ].filter((action) => canAccessPermission(action.permissionKey, "create"));
+    return [createGroupingSampleIssueAction<Row>(onOpenGroupingSampleIssue)].filter(
+      (action) => canAccessPermission(action.permissionKey, "create"),
+    );
   }
 
   if (slug === "splicing") {
