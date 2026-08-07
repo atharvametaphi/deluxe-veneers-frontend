@@ -291,12 +291,16 @@ const sampleSheetRows = factoryRows("sample-sheets", "Warehouse C", (row) => ({
 
 const splicingRows = factoryRows("splicing", "Warehouse C", (row) => ({
   ...row,
-  issuedFor: "Pressing",
+  issuedFor: ["Marquetry", "Decorative", "Fluted", "Embossed"][
+    Number(row.orderItemNo?.toString().replace(/\D/g, "") || "1") % 4
+  ],
 }));
 
 const pressingRows = factoryRows("pressing", "Warehouse C", (row) => ({
   ...row,
-  issuedFor: "CNC / Fluting",
+  issuedFor: ["Marquetry", "Decorative", "Fluted", "Embossed"][
+    Number(row.orderItemNo?.toString().replace(/\D/g, "") || "1") % 4
+  ],
 }));
 
 const cncFlutingRows = factoryRows("cnc-fluting", "Warehouse C", (row) => ({

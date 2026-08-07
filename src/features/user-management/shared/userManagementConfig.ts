@@ -174,8 +174,9 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
     items: [
       { key: "slicing", label: "Slicing" },
       { key: "drying", label: "Drying" },
-      { key: "marquetry", label: "Marquetry" },
       { key: "grouping", label: "Grouping" },
+      { key: "marquetry", label: "Marquetry" },
+      { key: "sampleSheets", label: "Sample Sheets" },
       { key: "splicing", label: "Splicing" },
       { key: "pressing", label: "Pressing" },
       { key: "cncFluting", label: "CNC / Fluting" },

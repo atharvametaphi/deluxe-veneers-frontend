@@ -30,6 +30,7 @@ export const factoryPermissionKeyBySlug: Record<string, string> = {
   grouping: "grouping",
   marquetry: "marquetry",
   pressing: "pressing",
+  "sample-sheets": "sampleSheets",
   slicing: "slicing",
   splicing: "splicing",
 };

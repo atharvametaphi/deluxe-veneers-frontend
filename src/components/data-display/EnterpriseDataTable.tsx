@@ -1238,7 +1238,11 @@ function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
     );
   }
 
-  if (column.key === "qcStatus") {
+  if (column.key === "qcStatus" || column.key === "inspectionStatus") {
+    return renderQcStatusChip(row[column.key], theme);
+  }
+
+  if (isInspectionStatusValue(row[column.key])) {
     return renderQcStatusChip(row[column.key], theme);
   }
 
@@ -1500,8 +1504,18 @@ function getAuditInitials(name: string) {
 
 function renderQcStatusChip(value: EnterpriseTableCellValue, theme: Theme) {
   const normalizedValue = formatEnterpriseValue(value).trim().toLowerCase();
-  const isDone = normalizedValue === "done" || normalizedValue === "qc done";
-  const label = isDone ? "Done" : "Pending";
+  const isDone =
+    normalizedValue === "done" ||
+    normalizedValue === "qc done" ||
+    normalizedValue === "inspection done";
+  const isInspectionStatus = normalizedValue.includes("inspection");
+  const label = isInspectionStatus
+    ? isDone
+      ? "Inspection Done"
+      : "Inspection Pending"
+    : isDone
+      ? "Done"
+      : "Pending";
   const palette = isDone
     ? theme.customTokens.semanticScale.success
     : theme.customTokens.semanticScale.warning;
@@ -1523,6 +1537,10 @@ function renderQcStatusChip(value: EnterpriseTableCellValue, theme: Theme) {
       variant="outlined"
     />
   );
+}
+
+function isInspectionStatusValue(value: EnterpriseTableCellValue) {
+  return formatEnterpriseValue(value).trim().toLowerCase().startsWith("inspection ");
 }
 
 function clampPage(value: string, totalPages: number) {

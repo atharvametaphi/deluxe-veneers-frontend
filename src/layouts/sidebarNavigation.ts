@@ -301,12 +301,6 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) => matchesPath(location, "/factory/drying"),
       },
       {
-        id: "factory-marquetry",
-        label: "Marquetry",
-        to: "/factory/marquetry",
-        match: (location) => matchesPath(location, "/factory/marquetry"),
-      },
-      {
         id: "factory-grouping",
         label: "Grouping",
         to: "/factory/grouping",
@@ -317,6 +311,12 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
         label: "Splicing",
         to: "/factory/splicing",
         match: (location) => matchesPath(location, "/factory/splicing"),
+      },
+      {
+        id: "factory-marquetry",
+        label: "Marquetry",
+        to: "/factory/marquetry",
+        match: (location) => matchesPath(location, "/factory/marquetry"),
       },
       {
         id: "factory-pressing",
