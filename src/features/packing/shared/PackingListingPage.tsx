@@ -168,7 +168,7 @@ export function PackingListingPage() {
             }}
           />
 
-          {canCreatePacking ? (
+          {activeTab === "issued" && canCreatePacking ? (
             <Button
               onClick={() => navigate(paths.add())}
               sx={listingToolbarButtonSx}
