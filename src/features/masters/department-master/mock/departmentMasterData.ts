@@ -81,7 +81,7 @@ export const departmentAccessSections: readonly DepartmentAccessSection[] = [
       { key: "splicing", label: "Splicing" },
       { key: "pressing", label: "Pressing" },
       { key: "finishing", label: "Finishing" },
-      { key: "cnc-fluting", label: "CNC / Fluting" },
+      { key: "cnc-fluting", label: "Fluting" },
       { key: "embossing", label: "Embossing" },
       { key: "marquetry", label: "Marquetry" },
     ],

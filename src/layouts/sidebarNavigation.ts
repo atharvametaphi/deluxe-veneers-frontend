@@ -6,7 +6,6 @@ import {
   CircleDollarSign,
   Cog,
   Factory,
-  FileSpreadsheet,
   Folder,
   FolderTree,
   Layers,
@@ -356,13 +355,6 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
         match: (location) => matchesPath(location, "/factory/grouping"),
       },
       {
-        id: "factory-sample-sheets",
-        label: "Sample Sheets",
-        icon: FileSpreadsheet,
-        to: "/factory/sample-sheets",
-        match: (location) => matchesPath(location, "/factory/sample-sheets"),
-      },
-      {
         id: "factory-splicing",
         label: "Splicing",
         icon: Layers,
@@ -385,7 +377,7 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       },
       {
         id: "factory-cnc-fluting",
-        label: "CNC / Fluting",
+        label: "Fluting",
         icon: Cog,
         to: "/factory/cnc-fluting",
         match: (location) => matchesPath(location, "/factory/cnc-fluting"),

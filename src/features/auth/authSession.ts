@@ -364,7 +364,6 @@ const defaultPermissionRoutes = [
   { permissionKey: "drying", path: "/factory/drying" },
   { permissionKey: "grouping", path: "/factory/grouping" },
   { permissionKey: "marquetry", path: "/factory/marquetry" },
-  { permissionKey: "sampleSheets", path: "/factory/sample-sheets" },
   { permissionKey: "splicing", path: "/factory/splicing" },
   { permissionKey: "pressing", path: "/factory/pressing" },
   { permissionKey: "cncFluting", path: "/factory/cnc-fluting" },

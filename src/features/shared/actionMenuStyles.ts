@@ -3,15 +3,14 @@ import type { SxProps } from "@mui/material/styles";
 
 import { portalFontFamily } from "../../theme/typography";
 import {
-  portalIconGap,
   portalIconSize,
   portalIconStroke,
 } from "./portalIconStandards";
 
 export type ActionMenuTone = "primary" | "default" | "danger";
 
-export const ACTION_MENU_MIN_WIDTH = 190;
-export const ACTION_MENU_MAX_WIDTH = 220;
+export const ACTION_MENU_MIN_WIDTH = 168;
+export const ACTION_MENU_MAX_WIDTH = 200;
 
 /** Infer visual hierarchy from label/tone without changing business logic. */
 export function resolveActionMenuTone(
@@ -61,12 +60,12 @@ export function actionMenuPaperSx(theme: Theme): SxProps<Theme> {
     minWidth: ACTION_MENU_MIN_WIDTH,
     maxWidth: ACTION_MENU_MAX_WIDTH,
     width: "max-content",
-    borderRadius: "10px",
+    borderRadius: "8px",
     border: `1px solid ${theme.customTokens.borders.default}`,
     backgroundColor: theme.customTokens.surfaces.surface,
     boxShadow: theme.customTokens.elevation.xs,
     overflow: "hidden",
-    p: 0.75,
+    p: 0.25,
   };
 }
 
@@ -90,19 +89,21 @@ export function actionMenuItemSx(
       : theme.customTokens.neutrals[900];
 
   return {
-    minHeight: 38,
-    height: 38,
+    minHeight: 32,
+    height: 32,
     py: 0,
-    px: "10px",
+    px: "8px",
     mx: 0,
-    my: 0.15,
-    gap: theme.spacing(portalIconGap.menu),
-    borderRadius: "8px",
+    my: 0,
+    gap: theme.spacing(1),
+    borderRadius: "4px",
+    justifyContent: "flex-start",
+    textAlign: "left",
     color,
     fontFamily: portalFontFamily,
     fontSize: "13px",
     fontWeight: isPrimary || isDanger ? 600 : 500,
-    lineHeight: 1.3,
+    lineHeight: 1.2,
     alignItems: "center",
     "&:hover": {
       backgroundColor: isDanger
@@ -157,8 +158,8 @@ export function actionMenuTriggerSx(theme: Theme): SxProps<Theme> {
 
 export function actionMenuDividerSx(theme: Theme): SxProps<Theme> {
   return {
-    my: 0.5,
-    mx: 0.75,
+    my: 0.25,
+    mx: 0.5,
     borderColor: theme.customTokens.borders.divider,
   };
 }

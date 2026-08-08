@@ -14,7 +14,6 @@ import {
   groupingDefinition,
   marquetryDefinition,
   pressingDefinition,
-  sampleSheetsDefinition,
   slicingDefinition,
   splicingDefinition,
 } from "../../factory/shared/factoryDefinitions";
@@ -60,7 +59,6 @@ const PIPELINE_DEFINITIONS: readonly FactoryDefinition[] = [
   slicingDefinition,
   dryingDefinition,
   groupingDefinition,
-  sampleSheetsDefinition,
   splicingDefinition,
   marquetryDefinition,
   pressingDefinition,

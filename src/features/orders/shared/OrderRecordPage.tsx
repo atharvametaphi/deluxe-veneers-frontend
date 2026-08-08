@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
 import { ChevronLeft, Info, Pencil, Save } from "lucide-react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams, useSearchParams, useLocation } from "react-router";
 
 import {
   MasterFormFields,
@@ -58,6 +58,7 @@ import {
   getOrderCustomerRows,
   getOrderFormFields,
   getOrderLineItems,
+  getOrderRecord,
   getOrdersPaths,
   getOrderCreateVariant,
   getOrderVariantFromType,
@@ -76,11 +77,19 @@ import {
   OrderLineItemsTable,
   type OrderLineItemsTableHandle,
 } from "./OrderLineItemsTable";
+import { allocateSampleToOrder } from "../../factory/shared/sampleSheetIdentityStore";
 
 interface OrderRecordPageProps {
   mode: "add" | "edit" | "view";
   moduleConfig?: OrderModuleConfig;
 }
+
+type SampleOrderLocationState = {
+  finishedType?: string;
+  fromSampleSheet?: boolean;
+  lineItemDraft?: Partial<OrderLineItem>;
+  sampleNo?: string;
+};
 
 type DetailColumn<TRow> = {
   getValue: (row: TRow) => unknown;
@@ -161,8 +170,10 @@ export function OrderRecordPage({
 }: OrderRecordPageProps) {
   const records = useOrderRecords();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
+  const samplePrefill = (location.state as SampleOrderLocationState | null) ?? null;
   const paths = getOrdersPaths(moduleConfig.basePath);
   const record = useMemo(
     () => records.find((entry) => entry.id === id),
@@ -193,9 +204,17 @@ export function OrderRecordPage({
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const lineItemsTableRef = useRef<OrderLineItemsTableHandle>(null);
   const [isCustomerDetailsOpen, setIsCustomerDetailsOpen] = useState(false);
-  const [lineItems, setLineItems] = useState<OrderLineItem[]>(() =>
-    record ? getOrderLineItems(record.id) : [],
-  );
+  const [lineItems, setLineItems] = useState<OrderLineItem[]>(() => {
+    if (record) {
+      return getOrderLineItems(record.id);
+    }
+
+    if (mode === "add" && samplePrefill?.fromSampleSheet && samplePrefill.lineItemDraft) {
+      return [buildSamplePrefillLineItem(samplePrefill)];
+    }
+
+    return [];
+  });
   const selectedCustomerName =
     typeof values.customerName === "string" ? values.customerName : "";
   const selectedCustomer = useMemo(
@@ -481,7 +500,21 @@ export function OrderRecordPage({
                 payload.orderType = getOrderVariantLabel(activeVariant);
               }
 
-              createOrderRecord(payload);
+              const createdId = createOrderRecord(payload);
+              if (samplePrefill?.fromSampleSheet && samplePrefill.sampleNo) {
+                const createdOrder = getOrderRecord(createdId);
+                const issuedSheets = lineItems.reduce((total, item) => {
+                  const parsed = Number(
+                    String(item.quantitySheets ?? "").replace(/[^\d.]/g, ""),
+                  );
+                  return total + (Number.isFinite(parsed) ? parsed : 0);
+                }, 0);
+                allocateSampleToOrder({
+                  sampleNo: samplePrefill.sampleNo,
+                  orderNo: createdOrder?.orderNo ?? createdId,
+                  sheets: issuedSheets,
+                });
+              }
             } else if (record) {
               updateOrderRecord(record.id, payload);
             }
@@ -1035,6 +1068,39 @@ function buildOrderInitialValues(
     accumulator[field.key] = typeof value === "string" ? value : "";
     return accumulator;
   }, {});
+}
+
+function buildSamplePrefillLineItem(
+  samplePrefill: SampleOrderLocationState,
+): OrderLineItem {
+  const draft = samplePrefill.lineItemDraft ?? {};
+  const finishedType =
+    draft.finishedType || samplePrefill.finishedType || "Decorative";
+
+  return {
+    id: `sample-prefill-${Date.now()}`,
+    productCategory: "Finished",
+    finishedType,
+    salesItemName: draft.salesItemName || `${finishedType} ${draft.itemName || "Sample"}`,
+    itemName: draft.itemName || "",
+    subCategory: draft.subCategory || "",
+    series: draft.series || "",
+    grade: draft.grade || "",
+    length: draft.length || "",
+    width: draft.width || "",
+    thickness: draft.thickness || "",
+    quantitySheets: draft.quantitySheets || "",
+    sqm: draft.sqm || "",
+    totalSqm: draft.totalSqm || "",
+    ratePerSqf: draft.ratePerSqf || "",
+    baseType: draft.baseType || "",
+    baseName: draft.baseName || "",
+    baseLength: draft.baseLength || "",
+    baseWidth: draft.baseWidth || "",
+    baseThickness: draft.baseThickness || "",
+    amount: draft.amount || "",
+    remark: draft.remark || (samplePrefill.sampleNo ? `From Sample ${samplePrefill.sampleNo}` : ""),
+  };
 }
 
 function getOrderPageTitle(
