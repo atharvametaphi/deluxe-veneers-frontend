@@ -22,9 +22,6 @@ export const commonFactoryItemFieldSpecs = [
   ["itemSubCategory", "Sub Category"],
   ["color", "Color"],
   ["logNo", "Log No."],
-  ["character", "Character"],
-  ["pattern", "Pattern"],
-  ["series", "Series"],
   ["grade", "Grade"],
   ["length", "Length"],
   ["width", "Width"],
@@ -44,14 +41,6 @@ export const commonFactoryItemFieldKeySet = new Set<string>(
   commonFactoryItemFieldKeys,
 );
 
-const characterOptions = ["Olive", "Curly", "Flaky", "Pomelle"] as const;
-const patternOptions = [
-  "Multi Colour",
-  "Natural",
-  "Quarter Cut",
-  "Crown Cut",
-] as const;
-const seriesOptions = ["ACCO", "Reganto", "Marvel", "Canvas"] as const;
 const gradeOptions = ["A", "B", "C", "Premium", "Select", "Commercial", "Export"] as const;
 
 const derivedAreaInputKeys = new Set(["length", "width", "noOfLeaves"]);
@@ -62,9 +51,6 @@ export const commonFactoryItemFieldAliases: Record<string, readonly string[]> = 
   itemSubCategory: ["itemSubCategory", "subCategory"],
   color: ["color", "colour", "processColour"],
   logNo: ["logNo", "logCode"],
-  character: ["character"],
-  pattern: ["pattern"],
-  series: ["series", "seriesName"],
   grade: ["grade"],
   length: ["length"],
   width: ["width"],
@@ -125,33 +111,6 @@ export function getCommonFactoryItemFieldDefinitions(options?: {
       };
     }
 
-    if (key === "character") {
-      return {
-        key,
-        label,
-        type: "select",
-        options: [...characterOptions],
-      };
-    }
-
-    if (key === "pattern") {
-      return {
-        key,
-        label,
-        type: "select",
-        options: [...patternOptions],
-      };
-    }
-
-    if (key === "series") {
-      return {
-        key,
-        label,
-        type: "select",
-        options: [...seriesOptions],
-      };
-    }
-
     if (key === "grade") {
       return {
         key,
@@ -203,17 +162,27 @@ export function mergeCommonFactoryItemFields(
       continue;
     }
 
-    byKey.set(field.key, {
+    const mergedField: MasterFieldDefinition = {
       ...existing,
       ...field,
       key: existing.key,
       label: existing.label,
-      options: field.options?.length ? field.options : existing.options,
-      readOnly:
-        field.key === "sqm" || field.key === "sqf"
-          ? existing.readOnly
-          : field.readOnly ?? existing.readOnly,
-    });
+    };
+
+    const mergedOptions = field.options?.length ? field.options : existing.options;
+    if (mergedOptions?.length) {
+      mergedField.options = mergedOptions;
+    }
+
+    const mergedReadOnly =
+      field.key === "sqm" || field.key === "sqf"
+        ? existing.readOnly
+        : field.readOnly ?? existing.readOnly;
+    if (mergedReadOnly !== undefined) {
+      mergedField.readOnly = mergedReadOnly;
+    }
+
+    byKey.set(field.key, mergedField);
   }
 
   // Map legacy colour / thickness into the common keys when only legacy exists.
@@ -314,9 +283,6 @@ export function applyFactoryItemMasterDefaults(
   const nextValues = { ...values };
   fillIfEmpty(nextValues, "itemSubCategory", masterString(item, "subCategory"));
   fillIfEmpty(nextValues, "color", masterString(item, "color"));
-  fillIfEmpty(nextValues, "character", masterString(item, "character"));
-  fillIfEmpty(nextValues, "pattern", masterString(item, "pattern"));
-  fillIfEmpty(nextValues, "series", masterString(item, "series"));
   fillIfEmpty(nextValues, "grade", masterString(item, "grade"));
   fillIfEmpty(nextValues, "remark", masterString(item, "remark"));
 
@@ -386,8 +352,9 @@ export function buildFactoryItemPrefillValues(
     }
   }
 
-  if ((values.itemName ?? "").trim()) {
-    return applyFactoryItemMasterDefaults(values, values.itemName);
+  const itemName = (values.itemName ?? "").trim();
+  if (itemName) {
+    return applyFactoryItemMasterDefaults(values, itemName);
   }
 
   return values;

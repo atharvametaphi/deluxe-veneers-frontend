@@ -97,7 +97,6 @@ type SlicingFormValues = {
 
 type SlicingLineItemValues = {
   amount: string;
-  character: string;
   color: string;
   grade: string;
   height: string;
@@ -106,9 +105,7 @@ type SlicingLineItemValues = {
   length: string;
   logNo: string;
   noOfLeaves: string;
-  pattern: string;
   remark: string;
-  series: string;
   sqf: string;
   sqm: string;
   width: string;
@@ -147,30 +144,6 @@ const lineItemColumns: readonly LineItemColumn[] = [
     minWidth: 130,
     placeholder: "Enter Log No.",
     type: "text",
-  },
-  {
-    key: "character",
-    label: "Character",
-    minWidth: 140,
-    options: ["Olive", "Curly", "Flaky", "Pomelle"],
-    placeholder: "Select Character",
-    type: "select",
-  },
-  {
-    key: "pattern",
-    label: "Pattern",
-    minWidth: 140,
-    options: ["Multi Colour", "Natural", "Quarter Cut", "Crown Cut"],
-    placeholder: "Select Pattern",
-    type: "select",
-  },
-  {
-    key: "series",
-    label: "Series",
-    minWidth: 130,
-    options: ["ACCO", "Reganto", "Marvel", "Canvas"],
-    placeholder: "Select Series",
-    type: "select",
   },
   {
     key: "grade",
@@ -919,9 +892,6 @@ function createDefaultLineItemValues(
     logNo:
       sourceSummary.logNo ||
       getStringValue(sourceRow, ["logNo", "logCode"]),
-    character: getPreferredSourceValue(sourceRow, "character"),
-    pattern: getPreferredSourceValue(sourceRow, "pattern"),
-    series: getPreferredSourceValue(sourceRow, "series"),
     grade: getPreferredSourceValue(sourceRow, "grade"),
     length: sourceSummary.length,
     width: sourceSummary.width,
@@ -945,9 +915,6 @@ function createEmptyLineItemValues(): SlicingLineItemValues {
     itemSubCategory: "",
     color: "",
     logNo: "",
-    character: "",
-    pattern: "",
-    series: "",
     grade: "",
     length: "",
     width: "",

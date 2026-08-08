@@ -408,7 +408,6 @@ export function OrderRecordPage({
       <Stack
         sx={(theme) => ({
           gap: theme.spacing(1.5),
-          maxWidth: 1200,
           width: "100%",
         })}
       >

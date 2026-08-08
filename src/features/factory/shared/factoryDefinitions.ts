@@ -72,7 +72,6 @@ const field = (
 
   const selectKeys = new Set([
     "baseType",
-    "character",
     "color",
     "consumedFrom",
     "cut",
@@ -80,9 +79,7 @@ const field = (
     "issuedFor",
     "itemName",
     "itemSubCategory",
-    "pattern",
     "productType",
-    "series",
     "shift",
   ]);
 
@@ -156,14 +153,6 @@ const customers = [
 ] as const;
 
 const grades = ["A", "B", "Premium", "Select", "Commercial", "Export"] as const;
-const characters = ["Olive", "Curly", "Flaky", "Pomelle"] as const;
-const patterns = [
-  "Multi Colour",
-  "Natural",
-  "Quarter Cut",
-  "Crown Cut",
-] as const;
-const seriesValues = ["ACCO", "Reganto", "Marvel", "Canvas"] as const;
 const cuts = ["Quarter Cut", "Crown Cut", "Rift Cut", "Natural", "Rotary", "Plain"] as const;
 const shifts = ["Day", "Morning", "General", "Evening", "Night", "Second"] as const;
 
@@ -233,9 +222,6 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
     noOfLeaves: String(42 + index * 3),
     cut: cuts[index % cuts.length],
     cutColor: `${cuts[index % cuts.length]} / ${colors[index % colors.length]}`,
-    character: characters[index % characters.length],
-    pattern: patterns[index % patterns.length],
-    series: seriesValues[index % seriesValues.length],
     grade: grades[index % grades.length],
     shift: shifts[index % shifts.length],
     workers: String(8 + index),
@@ -480,9 +466,6 @@ const groupingListingColumns = listingColumns([
   ["itemSubCategory", "Sub Category"],
   ["color", "Color"],
   ["logNo", "Log No."],
-  ["character", "Character"],
-  ["pattern", "Pattern"],
-  ["series", "Series"],
   ["grade", "Grade"],
   ["length", "Length"],
   ["width", "Width"],

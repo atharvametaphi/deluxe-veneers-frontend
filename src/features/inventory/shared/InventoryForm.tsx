@@ -290,8 +290,6 @@ export function InventoryForm<Row extends InventoryRecord>({
             display: "flex",
             flexDirection: "column",
             gap: theme.spacing(warehouseAAddStockSlug ? 1.5 : 1.75),
-            maxWidth: warehouseAAddStockSlug ? 1200 : undefined,
-            mx: warehouseAAddStockSlug ? "auto" : undefined,
             width: "100%",
           })}
         >
