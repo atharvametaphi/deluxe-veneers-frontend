@@ -59,7 +59,6 @@ import {
 import {
   buildWarehouseAAddStockInitialValues,
   createWarehouseAAddStockHeaderFields,
-  getWarehouseASlugFromInwardType,
   isInrCurrency,
 } from "./warehouseAAddStockConfig";
 import { saveWarehouseAInwardItems } from "../../warehouses/shared/warehouseAInwardStore";
@@ -242,28 +241,6 @@ export function InventoryForm<Row extends InventoryRecord>({
       });
 
   const handleHeaderFieldChange = (key: string, value: MasterFieldValue) => {
-    if (
-      key === "inwardType" &&
-      warehouseAAddStockSlug &&
-      typeof value === "string"
-    ) {
-      const nextSlug = getWarehouseASlugFromInwardType(value);
-
-      if (nextSlug && nextSlug !== warehouseAAddStockSlug) {
-        const params = new URLSearchParams();
-        params.set("warehouse", "warehouse-a");
-        params.set(
-          "returnTo",
-          getWarehouseInventoryListPath("warehouse-a", nextSlug),
-        );
-
-        navigate(`/inventory/${nextSlug}/add?${params.toString()}`, {
-          replace: true,
-        });
-        return;
-      }
-    }
-
     setValues((current) => {
       const nextValues = {
         ...current,

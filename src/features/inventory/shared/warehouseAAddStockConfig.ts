@@ -65,13 +65,6 @@ export function createWarehouseAAddStockHeaderFields(
 ): MasterFieldDefinition[] {
   const fields: MasterFieldDefinition[] = [
     {
-      key: "inwardType",
-      label: "Inward Type",
-      type: "select",
-      options: [...warehouseAInwardTypeOptions],
-      required: true,
-    },
-    {
       key: "inwardDate",
       label: "Inward Date",
       type: "date",
