@@ -426,7 +426,7 @@ export function UserManagementFormPage({
       <Box
         sx={{
           width: "100%",
-          maxWidth: 980,
+          maxWidth: mode === "add" ? 1280 : 980,
           pb: 2,
         }}
       >

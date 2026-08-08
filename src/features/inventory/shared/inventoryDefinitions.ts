@@ -124,6 +124,10 @@ const rawVeneerColumns: ReadonlyArray<EnterpriseTableColumn<RawVeneerRecord>> = 
   { key: "approvalStatus", label: "Approval Status" },
 ];
 
+const rawVeneerViewColumns = rawVeneerColumns.filter(
+  (column) => column.key !== "inwardType" && column.key !== "supplierCode",
+);
+
 const stockColumns: ReadonlyArray<EnterpriseTableColumn<StockRecord>> = [
   { key: "inwardSrNo", label: "Inward Sr No" },
   { key: "inwardType", label: "Inward Type" },
@@ -1591,7 +1595,7 @@ export const rawVeneerDefinition: InventoryDefinition<RawVeneerRecord> = {
   listColumns: rawVeneerColumns,
   editFields: createInventoryEditFields(rawVeneerColumns, rawVeneerRows),
   formFields: createInventoryFormFields(rawVeneerRows),
-  viewFields: createInventoryViewFields(rawVeneerColumns),
+  viewFields: createInventoryViewFields(rawVeneerViewColumns),
   rows: limitDemoListingRows(rawVeneerRows),
   initialSort: { key: "inwardDate", direction: "desc" },
 };

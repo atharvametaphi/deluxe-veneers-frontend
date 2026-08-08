@@ -96,7 +96,9 @@ export function WarehouseAInventoryModulePage({
     const inwardRows = getWarehouseAInwardRows(activeInventory);
     const mergedRows = mergeWarehouseARows(activeConfig.rows, inwardRows);
 
-    return resolveWarehouseQcRows(mergedRows);
+    return resolveWarehouseQcRows(mergedRows).filter(
+      (row) => row.qcStatus !== "pass",
+    );
   }, [
     activeConfig.rows,
     activeInventory,
