@@ -54,6 +54,15 @@ import {
 } from "./factoryQuantityAllocation";
 import { markSampleProcessDone } from "./sampleSheetIdentityStore";
 import {
+  createEmptyRejectAvailableValues,
+  getNextRejectAvailableValues,
+  getRejectAvailableValidationErrors,
+  getVisibleRejectAvailableValidationIssues,
+  hasRejectAvailableValidationErrors,
+  RejectAvailableDetailsTable,
+  resolveRejectAvailableAreaLimits,
+} from "./RejectAvailableDetailsTable";
+import {
   allocateNextGroupNo,
   getExistingGroupNo,
   peekNextGroupNo,
@@ -329,6 +338,11 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
     createEmptyLineItemValues(lineItemFields),
   );
   const [editingSubmitAttempted, setEditingSubmitAttempted] = useState(false);
+  const [rejectAvailableValues, setRejectAvailableValues] = useState(() =>
+    createEmptyRejectAvailableValues(),
+  );
+  const [rejectAvailableSubmitAttempted, setRejectAvailableSubmitAttempted] =
+    useState(false);
 
   const quantityConfig = useMemo(
     () => getFactoryQuantityAllocationConfig(definition.slug),
@@ -378,6 +392,17 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
     previouslyProcessed: runTotals.processed,
     currentProcessed: currentProcessedQuantity,
   });
+  const rejectAvailableAreaLimits = useMemo(
+    () =>
+      resolveRejectAvailableAreaLimits(
+        sourceRow as Record<string, unknown> | undefined,
+      ),
+    [sourceRow],
+  );
+  const rejectAvailableValidationErrors = getRejectAvailableValidationErrors(
+    rejectAvailableValues,
+    rejectAvailableAreaLimits,
+  );
   const showBalanceSummary = Boolean(
     quantityConfig && originalQuantity > 0 && lineItems.length > 0,
   );
@@ -778,6 +803,19 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
             />
           ) : null}
 
+        <RejectAvailableDetailsTable
+          fieldIssues={getVisibleRejectAvailableValidationIssues(
+            rejectAvailableValidationErrors,
+            rejectAvailableSubmitAttempted,
+          )}
+          onChange={(key, value) =>
+            setRejectAvailableValues((current) =>
+              getNextRejectAvailableValues(current, key, value),
+            )
+          }
+          values={rejectAvailableValues}
+        />
+
         <Box
           sx={{
             display: "flex",
@@ -816,16 +854,24 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                 (draftHasValues && hasValidationErrors(draftErrors)) ||
                 Boolean(editingRowId && hasValidationErrors(editingErrors));
               const quantityInvalid = Boolean(quantityOverflowError);
+              const rejectAvailableInvalid = hasRejectAvailableValidationErrors(
+                rejectAvailableValidationErrors,
+              );
 
               if (lineItemsInvalid) {
                 setDraftSubmitAttempted(lineItems.length === 0 || draftHasValues);
                 setEditingSubmitAttempted(Boolean(editingRowId));
               }
 
+              if (rejectAvailableInvalid) {
+                setRejectAvailableSubmitAttempted(true);
+              }
+
               if (
                 hasRequiredFieldErrors(metadataFields, formValues) ||
                 lineItemsInvalid ||
-                quantityInvalid
+                quantityInvalid ||
+                rejectAvailableInvalid
               ) {
                 return;
               }

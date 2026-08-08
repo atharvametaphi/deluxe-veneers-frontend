@@ -40,11 +40,20 @@ import {
   useFactoryProcessRunTotals,
 } from "../../shared";
 import { listingToolbarButtonSx, recordFormActionButtonSx } from "../../../shared/buttonStyles";
-import { formatSQM } from "../../../shared/numberFormat";
+import { formatSQM, formatSqfFromSqm } from "../../../shared/numberFormat";
 import {
   transactionTableBodyCellSx,
   transactionTableHeaderCellSx,
 } from "../../../shared/listingTableStyles";
+import {
+  createEmptyRejectAvailableValues,
+  getNextRejectAvailableValues,
+  getRejectAvailableValidationErrors,
+  getVisibleRejectAvailableValidationIssues,
+  hasRejectAvailableValidationErrors,
+  RejectAvailableDetailsTable,
+  resolveRejectAvailableAreaLimits,
+} from "../../shared/RejectAvailableDetailsTable";
 import {
   formatSlicingDimensionMetres,
   formatSlicingLineItemDisplay,
@@ -83,6 +92,8 @@ type SlicingSourceSummary = {
   length: string;
   logNo: string;
   remark: string;
+  sqf: string;
+  sqm: string;
   srNo: string;
   width: string;
 };
@@ -247,6 +258,11 @@ export function SlicingCreatePage() {
   const [editingValues, setEditingValues] = useState<SlicingLineItemValues>(() =>
     createEmptyLineItemValues(),
   );
+  const [rejectAvailableValues, setRejectAvailableValues] = useState(() =>
+    createEmptyRejectAvailableValues(),
+  );
+  const [rejectAvailableSubmitAttempted, setRejectAvailableSubmitAttempted] =
+    useState(false);
 
   const sourceOverviewItems = useMemo(
     () => buildSlicingSourceOverviewItems(sourceSummary, sourceRow),
@@ -297,6 +313,29 @@ export function SlicingCreatePage() {
     previouslyProcessed: runTotals.processed,
     currentProcessed: currentProcessedQuantity,
   });
+  const rejectAvailableAreaLimits = useMemo(
+    () =>
+      resolveRejectAvailableAreaLimits(
+        sourceRow as Record<string, unknown> | undefined,
+        sourceSummary.sqm,
+        sourceSummary.sqf,
+        sourceSummary.length,
+        sourceSummary.width,
+        sourceSummary.height,
+      ),
+    [
+      sourceRow,
+      sourceSummary.height,
+      sourceSummary.length,
+      sourceSummary.sqf,
+      sourceSummary.sqm,
+      sourceSummary.width,
+    ],
+  );
+  const rejectAvailableValidationErrors = getRejectAvailableValidationErrors(
+    rejectAvailableValues,
+    rejectAvailableAreaLimits,
+  );
   const showBalanceSummary = Boolean(
     quantityConfig && originalQuantity > 0 && lineItems.length > 0,
   );
@@ -708,6 +747,19 @@ export function SlicingCreatePage() {
               unitLabel={quantityConfig.unitLabel}
             />
           ) : null}
+
+          <RejectAvailableDetailsTable
+            fieldIssues={getVisibleRejectAvailableValidationIssues(
+              rejectAvailableValidationErrors,
+              rejectAvailableSubmitAttempted,
+            )}
+            onChange={(key, value) =>
+              setRejectAvailableValues((current) =>
+                getNextRejectAvailableValues(current, key, value),
+              )
+            }
+            values={rejectAvailableValues}
+          />
         </Stack>
 
         <Box
@@ -742,16 +794,24 @@ export function SlicingCreatePage() {
                 (draftHasValues && hasValidationErrors(draftErrors)) ||
                 Boolean(editingRowId && hasValidationErrors(editingErrors));
               const quantityInvalid = Boolean(quantityOverflowError);
+              const rejectAvailableInvalid = hasRejectAvailableValidationErrors(
+                rejectAvailableValidationErrors,
+              );
 
               if (lineItemsInvalid) {
                 setDraftSubmitAttempted(true);
                 setEditingSubmitAttempted(Boolean(editingRowId));
               }
 
+              if (rejectAvailableInvalid) {
+                setRejectAvailableSubmitAttempted(true);
+              }
+
               if (
                 hasSlicingFormErrors(formValues) ||
                 lineItemsInvalid ||
-                quantityInvalid
+                quantityInvalid ||
+                rejectAvailableInvalid
               ) {
                 return;
               }
@@ -813,6 +873,13 @@ function buildSourceSummary(sourceRow?: SourceRow): SlicingSourceSummary {
       getStringValue(sourceRow, ["height", "thickness"]),
     ) || "0.005 m";
 
+  const sqm =
+    getStringValue(sourceRow, ["issuedSqm", "totalSqm", "availableSqm", "sqm"]) ||
+    calculateCmt(length, width, height);
+  const sqf =
+    getStringValue(sourceRow, ["issuedSqf", "totalSqf", "availableSqf", "sqf"]) ||
+    formatSqfFromSqm(sqm);
+
   return {
     srNo:
       getStringValue(sourceRow, ["srNo", "issueSrNo", "itemSrNo"]) || "1",
@@ -825,11 +892,11 @@ function buildSourceSummary(sourceRow?: SourceRow): SlicingSourceSummary {
     length,
     width,
     height,
-    cmt:
-      getStringValue(sourceRow, ["issuedSqm", "totalSqm", "availableSqm"]) ||
-      calculateCmt(length, width, height),
+    cmt: sqm,
     amount: getStringValue(sourceRow, ["amount"]) || "0.00",
     remark: getStringValue(sourceRow, ["remark"]) || "",
+    sqf,
+    sqm,
   };
 }
 
@@ -875,7 +942,8 @@ function buildSlicingSourceOverviewItems(
       ? [{ label: "Bundle / Pallet / Lot", value: bundleLot }]
       : []),
     { label: "Original Quantity", value: originalLeaves },
-    { label: "CMT", value: sourceSummary.cmt },
+    { label: "SQM", value: sourceSummary.sqm },
+    { label: "SQF", value: sourceSummary.sqf },
     { label: "Amount", value: sourceSummary.amount },
     { label: "Remark", value: sourceSummary.remark },
   ];
@@ -900,8 +968,8 @@ function createDefaultLineItemValues(
     sqm:
       getPreferredSourceValue(sourceRow, "sqm") ||
       getStringValue(sourceRow, ["issuedSqm", "totalSqm", "availableSqm"]) ||
-      sourceSummary.cmt,
-    sqf: getPreferredSourceValue(sourceRow, "sqf"),
+      sourceSummary.sqm,
+    sqf: getPreferredSourceValue(sourceRow, "sqf") || sourceSummary.sqf,
     amount: sourceSummary.amount,
     remark: getPreferredSourceValue(sourceRow, "remark"),
   };
