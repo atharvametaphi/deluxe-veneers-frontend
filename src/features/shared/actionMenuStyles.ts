@@ -1,5 +1,4 @@
 import type { Theme } from "@mui/material/styles";
-import type { SxProps } from "@mui/material/styles";
 
 import { portalFontFamily } from "../../theme/typography";
 import {
@@ -54,7 +53,7 @@ export function getActionMenuToneRank(tone: ActionMenuTone) {
   return 1;
 }
 
-export function actionMenuPaperSx(theme: Theme): SxProps<Theme> {
+export function actionMenuPaperSx(theme: Theme) {
   return {
     mt: 0.5,
     minWidth: ACTION_MENU_MIN_WIDTH,
@@ -69,7 +68,7 @@ export function actionMenuPaperSx(theme: Theme): SxProps<Theme> {
   };
 }
 
-export function actionMenuListSx(): SxProps<Theme> {
+export function actionMenuListSx() {
   return {
     py: 0,
   };
@@ -78,7 +77,7 @@ export function actionMenuListSx(): SxProps<Theme> {
 export function actionMenuItemSx(
   theme: Theme,
   tone: ActionMenuTone = "default",
-): SxProps<Theme> {
+) {
   const isPrimary = tone === "primary";
   const isDanger = tone === "danger";
 
@@ -117,7 +116,7 @@ export function actionMenuItemSx(
   };
 }
 
-export function actionMenuIconSlotSx(_theme: Theme): SxProps<Theme> {
+export function actionMenuIconSlotSx(_theme: Theme) {
   return {
     display: "inline-flex",
     alignItems: "center",
@@ -136,7 +135,7 @@ export function actionMenuIconSlotSx(_theme: Theme): SxProps<Theme> {
   };
 }
 
-export function actionMenuTriggerSx(theme: Theme): SxProps<Theme> {
+export function actionMenuTriggerSx(theme: Theme) {
   return {
     width: 30,
     height: 30,
@@ -156,7 +155,7 @@ export function actionMenuTriggerSx(theme: Theme): SxProps<Theme> {
   };
 }
 
-export function actionMenuDividerSx(theme: Theme): SxProps<Theme> {
+export function actionMenuDividerSx(theme: Theme) {
   return {
     my: 0.25,
     mx: 0.5,

@@ -1,5 +1,4 @@
 import type { Theme } from "@mui/material/styles";
-import type { SxProps } from "@mui/material/styles";
 
 import {
   getCompactFieldSx,
@@ -117,7 +116,7 @@ export function getMastersCompactFieldSx(
   };
 }
 
-export function mastersFormActionButtonSx(theme: Theme): SxProps<Theme> {
+export function mastersFormActionButtonSx(theme: Theme) {
   return {
     alignItems: "center",
     display: "inline-flex",
@@ -152,7 +151,7 @@ export function mastersFormActionButtonSx(theme: Theme): SxProps<Theme> {
   };
 }
 
-export function mastersFormPrimaryButtonSx(theme: Theme): SxProps<Theme> {
+export function mastersFormPrimaryButtonSx(theme: Theme) {
   return {
     ...mastersFormActionButtonSx(theme),
     backgroundColor: theme.customTokens.brand.primary,
@@ -164,7 +163,7 @@ export function mastersFormPrimaryButtonSx(theme: Theme): SxProps<Theme> {
   };
 }
 
-export function mastersFormOutlinedButtonSx(theme: Theme): SxProps<Theme> {
+export function mastersFormOutlinedButtonSx(theme: Theme) {
   return {
     ...mastersFormActionButtonSx(theme),
     backgroundColor: theme.customTokens.surfaces.surface,

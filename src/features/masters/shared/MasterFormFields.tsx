@@ -55,19 +55,19 @@ type FormFieldLayoutDefinition = {
 };
 
 interface MasterFormFieldsProps {
-  compact?: boolean;
+  compact?: boolean | undefined;
   definition: FormFieldLayoutDefinition;
-  fieldActions?: Partial<Record<string, ReactNode>>;
+  fieldActions?: Partial<Record<string, ReactNode>> | undefined;
   onChange: (key: string, value: MasterFieldValue) => void;
-  presentation?: "form" | "details";
-  readOnly?: boolean;
-  showRequiredErrors?: boolean;
+  presentation?: "form" | "details" | undefined;
+  readOnly?: boolean | undefined;
+  showRequiredErrors?: boolean | undefined;
   values: Record<string, MasterFieldValue>;
   /**
    * Masters Add/Edit density treatment. Other modules must omit this
    * (or leave default) so their forms stay unchanged.
    */
-  variant?: "default" | "masters";
+  variant?: "default" | "masters" | undefined;
 }
 
 interface PreviewState {

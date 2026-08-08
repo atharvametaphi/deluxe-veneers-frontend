@@ -14,9 +14,9 @@ import {
 export type RowActionsMenuItem = {
   id: string;
   label: string;
-  icon?: LucideIcon;
-  tone?: "primary" | "default" | "danger";
-  disabled?: boolean;
+  icon?: LucideIcon | undefined;
+  tone?: "primary" | "default" | "danger" | undefined;
+  disabled?: boolean | undefined;
   onSelect: () => void;
 };
 

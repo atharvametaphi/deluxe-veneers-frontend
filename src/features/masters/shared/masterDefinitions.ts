@@ -907,7 +907,7 @@ export function getItemMasterRecord(itemName: string) {
   }
 
   return (
-    itemRows.find(
+    (itemRows as readonly MasterRecord[]).find(
       (row) =>
         String(row.itemName ?? "").trim().toLowerCase() === normalizedName &&
         String(row.status ?? "Active").toLowerCase() !== "inactive",
@@ -922,7 +922,7 @@ export function getHsnGstPercentage(hsnCode: string) {
     return "";
   }
 
-  const match = hsnRows.find(
+  const match = (hsnRows as readonly MasterRecord[]).find(
     (row) =>
       String(row.hsnCode ?? "").trim().toLowerCase() === normalizedCode &&
       String(row.status ?? "Active").toLowerCase() !== "inactive",
@@ -938,7 +938,7 @@ export function getSupplierState(supplierName: string) {
     return "";
   }
 
-  const match = supplierRows.find(
+  const match = (supplierRows as readonly MasterRecord[]).find(
     (row) =>
       String(row.supplierName ?? "").trim().toLowerCase() === normalizedName,
   );

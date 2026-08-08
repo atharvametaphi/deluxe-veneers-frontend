@@ -18,16 +18,16 @@ export type PageHeaderBackNav = {
 };
 
 export interface PageHeaderProps {
-  actions?: ReactNode;
+  actions?: ReactNode | undefined;
   /** Optional back link for Create / Edit / View screens. */
-  backNav?: PageHeaderBackNav | null;
+  backNav?: PageHeaderBackNav | null | undefined;
   /**
    * Legacy breadcrumbs — used only to derive a back link when `backNav`
    * is not provided. Never rendered as a breadcrumb trail.
    */
-  breadcrumbs?: readonly ErpBreadcrumbItem[];
-  icon?: LucideIcon;
-  subtitle?: string;
+  breadcrumbs?: readonly ErpBreadcrumbItem[] | undefined;
+  icon?: LucideIcon | undefined;
+  subtitle?: string | undefined;
   title: string;
 }
 

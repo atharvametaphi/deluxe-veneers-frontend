@@ -14,7 +14,7 @@ import {
 } from "./formFieldSizes";
 
 type SizedMasterFormFieldsProps = {
-  fieldActions?: Partial<Record<string, ReactNode>>;
+  fieldActions?: Partial<Record<string, ReactNode>> | undefined;
   fields: readonly MasterFieldDefinition[];
   onChange: (key: string, value: MasterFieldValue) => void;
   presentation?: "form" | "details";
@@ -60,7 +60,7 @@ export function SizedMasterFormFields({
                 fields: [field],
                 gridColumns: 3,
               }}
-              fieldActions={fieldActions}
+              {...(fieldActions ? { fieldActions } : {})}
               onChange={onChange}
               presentation={presentation}
               readOnly={readOnly}

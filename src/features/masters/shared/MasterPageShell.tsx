@@ -9,12 +9,12 @@ import {
 import type { ErpBreadcrumbItem } from "../../../components/navigation/ErpBreadcrumbs";
 
 interface MasterPageShellProps extends PropsWithChildren {
-  actions?: ReactNode;
-  backNav?: PageHeaderBackNav | null;
-  breadcrumbs?: ErpBreadcrumbItem[];
+  actions?: ReactNode | undefined;
+  backNav?: PageHeaderBackNav | null | undefined;
+  breadcrumbs?: ErpBreadcrumbItem[] | undefined;
   contentGap?: number;
-  icon?: LucideIcon;
-  subtitle?: string;
+  icon?: LucideIcon | undefined;
+  subtitle?: string | undefined;
   title: string;
 }
 

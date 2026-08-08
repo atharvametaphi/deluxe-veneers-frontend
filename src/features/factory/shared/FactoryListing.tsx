@@ -1143,11 +1143,11 @@ function issueToNextFactoryProcess<Row extends FactoryRecord>({
   issueFactoryWork({
     destinationProcess,
     purpose: sampleNo ? "SAMPLE" : "ORDER",
-    sampleNo: sampleNo ?? undefined,
-    orderNo,
-    orderItemNo,
     sourceRow: row,
     sourceSlug,
+    ...(sampleNo ? { sampleNo } : {}),
+    ...(orderNo ? { orderNo } : {}),
+    ...(orderItemNo ? { orderItemNo } : {}),
   });
 
   navigate(getFactoryListPathForProcess(destinationProcess));

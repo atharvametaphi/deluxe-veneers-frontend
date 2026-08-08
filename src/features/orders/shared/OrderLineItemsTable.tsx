@@ -1504,12 +1504,15 @@ function getItemMasterRecord(rows: readonly MasterRecord[], itemName: string) {
 function getHeaderCellSx(
   theme: Theme,
   minWidth: number,
-  textAlign: "left" | "center" = "left",
+  textAlign: "left" | "center" | "right" = "left",
 ) {
   return transactionTableHeaderCellSx(theme, minWidth, textAlign);
 }
 
-function getBodyCellSx(theme: Theme, textAlign: "left" | "center" = "left") {
+function getBodyCellSx(
+  theme: Theme,
+  textAlign: "left" | "center" | "right" = "left",
+) {
   return {
     ...transactionTableBodyCellSx(theme, textAlign),
     verticalAlign: "middle" as const,

@@ -315,15 +315,26 @@ export function WarehouseCInventoryModulePage({
                 ? filteredSampleRows.length === 0
                 : filteredInventoryRows.length === 0
             }
-            onClick={() =>
+            onClick={() => {
+              if (isSampleSheetsTab) {
+                exportRowsToCsv(
+                  filteredSampleRows,
+                  sampleSheetColumns,
+                  `warehouse-c-${activeInventory}`,
+                );
+                return;
+              }
+
+              if (!activeInventoryConfig) {
+                return;
+              }
+
               exportRowsToCsv(
-                isSampleSheetsTab ? filteredSampleRows : filteredInventoryRows,
-                isSampleSheetsTab
-                  ? sampleSheetColumns
-                  : activeInventoryConfig!.columns,
+                filteredInventoryRows,
+                activeInventoryConfig.columns,
                 `warehouse-c-${activeInventory}`,
-              )
-            }
+              );
+            }}
             sx={(theme) => ({
               ...getListingToolbarOutlinedButtonSx(theme),
               alignSelf: "center",

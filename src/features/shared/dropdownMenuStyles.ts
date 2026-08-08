@@ -1,4 +1,5 @@
 import type { Theme } from "@mui/material/styles";
+import type { ModifierArguments } from "@popperjs/core";
 
 import {
   portalControlHeights,
@@ -91,11 +92,6 @@ export function getSelectDropdownOptionSx(theme: Theme, _dense = false) {
   } as const;
 }
 
-type AutocompletePopperModifierState = {
-  rects: { reference: { width: number } };
-  styles: { popper: Record<string, string> };
-};
-
 /**
  * MUI Autocomplete popper that stays >= trigger width and grows for long labels.
  * Uses a Popper modifier so Autocomplete's equal-width style does not win.
@@ -115,15 +111,17 @@ export function getAutocompletePopperSlotProps(
         enabled: true,
         phase: "beforeWrite" as const,
         requires: ["computeStyles"],
-        fn({ state }: { state: AutocompletePopperModifierState }) {
+        fn({ state }: ModifierArguments<Record<string, never>>) {
           const referenceWidth = state.rects.reference.width;
-          state.styles.popper.width = "auto";
-          state.styles.popper.minWidth = `${Math.max(referenceWidth, DROPDOWN_MENU_FALLBACK_MIN_WIDTH)}px`;
-          state.styles.popper.maxWidth = `${maxWidth}px`;
+          const popperStyles = state.styles.popper as Record<string, string>;
+
+          popperStyles.width = "auto";
+          popperStyles.minWidth = `${Math.max(referenceWidth, DROPDOWN_MENU_FALLBACK_MIN_WIDTH)}px`;
+          popperStyles.maxWidth = `${maxWidth}px`;
         },
       },
     ],
-  } as const;
+  };
 }
 
 /** @deprecated Prefer getAutocompletePopperSlotProps for modifier-based sizing. */

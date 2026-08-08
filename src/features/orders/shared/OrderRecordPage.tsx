@@ -301,7 +301,7 @@ export function OrderRecordPage({
               <OrderLabelValueGrid
                 items={orderDetailColumns.map((column) => ({
                   label: column.label,
-                  value: formatMasterValue(column.getValue(record)),
+                  value: formatDetailValue(column.getValue(record)),
                 }))}
               />
             </Stack>
@@ -346,7 +346,7 @@ export function OrderRecordPage({
                     <OrderLabelValueGrid
                       items={getItemDetailColumns(recordVariant).map((column) => ({
                         label: column.label,
-                        value: formatMasterValue(column.getValue(item)),
+                        value: formatDetailValue(column.getValue(item)),
                       }))}
                     />
                   </Box>
@@ -991,6 +991,10 @@ function formatDetailValue(value: unknown) {
   const text = String(value).trim();
 
   return text.length > 0 ? text : "-";
+}
+
+function OrderTypeBanner(_props: { variant: OrderCreateVariant | null }) {
+  return null;
 }
 
 function getItemDetailColumns(variant: OrderCreateVariant | null) {

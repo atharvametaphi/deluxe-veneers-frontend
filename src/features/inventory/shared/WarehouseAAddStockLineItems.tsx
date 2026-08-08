@@ -333,9 +333,11 @@ export const WarehouseAAddStockLineItems = forwardRef<
   const handleDeleteLineItem = (rowId: string) => {
     setLineItems((current) => {
       if (current.length <= 1) {
+        const firstRow = current[0] ?? createEmptyRow(slug, nextRowId, columnConfig);
+
         return [
           {
-            ...current[0],
+            ...firstRow,
             values: createEmptyValues(columnConfig),
           },
         ];

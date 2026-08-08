@@ -8,12 +8,12 @@ import type { PageHeaderBackNav } from "../../../components/navigation/PageHeade
 import { MasterPageShell } from "../../masters/shared";
 
 interface InventoryPageShellProps extends PropsWithChildren {
-  actions?: ReactNode;
-  backNav?: PageHeaderBackNav | null;
-  breadcrumbs?: ErpBreadcrumbItem[];
-  icon?: LucideIcon;
-  processTabs?: ReactNode;
-  subtitle?: string;
+  actions?: ReactNode | undefined;
+  backNav?: PageHeaderBackNav | null | undefined;
+  breadcrumbs?: ErpBreadcrumbItem[] | undefined;
+  icon?: LucideIcon | undefined;
+  processTabs?: ReactNode | undefined;
+  subtitle?: string | undefined;
   title: string;
 }
 

@@ -404,7 +404,7 @@ export function Sidebar({
                     minHeight: portalSidebarMetrics.parentHeight,
                     height: portalSidebarMetrics.parentHeight,
                     width: collapsed ? collapsedNavButtonSize : "100%",
-                    minWidth: collapsed ? collapsedNavButtonSize : undefined,
+                    ...(collapsed ? { minWidth: collapsedNavButtonSize } : {}),
                     mx: collapsed ? "auto" : 0,
                     px: collapsed ? 0 : portalSidebarMetrics.parentPx,
                     py: 0,

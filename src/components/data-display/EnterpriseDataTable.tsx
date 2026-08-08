@@ -211,8 +211,8 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
       const filterType = resolveListingColumnFilterType({
         key: column.key,
         label: column.label,
-        override: column.filterType,
         sampleValues,
+        ...(column.filterType ? { override: column.filterType } : {}),
       });
       const formattedValues = rows.map((row) =>
         formatEnterpriseValue(row[column.key], column.key, column.label),

@@ -851,7 +851,9 @@ export function ErpSelectField({
               event.preventDefault();
             }}
             sx={getSelectDropdownPaperSx(theme, anchorEl?.clientWidth, {
-              preferredMinWidth: preferredMenuMinWidth,
+              ...(preferredMenuMinWidth !== undefined
+                ? { preferredMinWidth: preferredMenuMinWidth }
+                : {}),
             })}
           >
             <Box role="listbox" sx={getSelectDropdownListboxSx(theme)}>

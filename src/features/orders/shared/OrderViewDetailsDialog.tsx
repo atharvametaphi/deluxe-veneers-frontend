@@ -172,7 +172,7 @@ export function OrderViewDetailsDialog({
               <LabelValueGrid
                 items={orderDetailColumns.map((column) => ({
                   label: column.label,
-                  value: formatMasterValue(column.getValue(record)),
+                  value: formatDialogValue(column.getValue(record)),
                 }))}
               />
             </Stack>
@@ -212,7 +212,7 @@ export function OrderViewDetailsDialog({
                     <LabelValueGrid
                       items={itemColumns.map((column) => ({
                         label: column.label,
-                        value: formatMasterValue(column.getValue(item)),
+                        value: formatDialogValue(column.getValue(item)),
                       }))}
                     />
                   </Box>
@@ -337,4 +337,18 @@ function formatOrderItemNo(itemId: string, index: number) {
 
 function getItemDetailColumns(variant: OrderCreateVariant | null) {
   return variant === "finished" ? finishedItemDetailColumns : rawItemDetailColumns;
+}
+
+function formatDialogValue(value: unknown) {
+  if (value instanceof Date) {
+    return formatMasterValue(value);
+  }
+
+  if (value === null || typeof value === "undefined") {
+    return "-";
+  }
+
+  const text = String(value).trim();
+
+  return text.length > 0 ? text : "-";
 }

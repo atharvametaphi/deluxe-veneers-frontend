@@ -109,19 +109,21 @@ export function buildActiveFilterChips<TKey extends string>(
   filters: Partial<Record<TKey, ColumnFilterValue>>,
   columns: readonly { key: TKey; label: string }[],
 ): ActiveColumnFilterChip[] {
-  return columns
-    .map((column) => {
-      const filter = filters[column.key];
+  const chips: ActiveColumnFilterChip[] = [];
 
-      if (!isActiveColumnFilter(filter)) {
-        return null;
-      }
+  columns.forEach((column) => {
+    const filter = filters[column.key];
 
-      return {
-        columnKey: column.key,
-        columnLabel: column.label,
-        filter,
-      };
-    })
-    .filter((entry): entry is ActiveColumnFilterChip => Boolean(entry));
+    if (!isActiveColumnFilter(filter)) {
+      return;
+    }
+
+    chips.push({
+      columnKey: column.key,
+      columnLabel: column.label,
+      filter,
+    });
+  });
+
+  return chips;
 }

@@ -171,9 +171,9 @@ export function appendGroupedStockSampleIssue(input: {
     createdAt: new Date().toISOString(),
     purpose: input.purpose ?? "sample-sheet",
     sourceSnapshot: { ...input.sourceRow },
-    orderNo: input.orderNo,
-    orderItemNo: input.orderItemNo,
-    orderType: input.orderType,
+    ...(input.orderNo ? { orderNo: input.orderNo } : {}),
+    ...(input.orderItemNo ? { orderItemNo: input.orderItemNo } : {}),
+    ...(input.orderType ? { orderType: input.orderType } : {}),
   });
 
   writeStore({

@@ -8,9 +8,9 @@ const warehouseQcStatusChangedEvent =
 
 type WarehouseQcRow = {
   id: string;
-  inventoryRecordId?: string;
-  qcStatus?: string;
-  status?: string;
+  inventoryRecordId?: string | undefined;
+  qcStatus?: string | undefined;
+  status?: string | undefined;
 };
 
 type WarehouseQcStatusMap = Record<string, WarehouseQcStatus>;

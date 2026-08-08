@@ -462,10 +462,16 @@ export function createDispatchEntry(
       const dispatched = applyDispatchDone(
         entry,
         {
-          dispatchDate: payload.dispatchDate,
-          dispatchTransporter: payload.dispatchTransporter,
-          dispatchTransportMode: payload.dispatchTransportMode,
-          remark: payload.remark,
+          ...(payload.dispatchDate !== undefined
+            ? { dispatchDate: payload.dispatchDate }
+            : {}),
+          ...(payload.dispatchTransporter !== undefined
+            ? { dispatchTransporter: payload.dispatchTransporter }
+            : {}),
+          ...(payload.dispatchTransportMode !== undefined
+            ? { dispatchTransportMode: payload.dispatchTransportMode }
+            : {}),
+          ...(payload.remark !== undefined ? { remark: payload.remark } : {}),
         },
         timestamp,
       );

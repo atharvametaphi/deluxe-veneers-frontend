@@ -563,7 +563,7 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
             compact
             definition={{
               fields: metadataFields,
-              gridColumns: 1,
+              gridColumns: 3,
             }}
             onChange={(key, value) =>
               setFormValues((current) => ({

@@ -145,7 +145,7 @@ export function listingTableBodyCellSx(theme: Theme) {
 export function transactionTableHeaderCellSx(
   theme: Theme,
   minWidth?: number,
-  textAlign: "left" | "center" = "left",
+  textAlign: "left" | "center" | "right" = "left",
 ) {
   return {
     ...(minWidth !== undefined
@@ -171,7 +171,7 @@ export function transactionTableHeaderCellSx(
 
 export function transactionTableBodyCellSx(
   theme: Theme,
-  textAlign: "left" | "center" = "left",
+  textAlign: "left" | "center" | "right" = "left",
 ) {
   return {
     borderBottom: `1px solid ${theme.customTokens.borders.divider}`,
