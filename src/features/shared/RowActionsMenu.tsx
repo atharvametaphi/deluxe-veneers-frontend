@@ -1,9 +1,8 @@
 import type { LucideIcon } from "lucide-react";
-import { Box, Divider, Menu, MenuItem } from "@mui/material";
+import { Plus } from "lucide-react";
+import { Box, Menu, MenuItem } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
-import { Fragment } from "react";
 import {
-  actionMenuDividerSx,
   actionMenuIconProps,
   actionMenuIconSlotSx,
   actionMenuItemSx,
@@ -11,6 +10,7 @@ import {
   actionMenuPaperSx,
   resolveActionMenuTone,
 } from "./actionMenuStyles";
+
 export type RowActionsMenuItem = {
   id: string;
   label: string;
@@ -19,6 +19,7 @@ export type RowActionsMenuItem = {
   disabled?: boolean;
   onSelect: () => void;
 };
+
 type RowActionsMenuProps = {
   anchorEl: HTMLElement | null;
   open: boolean;
@@ -33,6 +34,19 @@ type RowActionsMenuProps = {
     horizontal: "left" | "right" | "center";
   };
 };
+
+function resolveActionMenuIcon(action: RowActionsMenuItem): LucideIcon | undefined {
+  const normalized = action.label.trim().toLowerCase();
+  const isIssueAction =
+    /^issue(\s|\/|-)/.test(normalized) || /\bissue for\b/.test(normalized);
+
+  if (isIssueAction) {
+    return Plus;
+  }
+
+  return action.icon;
+}
+
 export function RowActionsMenu({
   anchorEl,
   open,
@@ -43,6 +57,7 @@ export function RowActionsMenu({
 }: RowActionsMenuProps) {
   const resolved = actions.map((action) => ({
     ...action,
+    icon: resolveActionMenuIcon(action),
     resolvedTone: resolveActionMenuTone(action.label, action.tone),
   }));
   return (
@@ -62,36 +77,27 @@ export function RowActionsMenu({
         },
       }}
     >
-      {resolved.map((action, index) => {
+      {resolved.map((action) => {
         const Icon = action.icon;
-        const previous = index > 0 ? resolved[index - 1] : undefined;
-        const showDivider =
-          Boolean(previous) &&
-          action.resolvedTone === "danger" &&
-          previous!.resolvedTone !== "danger";
         return (
-          <Fragment key={action.id}>
-            {showDivider ? (
-              <Divider sx={(theme) => actionMenuDividerSx(theme)} />
-            ) : null}
-            <MenuItem
-              disabled={action.disabled}
-              onClick={() => {
-                action.onSelect();
-                onClose();
-              }}
-              sx={(theme) => actionMenuItemSx(theme, action.resolvedTone)}
+          <MenuItem
+            key={action.id}
+            disabled={action.disabled}
+            onClick={() => {
+              action.onSelect();
+              onClose();
+            }}
+            sx={(theme) => actionMenuItemSx(theme, action.resolvedTone)}
+          >
+            <Box
+              component="span"
+              sx={(theme) => actionMenuIconSlotSx(theme)}
+              aria-hidden
             >
-              <Box
-                component="span"
-                sx={(theme) => actionMenuIconSlotSx(theme)}
-                aria-hidden
-              >
-                {Icon ? <Icon {...actionMenuIconProps} /> : null}
-              </Box>
-              {action.label}
-            </MenuItem>
-          </Fragment>
+              {Icon ? <Icon {...actionMenuIconProps} /> : null}
+            </Box>
+            {action.label}
+          </MenuItem>
         );
       })}
     </Menu>

@@ -45,6 +45,13 @@ import {
   transactionTableBodyCellSx,
   transactionTableHeaderCellSx,
 } from "../../../shared/listingTableStyles";
+import {
+  formatSlicingDimensionMetres,
+  formatSlicingLineItemDisplay,
+  normalizeSlicingLineItemInput,
+  resolveSlicingDimensionMetres,
+} from "../../shared/slicingAreaCalculation";
+import { commonFactoryItemFieldAliases, applyFactoryItemMasterDefaults, applyFactoryLineItemValueChange } from "../../shared/factoryCommonItemFields";
 
 type SourceRow = {
   id: string;
@@ -62,6 +69,7 @@ type LineItemColumn = {
   minWidth: number;
   options?: readonly string[];
   placeholder: string;
+  readOnly?: boolean;
   type: "select" | "text";
 };
 
@@ -73,6 +81,7 @@ type SlicingSourceSummary = {
   itemName: string;
   itemSubCategory: string;
   length: string;
+  logNo: string;
   remark: string;
   srNo: string;
   width: string;
@@ -87,15 +96,22 @@ type SlicingFormValues = {
 };
 
 type SlicingLineItemValues = {
+  amount: string;
   character: string;
   color: string;
   grade: string;
+  height: string;
   itemName: string;
+  itemSubCategory: string;
+  length: string;
+  logNo: string;
   noOfLeaves: string;
   pattern: string;
   remark: string;
   series: string;
-  thickness: string;
+  sqf: string;
+  sqm: string;
+  width: string;
 };
 
 type SlicingLineItem = {
@@ -107,36 +123,35 @@ const lineItemColumns: readonly LineItemColumn[] = [
   {
     key: "itemName",
     label: "Item Name",
-    minWidth: 160,
+    minWidth: 150,
     placeholder: "Enter Item Name",
+    type: "text",
+  },
+  {
+    key: "itemSubCategory",
+    label: "Sub Category",
+    minWidth: 140,
+    placeholder: "Enter Sub Category",
     type: "text",
   },
   {
     key: "color",
     label: "Color",
-    minWidth: 140,
+    minWidth: 130,
     placeholder: "Enter Color",
     type: "text",
   },
   {
-    key: "thickness",
-    label: "Thickness",
-    minWidth: 135,
-    options: ["3.2", "4.0", "4.6", "5.0"],
-    placeholder: "Select Thickness",
-    type: "select",
-  },
-  {
-    key: "noOfLeaves",
-    label: "No of Leaves",
-    minWidth: 145,
-    placeholder: "Enter No of Leaves",
+    key: "logNo",
+    label: "Log No.",
+    minWidth: 130,
+    placeholder: "Enter Log No.",
     type: "text",
   },
   {
     key: "character",
     label: "Character",
-    minWidth: 150,
+    minWidth: 140,
     options: ["Olive", "Curly", "Flaky", "Pomelle"],
     placeholder: "Select Character",
     type: "select",
@@ -144,7 +159,7 @@ const lineItemColumns: readonly LineItemColumn[] = [
   {
     key: "pattern",
     label: "Pattern",
-    minWidth: 150,
+    minWidth: 140,
     options: ["Multi Colour", "Natural", "Quarter Cut", "Crown Cut"],
     placeholder: "Select Pattern",
     type: "select",
@@ -152,7 +167,7 @@ const lineItemColumns: readonly LineItemColumn[] = [
   {
     key: "series",
     label: "Series",
-    minWidth: 145,
+    minWidth: 130,
     options: ["ACCO", "Reganto", "Marvel", "Canvas"],
     placeholder: "Select Series",
     type: "select",
@@ -161,14 +176,65 @@ const lineItemColumns: readonly LineItemColumn[] = [
     key: "grade",
     label: "Grade",
     minWidth: 120,
-    options: ["A", "B", "C", "Premium"],
+    options: ["A", "B", "C", "Premium", "Select", "Commercial", "Export"],
     placeholder: "Select Grade",
     type: "select",
   },
   {
+    key: "length",
+    label: "Length (m)",
+    minWidth: 120,
+    placeholder: "Enter Length (m)",
+    type: "text",
+  },
+  {
+    key: "width",
+    label: "Width (m)",
+    minWidth: 120,
+    placeholder: "Enter Width (m)",
+    type: "text",
+  },
+  {
+    key: "height",
+    label: "Height (m)",
+    minWidth: 110,
+    placeholder: "Enter Height (m)",
+    type: "text",
+  },
+  {
+    key: "noOfLeaves",
+    label: "No. of Leaves",
+    minWidth: 130,
+    placeholder: "Enter No. of Leaves",
+    type: "text",
+  },
+  {
+    key: "sqm",
+    label: "SQM",
+    minWidth: 110,
+    placeholder: "From inventory",
+    readOnly: true,
+    type: "text",
+  },
+  {
+    key: "sqf",
+    label: "SQF",
+    minWidth: 110,
+    placeholder: "From inventory",
+    readOnly: true,
+    type: "text",
+  },
+  {
+    key: "amount",
+    label: "Amount",
+    minWidth: 130,
+    placeholder: "Enter Amount",
+    type: "text",
+  },
+  {
     key: "remark",
     label: "Remark",
-    minWidth: 180,
+    minWidth: 160,
     placeholder: "Enter Remark",
     type: "text",
   },
@@ -485,10 +551,9 @@ export function SlicingCreatePage() {
                             ? getFieldValidationError(column, draftValues)
                             : "",
                           onChange: (value) =>
-                            setDraftValues((current) => ({
-                              ...current,
-                              [column.key]: value,
-                            })),
+                            setDraftValues((current) =>
+                              updateSlicingLineItemValues(current, column.key, value),
+                            ),
                           theme,
                           value: draftValues[column.key],
                         })}
@@ -599,14 +664,18 @@ export function SlicingCreatePage() {
                                       ? getFieldValidationError(column, editingValues)
                                       : "",
                                     onChange: (value) =>
-                                      setEditingValues((current) => ({
-                                        ...current,
-                                        [column.key]: value,
-                                      })),
+                                      setEditingValues((current) =>
+                                        updateSlicingLineItemValues(
+                                          current,
+                                          column.key,
+                                          value,
+                                        ),
+                                      ),
                                     theme,
                                     value: editingValues[column.key],
                                   })
                                 : renderReadOnlyCell(
+                                    column.key,
                                     row.values[column.key],
                                     theme,
                                   )}
@@ -760,9 +829,16 @@ function FieldWrapper({
 }
 
 function buildSourceSummary(sourceRow?: SourceRow): SlicingSourceSummary {
-  const length = getStringValue(sourceRow, ["length"]) || "3.20";
-  const width = getStringValue(sourceRow, ["width"]) || "0.45";
-  const height = getStringValue(sourceRow, ["thickness", "height"]) || "0.40";
+  const length =
+    formatSlicingDimensionMetres(getStringValue(sourceRow, ["length"])) ||
+    "2.44 m";
+  const width =
+    formatSlicingDimensionMetres(getStringValue(sourceRow, ["width"])) ||
+    "1.22 m";
+  const height =
+    formatSlicingDimensionMetres(
+      getStringValue(sourceRow, ["height", "thickness"]),
+    ) || "0.005 m";
 
   return {
     srNo:
@@ -772,6 +848,7 @@ function buildSourceSummary(sourceRow?: SourceRow): SlicingSourceSummary {
     itemName: getStringValue(sourceRow, ["itemName"]) || "Oak Veneer",
     color:
       getStringValue(sourceRow, ["color", "timberColor", "colour"]) || "Natural",
+    logNo: getStringValue(sourceRow, ["logNo", "logCode"]) || "",
     length,
     width,
     height,
@@ -793,7 +870,8 @@ function buildSlicingSourceOverviewItems(
   const orderNo = getStringValue(sourceRow, ["orderNo"]);
   const orderItemNo = getStringValue(sourceRow, ["orderItemNo"]);
   const bundleLot =
-    getStringValue(sourceRow, ["bundleNumber", "palletNo", "groupNo", "lotNo", "logNo"]);
+    getStringValue(sourceRow, ["bundleNumber", "palletNo", "groupNo", "lotNo"]) ||
+    sourceSummary.logNo;
   const originalLeaves =
     getStringValue(sourceRow, [
       "noOfLeaves",
@@ -811,14 +889,18 @@ function buildSlicingSourceOverviewItems(
     { label: "Item Name", value: sourceSummary.itemName },
     { label: "Sub Category", value: sourceSummary.itemSubCategory },
     { label: "Color", value: sourceSummary.color },
+    ...(sourceSummary.logNo
+      ? [{ label: "Log No.", value: sourceSummary.logNo }]
+      : []),
     {
       label: "Dimensions",
-      value: [sourceSummary.length, sourceSummary.width]
+      value: [sourceSummary.length, sourceSummary.width, sourceSummary.height]
         .filter(Boolean)
         .join(" × "),
     },
-    { label: "Thickness", value: sourceSummary.height },
-    ...(bundleLot ? [{ label: "Bundle / Pallet / Lot", value: bundleLot }] : []),
+    ...(bundleLot && bundleLot !== sourceSummary.logNo
+      ? [{ label: "Bundle / Pallet / Lot", value: bundleLot }]
+      : []),
     { label: "Original Quantity", value: originalLeaves },
     { label: "CMT", value: sourceSummary.cmt },
     { label: "Amount", value: sourceSummary.amount },
@@ -830,32 +912,70 @@ function createDefaultLineItemValues(
   sourceSummary: SlicingSourceSummary,
   sourceRow?: SourceRow,
 ): SlicingLineItemValues {
-  return {
+  const values: SlicingLineItemValues = {
     itemName: sourceSummary.itemName,
+    itemSubCategory: sourceSummary.itemSubCategory,
     color: sourceSummary.color,
-    thickness:
-      getStringValue(sourceRow, ["thickness", "height"]) || sourceSummary.height,
-    noOfLeaves: "",
-    character: "",
-    pattern: "",
-    series: "",
-    grade: "",
-    remark: "",
+    logNo:
+      sourceSummary.logNo ||
+      getStringValue(sourceRow, ["logNo", "logCode"]),
+    character: getPreferredSourceValue(sourceRow, "character"),
+    pattern: getPreferredSourceValue(sourceRow, "pattern"),
+    series: getPreferredSourceValue(sourceRow, "series"),
+    grade: getPreferredSourceValue(sourceRow, "grade"),
+    length: sourceSummary.length,
+    width: sourceSummary.width,
+    height: sourceSummary.height,
+    noOfLeaves: getPreferredSourceValue(sourceRow, "noOfLeaves"),
+    sqm:
+      getPreferredSourceValue(sourceRow, "sqm") ||
+      getStringValue(sourceRow, ["issuedSqm", "totalSqm", "availableSqm"]) ||
+      sourceSummary.cmt,
+    sqf: getPreferredSourceValue(sourceRow, "sqf"),
+    amount: sourceSummary.amount,
+    remark: getPreferredSourceValue(sourceRow, "remark"),
   };
+
+  return applyFactoryItemMasterDefaults(values, values.itemName) as SlicingLineItemValues;
 }
 
 function createEmptyLineItemValues(): SlicingLineItemValues {
   return {
     itemName: "",
+    itemSubCategory: "",
     color: "",
-    thickness: "",
-    noOfLeaves: "",
+    logNo: "",
     character: "",
     pattern: "",
     series: "",
     grade: "",
+    length: "",
+    width: "",
+    height: "",
+    noOfLeaves: "",
+    sqm: "",
+    sqf: "",
+    amount: "",
     remark: "",
   };
+}
+
+function updateSlicingLineItemValues(
+  current: SlicingLineItemValues,
+  key: keyof SlicingLineItemValues,
+  value: string,
+): SlicingLineItemValues {
+  const normalized = normalizeSlicingLineItemInput(key, value);
+  return applyFactoryLineItemValueChange(
+    current,
+    key,
+    normalized,
+  ) as SlicingLineItemValues;
+}
+
+function getPreferredSourceValue(sourceRow: SourceRow | undefined, key: string) {
+  const aliases = commonFactoryItemFieldAliases[key] ?? [key];
+  return getStringValue(sourceRow, aliases);
 }
 
 function allLineItemValuesEmpty(values: SlicingLineItemValues) {
@@ -960,15 +1080,16 @@ function getStringValue(sourceRow: SourceRow | undefined, keys: readonly string[
 }
 
 function calculateCmt(length: string, width: string, height: string) {
-  const lengthValue = Number.parseFloat(length.replace(/[^\d.]/g, "")) || 0;
-  const widthValue = Number.parseFloat(width.replace(/[^\d.]/g, "")) || 0;
-  const heightValue = Number.parseFloat(height.replace(/[^\d.]/g, "")) || 0;
+  const lengthM = resolveSlicingDimensionMetres(length);
+  const widthM = resolveSlicingDimensionMetres(width);
+  const heightM = resolveSlicingDimensionMetres(height);
 
-  if (!lengthValue || !widthValue || !heightValue) {
+  if (!lengthM || !widthM || !heightM) {
     return formatSQM(0);
   }
 
-  return formatSQM((lengthValue * widthValue * heightValue) / 1000);
+  // Volume in m³ when L/W/H are metres (display-formatted like SQM).
+  return formatSQM(lengthM * widthM * heightM);
 }
 
 function getHeaderCellSx(theme: Theme, minWidth: number) {
@@ -1056,6 +1177,10 @@ function renderEditableField({
   theme: Theme;
   value: string;
 }) {
+  if (column.readOnly) {
+    return renderReadOnlyCell(column.key, value, theme);
+  }
+
   if (column.type === "select") {
     return (
       <ErpSelectField
@@ -1073,6 +1198,7 @@ function renderEditableField({
       error={Boolean(errorText)}
       fullWidth
       helperText={errorText}
+      placeholder={column.placeholder}
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
@@ -1090,7 +1216,7 @@ function renderEditableField({
 }
 
 function isWheelAdjustableMeasurementField(key: string) {
-  return key === "length" || key === "width" || key === "thickness";
+  return key === "length" || key === "width" || key === "height";
 }
 
 function getNextMeasurementValue(value: string, deltaY: number) {
@@ -1115,7 +1241,11 @@ function getDecimalPlaces(value: string) {
   return decimalPart ? decimalPart.length : 0;
 }
 
-function renderReadOnlyCell(value: string, theme: Theme) {
+function renderReadOnlyCell(
+  key: keyof SlicingLineItemValues | string,
+  value: string,
+  theme: Theme,
+) {
   return (
     <Typography
       variant="body2"
@@ -1126,7 +1256,7 @@ function renderReadOnlyCell(value: string, theme: Theme) {
         alignItems: "center",
       }}
     >
-      {value || "-"}
+      {formatSlicingLineItemDisplay(key, value)}
     </Typography>
   );
 }

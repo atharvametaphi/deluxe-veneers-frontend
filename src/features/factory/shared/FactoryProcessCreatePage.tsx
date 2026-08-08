@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Theme } from "@mui/material/styles";
 import {
   Box,
@@ -27,11 +27,6 @@ import {
 } from "../../masters/shared";
 import { recordFormActionButtonSx } from "../../shared/buttonStyles";
 import {
-  formatSQF,
-  formatSQM,
-  SQM_TO_SQF,
-} from "../../shared/numberFormat";
-import {
   formInlineActionButtonSx,
   formSectionCardSx,
   FormSectionHeader,
@@ -47,6 +42,7 @@ import {
   appendFactoryProcessRun,
   useFactoryProcessRunTotals,
 } from "./factoryProcessRunStore";
+import { completeFactoryIssuedWork } from "./factoryIssuedWorkStore";
 import {
   buildFactorySourceAllocationKey,
   computeProcessEntryBalance,
@@ -56,7 +52,19 @@ import {
   resolveOriginalQuantity,
   sumProcessedLineItemQuantity,
 } from "./factoryQuantityAllocation";
+import { markSampleProcessDone } from "./sampleSheetIdentityStore";
+import {
+  allocateNextGroupNo,
+  getExistingGroupNo,
+  peekNextGroupNo,
+} from "./groupNoStore";
 import { buildFactoryInitialValues, flattenFactorySections, getFactoryPaths } from "./factoryUtils";
+import {
+  applyFactoryLineItemValueChange,
+  buildFactoryItemPrefillValues,
+  commonFactoryItemFieldAliases,
+  mergeCommonFactoryItemFields,
+} from "./factoryCommonItemFields";
 import type { FactoryDefinition, FactoryRecord } from "./types";
 
 type SourceRow = FactoryRecord;
@@ -65,6 +73,9 @@ type FactoryCreateLocationState = {
   groupedStockIssueId?: string;
   issueDate?: Date | string | null;
   issueSheets?: number | string;
+  sampleNo?: string;
+  issuedFromSample?: boolean;
+  workItemId?: string;
   sourceRow?: SourceRow;
   sourceRows?: SourceRow[];
 };
@@ -82,6 +93,7 @@ type LineItemColumnDefinition = {
   minWidth: number;
   options?: readonly string[];
   placeholder: string;
+  readOnly?: boolean;
   type: "text" | "select";
 };
 
@@ -90,6 +102,13 @@ type LineItemRecord = {
   values: Record<string, string>;
 };
 
+const groupingHiddenSourceKeys = new Set([
+  "orderNo",
+  "orderItemNo",
+  "supplierName",
+  "orderDate",
+]);
+
 const sourceColumnDefinitions: readonly SourceColumnDefinition[] = [
   { key: "issueSrNo", keys: ["issueSrNo", "sampleSrNo", "srNo", "itemSrNo"], label: "Reference No", minWidth: 150 },
   { key: "issuedFrom", keys: ["issuedFrom", "issuedFor", "process"], label: "Source Process / Warehouse", minWidth: 180 },
@@ -97,16 +116,23 @@ const sourceColumnDefinitions: readonly SourceColumnDefinition[] = [
   { key: "orderItemNo", keys: ["orderItemNo"], label: "Order Item No", minWidth: 140 },
   { key: "issuedDate", keys: ["issuedDate", "issueDate", "processDate", "sampleDate"], label: "Date", minWidth: 130 },
   { key: "supplierName", keys: ["supplierName", "customerName"], label: "Source Name", minWidth: 180 },
-  { key: "productName", keys: ["productName", "itemName"], label: "Item Name", minWidth: 170 },
-  { key: "groupNo", keys: ["groupNo", "palletNo", "bundleNumber", "lotNo"], label: "Bundle / Pallet / Lot", minWidth: 160 },
+  { key: "itemName", keys: ["itemName", "productName"], label: "Item Name", minWidth: 170 },
+  { key: "groupNo", keys: ["groupNo"], label: "Group No.", minWidth: 160 },
+  { key: "palletNo", keys: ["palletNo", "bundleNumber", "lotNo"], label: "Pallet / Bundle / Lot", minWidth: 160 },
   { key: "itemSubCategory", keys: ["itemSubCategory", "subCategory"], label: "Item Sub Category", minWidth: 170 },
   { key: "color", keys: ["color", "colour", "processColour"], label: "Color", minWidth: 140 },
+  { key: "logNo", keys: ["logNo", "logCode"], label: "Log No.", minWidth: 130 },
+  { key: "character", keys: ["character"], label: "Character", minWidth: 130 },
+  { key: "pattern", keys: ["pattern"], label: "Pattern", minWidth: 130 },
+  { key: "series", keys: ["series", "seriesName"], label: "Series", minWidth: 120 },
+  { key: "grade", keys: ["grade"], label: "Grade", minWidth: 110 },
   { key: "length", keys: ["length"], label: "Length", minWidth: 120 },
   { key: "width", keys: ["width"], label: "Width", minWidth: 120 },
+  { key: "height", keys: ["height", "thickness"], label: "Height", minWidth: 120 },
   { key: "thickness", keys: ["thickness", "thickess"], label: "Thickness", minWidth: 120 },
-  { key: "noOfSheets", keys: ["noOfSheets", "sampleSheets", "finishedSheets", "issuedLeaves", "noOfLeaves"], label: "Original Quantity", minWidth: 140 },
-  { key: "sqm", keys: ["sqm", "issuedSqm", "outputSqm", "consumedSqm", "consumeSqm", "finishedSqm"], label: "SQM", minWidth: 120 },
-  { key: "sqf", keys: ["sqf", "issuedSqf", "outputSqf", "consumedSqf", "consumeSqf", "finishedSqf"], label: "SQF", minWidth: 120 },
+  { key: "noOfSheets", keys: ["noOfSheets", "sampleSheets", "finishedSheets", "issuedLeaves", "noOfLeaves", "noOfLeavesSheets"], label: "Original Quantity", minWidth: 140 },
+  { key: "sqm", keys: ["sqm", "totalSqm", "availableSqm", "avSqm", "issuedSqm", "outputSqm", "consumedSqm", "consumeSqm", "finishedSqm"], label: "SQM", minWidth: 120 },
+  { key: "sqf", keys: ["sqf", "totalSqf", "availableSqf", "avSqf", "issuedSqf", "outputSqf", "consumedSqf", "consumeSqf", "finishedSqf"], label: "SQF", minWidth: 120 },
   { key: "amount", keys: ["amount"], label: "Amount", minWidth: 130 },
   { key: "remark", keys: ["remark"], label: "Remark", minWidth: 200 },
 ] as const;
@@ -169,7 +195,7 @@ const processDateBySlug: Record<string, ProcessDateConfig> = {
   },
   splicing: { key: "splicingDate", label: "Splicing Date" },
   pressing: { key: "pressingDate", label: "Pressing Date" },
-  "cnc-fluting": { key: "cncDate", label: "CNC / Fluting Date" },
+  "cnc-fluting": { key: "cncDate", label: "Fluting Date" },
   embossing: {
     key: "cncDate",
     label: "Embossing Date",
@@ -189,32 +215,24 @@ const fieldValueAliases: Record<string, readonly string[]> = {
   colour: ["colour", "color", "processColour"],
   itemName: ["itemName", "productName"],
   itemSubCategory: ["itemSubCategory", "subCategory"],
-  noOfSheets: ["noOfSheets", "sampleSheets", "finishedSheets", "issuedLeaves"],
-  sqm: ["sqm", "issuedSqm", "outputSqm", "consumedSqm", "consumeSqm", "finishedSqm"],
-  sqf: ["sqf", "issuedSqf", "outputSqf", "consumedSqf", "consumeSqf", "finishedSqf"],
+  noOfSheets: ["noOfSheets", "sampleSheets", "finishedSheets", "issuedLeaves", "noOfLeaves"],
   thickness: ["thickness", "thickess"],
+  ...commonFactoryItemFieldAliases,
 };
-
-const areaConversionPairs = [
-  ["sqm", "sqf"],
-  ["consumedSqm", "consumedSqf"],
-  ["consumeSqm", "consumeSqf"],
-  ["issuedSqm", "issuedSqf"],
-  ["outputSqm", "outputSqf"],
-] as const satisfies readonly (readonly [sqmKey: string, sqfKey: string])[];
 
 const factoryCreateLineItemPresets: Partial<
   Record<string, readonly MasterFieldDefinition[]>
 > = {
   drying: [
     { key: "itemName", label: "Item Name", type: "text" },
-    { key: "itemSubCategory", label: "Item Sub Category", type: "text" },
-    { key: "processColour", label: "Process Colour", type: "text" },
+    { key: "itemSubCategory", label: "Sub Category", type: "text" },
+    { key: "color", label: "Color", type: "text" },
+    { key: "logNo", label: "Log No.", type: "text" },
     { key: "palletNo", label: "Pallet No", type: "text" },
     { key: "noOfBundle", label: "No of Bundle", type: "text" },
     { key: "length", label: "Length", type: "text" },
     { key: "width", label: "Width", type: "text" },
-    { key: "thickness", label: "Thickness", type: "text" },
+    { key: "height", label: "Height", type: "text" },
     { key: "remark", label: "Remark", type: "text" },
   ],
 };
@@ -239,9 +257,19 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
     [definition.formSections],
   );
   const metadataFields = useMemo(
-    () => resolveProcessHeaderDateFields(definition.slug, allFields),
-    [allFields, definition.slug],
+    () => resolveProcessHeaderDateFields(definition.slug, allFields, sourceRow),
+    [allFields, definition.slug, sourceRow],
   );
+  const resolvedGroupNo = useMemo(() => {
+    const existing = getExistingGroupNo(
+      sourceRow as Record<string, unknown> | undefined,
+    );
+    if (existing) {
+      return existing;
+    }
+    // Preview only — actual allocation happens on Grouping save.
+    return definition.slug === "grouping" ? peekNextGroupNo() : "";
+  }, [definition.slug, sourceRow]);
   const lineItemFields = useMemo(
     () => buildLineItemFields(definition.slug, allFields, sourceRow),
     [allFields, definition.slug, sourceRow],
@@ -263,15 +291,36 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
     [lineItemColumns],
   );
   const [formValues, setFormValues] = useState<Record<string, MasterFieldValue>>(
-    () =>
-      withDefaultProcessDates(
+    () => {
+      const initial = withDefaultProcessDates(
         buildFactoryInitialValues(
           [{ title: "Create", fields: metadataFields }],
           sourceRow,
         ),
         metadataFields,
-      ),
+      );
+
+      if (resolvedGroupNo) {
+        initial.groupNo = resolvedGroupNo;
+      }
+
+      return initial;
+    },
   );
+
+  useEffect(() => {
+    if (!resolvedGroupNo) {
+      return;
+    }
+
+    setFormValues((current) => {
+      if (current.groupNo === resolvedGroupNo) {
+        return current;
+      }
+      return { ...current, groupNo: resolvedGroupNo };
+    });
+  }, [resolvedGroupNo]);
+
   const [draftValues, setDraftValues] = useState<Record<string, string>>(() =>
     buildDefaultLineItemValues(lineItemFields, sourceRow),
   );
@@ -548,7 +597,11 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                           column,
                           onChange: (value) =>
                             setDraftValues((current) =>
-                              applyAreaValueChange(current, column.key, value),
+                              applyFactoryLineItemValueChange(
+                                current,
+                                column.key,
+                                value,
+                              ),
                             ),
                           theme,
                           value: draftValues[column.key] ?? "",
@@ -656,7 +709,11 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                                     column,
                                     onChange: (value) =>
                                       setEditingValues((current) =>
-                                        applyAreaValueChange(current, column.key, value),
+                                        applyFactoryLineItemValueChange(
+                                          current,
+                                          column.key,
+                                          value,
+                                        ),
                                       ),
                                     theme,
                                     value: editingValues[column.key] ?? "",
@@ -787,6 +844,59 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                 });
               }
 
+              const workItemId =
+                locationState?.workItemId ||
+                (typeof sourceRow?.workItemId === "string"
+                  ? sourceRow.workItemId
+                  : undefined);
+
+              if (workItemId) {
+                const primaryLineItem = lineItems[0];
+                const resultSnapshot: Record<string, unknown> = {
+                  ...(sourceRow ?? {}),
+                  ...formValues,
+                  ...(primaryLineItem
+                    ? Object.fromEntries(
+                        Object.entries(primaryLineItem).filter(
+                          ([key]) => key !== "id",
+                        ),
+                      )
+                    : {}),
+                };
+
+                if (definition.slug === "grouping") {
+                  resultSnapshot.groupNo =
+                    getExistingGroupNo(
+                      sourceRow as Record<string, unknown> | undefined,
+                    ) || allocateNextGroupNo();
+                  // Grouping is stock/process — do not carry order/customer onto the batch.
+                  delete resultSnapshot.orderNo;
+                  delete resultSnapshot.orderDate;
+                  delete resultSnapshot.orderItemNo;
+                  delete resultSnapshot.customerName;
+                  delete resultSnapshot.productName;
+                } else {
+                  const carriedGroupNo = getExistingGroupNo(
+                    sourceRow as Record<string, unknown> | undefined,
+                  );
+                  if (carriedGroupNo) {
+                    resultSnapshot.groupNo = carriedGroupNo;
+                  }
+                }
+
+                completeFactoryIssuedWork(workItemId, resultSnapshot);
+              }
+
+              const sampleNo =
+                locationState?.sampleNo ||
+                (typeof sourceRow?.sampleNo === "string"
+                  ? sourceRow.sampleNo
+                  : undefined);
+
+              if (sampleNo) {
+                markSampleProcessDone(sampleNo, definition.slug);
+              }
+
               navigate(paths.list);
             }}
           >
@@ -818,6 +928,7 @@ function withDefaultProcessDates(
 function resolveProcessHeaderDateFields(
   slug: string,
   fields: readonly MasterFieldDefinition[],
+  sourceRow?: SourceRow,
 ): MasterFieldDefinition[] {
   const config =
     processDateBySlug[slug] ?? {
@@ -827,18 +938,41 @@ function resolveProcessHeaderDateFields(
   const candidateKeys = [config.key, ...(config.aliases ?? [])];
   const existing = fields.find((field) => candidateKeys.includes(field.key));
 
-  return [
+  const headerFields: MasterFieldDefinition[] = [
     {
       key: existing?.key ?? config.key,
       label: config.label,
       type: "date",
     },
   ];
+
+  // Group No. is assigned only in Grouping; later processes show it read-only when present.
+  if (slug === "grouping") {
+    headerFields.unshift({
+      key: "groupNo",
+      label: "Group No.",
+      type: "text",
+      readOnly: true,
+    });
+  } else if (getExistingGroupNo(sourceRow as Record<string, unknown> | undefined)) {
+    headerFields.unshift({
+      key: "groupNo",
+      label: "Group No.",
+      type: "text",
+      readOnly: true,
+    });
+  }
+
+  return headerFields;
 }
 
 function buildSourceColumns(sourceRow?: SourceRow, slug?: string) {
   const visibleColumns = sourceColumnDefinitions.filter((column) => {
     if (slug === "drying" && column.key === "remark") {
+      return false;
+    }
+
+    if (slug === "grouping" && groupingHiddenSourceKeys.has(column.key)) {
       return false;
     }
 
@@ -853,10 +987,11 @@ function buildSourceColumns(sourceRow?: SourceRow, slug?: string) {
 
 const sourceOverviewLabelOverrides: Partial<Record<string, string>> = {
   supplierName: "Source / Customer",
-  productName: "Item Name",
+  itemName: "Item Name",
   itemSubCategory: "Sub Category",
   issuedFrom: "Source Process / Warehouse",
-  groupNo: "Bundle / Pallet / Lot",
+  groupNo: "Group No.",
+  palletNo: "Pallet / Bundle / Lot",
   noOfSheets: "Original Quantity",
 };
 
@@ -914,7 +1049,7 @@ function buildLineItemFields(
   const presetFields = factoryCreateLineItemPresets[slug];
 
   if (presetFields) {
-    return presetFields;
+    return mergeCommonFactoryItemFields(presetFields);
   }
 
   const relevantFields = dedupeFields(
@@ -935,23 +1070,28 @@ function buildLineItemFields(
   );
 
   if (relevantFields.length > 0) {
-    return relevantFields;
+    return mergeCommonFactoryItemFields(relevantFields);
   }
 
   const fallbackFields: MasterFieldDefinition[] = [
     { key: "itemName", label: "Item Name", type: "text" },
-    { key: "itemSubCategory", label: "Item Sub Category", type: "text" },
+    { key: "itemSubCategory", label: "Sub Category", type: "text" },
     { key: "color", label: "Color", type: "text" },
+    { key: "logNo", label: "Log No.", type: "text" },
     { key: "length", label: "Length", type: "text" },
     { key: "width", label: "Width", type: "text" },
-    { key: "thickness", label: "Thickness", type: "text" },
+    { key: "height", label: "Height", type: "text" },
     { key: "remark", label: "Remark", type: "text" },
   ];
 
-  return fallbackFields.filter((field) => {
+  const withSourceFallback = fallbackFields.filter((field) => {
     const value = getPreferredFieldValue(sourceRow, field.key);
     return typeof value === "string" && value.trim().length > 0;
   });
+
+  return mergeCommonFactoryItemFields(
+    withSourceFallback.length > 0 ? withSourceFallback : fallbackFields,
+  );
 }
 
 function dedupeFields(fields: readonly MasterFieldDefinition[]) {
@@ -970,31 +1110,10 @@ function buildDefaultLineItemValues(
   fields: readonly MasterFieldDefinition[],
   sourceRow?: SourceRow,
 ) {
-  const quantityKeys = new Set([
-    "noOfLeaves",
-    "noOfSheets",
-    "noOfBundle",
-    "consumeSheets",
-    "consumedNoOfSheets",
-    "issuedNoOfSheets",
-    "outputNoOfSheets",
-    "sampleSheets",
-    "finishedSheets",
-    "sqm",
-    "sqf",
-    "remark",
-  ]);
-
-  return fields.reduce<Record<string, string>>((accumulator, field) => {
-    if (quantityKeys.has(field.key)) {
-      accumulator[field.key] = "";
-      return accumulator;
-    }
-
-    const value = getPreferredFieldValue(sourceRow, field.key);
-    accumulator[field.key] = typeof value === "string" ? value : "";
-    return accumulator;
-  }, {});
+  return buildFactoryItemPrefillValues(fields, sourceRow, (key) => {
+    const value = getPreferredFieldValue(sourceRow, key);
+    return typeof value === "string" ? value : "";
+  });
 }
 
 function createEmptyLineItemValues(fields: readonly MasterFieldDefinition[]) {
@@ -1059,38 +1178,6 @@ function ColumnLabel({
   );
 }
 
-function applyAreaValueChange(
-  values: Record<string, string>,
-  key: string,
-  value: string,
-) {
-  const nextValues = {
-    ...values,
-    [key]: value,
-  };
-  const conversionPair = areaConversionPairs.find(
-    ([sqmKey, sqfKey]) => key === sqmKey || key === sqfKey,
-  );
-
-  if (!conversionPair) {
-    return nextValues;
-  }
-
-  const numericValue = Number.parseFloat(value);
-  if (!Number.isFinite(numericValue)) {
-    return nextValues;
-  }
-
-  const [sqmKey, sqfKey] = conversionPair;
-  if (key === sqmKey) {
-    nextValues[sqfKey] = formatSQF(numericValue * SQM_TO_SQF);
-  } else {
-    nextValues[sqmKey] = formatSQM(numericValue / SQM_TO_SQF);
-  }
-
-  return nextValues;
-}
-
 function getPreferredFieldValue(sourceRow: SourceRow | undefined, key: string) {
   const candidateKeys = fieldValueAliases[key] ?? [key];
 
@@ -1107,6 +1194,10 @@ function getPreferredFieldValue(sourceRow: SourceRow | undefined, key: string) {
 
     if (typeof value === "string" && value.trim().length > 0) {
       return value;
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
     }
   }
 
@@ -1148,6 +1239,7 @@ function mapFieldToColumn(field: MasterFieldDefinition): LineItemColumnDefinitio
     minWidth: Math.max(120, Math.min(220, field.label.length * 10 + 48)),
     placeholder: field.placeholder ?? getDefaultPlaceholder(field),
     type: field.type === "select" ? "select" : "text",
+    readOnly: Boolean(field.readOnly),
     ...(field.options ? { options: field.options } : {}),
   };
 }
@@ -1169,6 +1261,10 @@ function renderEditableField({
   theme: Theme;
   value: string;
 }) {
+  if (column.readOnly) {
+    return renderReadOnlyCell(value, theme);
+  }
+
   if (column.type === "select") {
     return (
       <ErpSelectField
@@ -1203,7 +1299,12 @@ function renderEditableField({
 }
 
 function isWheelAdjustableMeasurementField(key: string) {
-  return key === "length" || key === "width" || key === "thickness";
+  return (
+    key === "length" ||
+    key === "width" ||
+    key === "height" ||
+    key === "thickness"
+  );
 }
 
 function getNextMeasurementValue(value: string, deltaY: number) {

@@ -1127,6 +1127,10 @@ function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
     return renderQcStatusChip(row[column.key], theme);
   }
 
+  if (column.key === "for" || column.key === "forLabel") {
+    return renderForPurposeBadge(row[column.key], theme);
+  }
+
   if (isInspectionStatusValue(row[column.key])) {
     return renderQcStatusChip(row[column.key], theme);
   }
@@ -1385,6 +1389,46 @@ function getAuditInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function renderForPurposeBadge(value: EnterpriseTableCellValue, theme: Theme) {
+  const normalized =
+    typeof value === "string" && value.trim().toLowerCase() === "sample"
+      ? "Sample"
+      : "Order";
+  const isSample = normalized === "Sample";
+
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        height: 22,
+        px: 1,
+        borderRadius: "999px",
+        border: `1px solid ${
+          isSample
+            ? theme.customTokens.brand.primary
+            : theme.customTokens.borders.default
+        }`,
+        backgroundColor: isSample
+          ? `${theme.customTokens.brand.primary}14`
+          : theme.customTokens.neutrals[100],
+        color: isSample
+          ? theme.customTokens.brand.primary
+          : theme.customTokens.neutrals[700],
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: "0.02em",
+        lineHeight: 1,
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {normalized}
+    </Box>
+  );
 }
 
 function renderQcStatusChip(value: EnterpriseTableCellValue, theme: Theme) {

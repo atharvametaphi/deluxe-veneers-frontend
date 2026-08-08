@@ -4,12 +4,18 @@ import type { FactoryRecord } from "./types";
 
 const STORAGE_KEY = "deluxe-veneers-grouped-stock-sample-issues";
 
+export type GroupedStockIssuePurpose = "sample-sheet" | "order";
+
 export type GroupedStockSampleIssue = {
   createdAt: string;
   groupingRowId: string;
   id: string;
   issueDate: string;
   issueSheets: number;
+  orderItemNo?: string;
+  orderNo?: string;
+  orderType?: string;
+  purpose: GroupedStockIssuePurpose;
   sourceSnapshot: Record<string, unknown>;
 };
 
@@ -26,6 +32,30 @@ function getLocalStorage() {
   }
 
   return window.localStorage;
+}
+
+function normalizeIssue(
+  issue: Partial<GroupedStockSampleIssue> & {
+    groupingRowId: string;
+    id: string;
+    issueSheets: number;
+  },
+): GroupedStockSampleIssue {
+  return {
+    id: issue.id,
+    groupingRowId: issue.groupingRowId,
+    issueSheets: issue.issueSheets,
+    issueDate: issue.issueDate ?? new Date().toISOString(),
+    createdAt: issue.createdAt ?? new Date().toISOString(),
+    purpose: issue.purpose === "order" ? "order" : "sample-sheet",
+    sourceSnapshot:
+      issue.sourceSnapshot && typeof issue.sourceSnapshot === "object"
+        ? issue.sourceSnapshot
+        : {},
+    ...(issue.orderNo ? { orderNo: issue.orderNo } : {}),
+    ...(issue.orderItemNo ? { orderItemNo: issue.orderItemNo } : {}),
+    ...(issue.orderType ? { orderType: issue.orderType } : {}),
+  };
 }
 
 function readStore(): GroupedStockIssueStore {
@@ -49,7 +79,11 @@ function readStore(): GroupedStockIssueStore {
     const parsed = JSON.parse(raw) as GroupedStockIssueStore;
     memoryStore =
       parsed && Array.isArray(parsed.issues)
-        ? { issues: parsed.issues }
+        ? {
+            issues: parsed.issues.map((issue) =>
+              normalizeIssue(issue as GroupedStockSampleIssue),
+            ),
+          }
         : { issues: [] };
   } catch {
     memoryStore = { issues: [] };
@@ -117,6 +151,10 @@ export function appendGroupedStockSampleIssue(input: {
   groupingRowId: string;
   issueDate: Date | null;
   issueSheets: number;
+  orderItemNo?: string;
+  orderNo?: string;
+  orderType?: string;
+  purpose?: GroupedStockIssuePurpose;
   sourceRow: FactoryRecord;
 }): GroupedStockSampleIssue {
   const store = readStore();
@@ -125,14 +163,18 @@ export function appendGroupedStockSampleIssue(input: {
       ? input.issueDate.toISOString()
       : new Date().toISOString();
 
-  const nextIssue: GroupedStockSampleIssue = {
+  const nextIssue = normalizeIssue({
     id: `grouped-sample-issue-${Date.now()}-${store.issues.length + 1}`,
     groupingRowId: input.groupingRowId,
     issueSheets: input.issueSheets,
     issueDate,
     createdAt: new Date().toISOString(),
+    purpose: input.purpose ?? "sample-sheet",
     sourceSnapshot: { ...input.sourceRow },
-  };
+    orderNo: input.orderNo,
+    orderItemNo: input.orderItemNo,
+    orderType: input.orderType,
+  });
 
   writeStore({
     issues: [nextIssue, ...store.issues],
