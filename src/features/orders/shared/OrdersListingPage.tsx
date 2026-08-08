@@ -12,7 +12,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { ChevronDown, CircleAlert, Eye, Pencil, XCircle } from "lucide-react";
+import { ChevronDown, CircleAlert, Eye, Pencil, Plus, XCircle } from "lucide-react";
 import type { MouseEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 
@@ -157,6 +157,7 @@ export function OrdersListingPage({
             id: "cancel-order",
             label: "Cancel Order",
             icon: XCircle,
+            tone: "danger",
             onSelect: (selectedRow) => setCancelDialogOrder(selectedRow),
           },
         ];
@@ -187,6 +188,8 @@ export function OrdersListingPage({
     <MasterPageShell
       breadcrumbs={[{ label: moduleConfig.title }]}
       title={moduleConfig.title}
+      subtitle="Manage customer orders and fulfilment."
+      contentGap={2}
     >
       <ModuleProcessTabs
         onChange={setActiveTab}
@@ -195,10 +198,10 @@ export function OrdersListingPage({
       />
 
       <Stack
-        direction={{ xs: "column", md: "row" }}
-        alignItems={{ xs: "stretch", md: "center" }}
+        direction={{ xs: "column", sm: "row" }}
+        alignItems={{ xs: "stretch", sm: "center" }}
         justifyContent="space-between"
-        spacing={2}
+        spacing={1.5}
         sx={(currentTheme) => ({
           mt: currentTheme.spacing(2),
         })}
@@ -206,8 +209,13 @@ export function OrdersListingPage({
         <ClearableSearchField
           value={searchValue}
           onChange={setSearchValue}
+          placeholder={
+            activeTab === "finished"
+              ? "Search finished orders..."
+              : "Search raw orders..."
+          }
           sx={{
-            width: { xs: "100%", md: 320 },
+            width: { xs: "100%", sm: 300 },
             maxWidth: "100%",
           }}
         />
@@ -215,13 +223,11 @@ export function OrdersListingPage({
         {canCreate ? (
           <Button
             endIcon={<ChevronDown size={16} />}
+            startIcon={<Plus size={14} />}
             onClick={(event: MouseEvent<HTMLElement>) =>
               setCreateMenuAnchor(event.currentTarget)
             }
-            sx={(currentTheme) => ({
-              ...getListingToolbarButtonSx(currentTheme),
-              alignSelf: { xs: "flex-start", md: "center" },
-            })}
+            sx={(currentTheme) => getListingToolbarButtonSx(currentTheme)}
             variant="contained"
           >
             Create Order
@@ -268,7 +274,11 @@ export function OrdersListingPage({
         key={activeTab}
         columns={orderListingColumns}
         defaultRowsPerPage={10}
-        emptyStateLabel="No orders are available."
+        emptyStateLabel={
+          activeTab === "finished"
+            ? "No finished orders are available."
+            : "No raw orders are available."
+        }
         getRowActions={getRowActions}
         initialSort={{ key: "updatedDate", direction: "desc" }}
         rows={canView ? filteredRows : []}

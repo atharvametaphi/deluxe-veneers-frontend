@@ -6,12 +6,13 @@ import {
   Stack,
   useTheme,
 } from "@mui/material";
-import { Settings2 } from "lucide-react";
+import { Plus, Settings2 } from "lucide-react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router";
 
 import { EnterpriseDataTable } from "../../../components/data-display/EnterpriseDataTable";
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
+import { getListingToolbarButtonSx } from "../../shared/buttonStyles";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import {
   fetchRolePermissionRows,
@@ -100,18 +101,21 @@ export function RolesPermissionsPage() {
     <MasterPageShell
       breadcrumbs={[{ label: "Roles & Permissions" }]}
       title="Roles & Permissions"
+      subtitle="Manage roles and the permissions assigned across the system."
+      contentGap={2}
     >
       <Stack
-        direction={{ xs: "column", md: "row" }}
+        direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
-        alignItems={{ xs: "stretch", md: "center" }}
-        spacing={2}
+        alignItems={{ xs: "stretch", sm: "center" }}
+        spacing={1.5}
       >
         <ClearableSearchField
           value={searchValue}
           onChange={setSearchValue}
+          placeholder="Search roles..."
           sx={{
-            width: { xs: "100%", md: 320 },
+            width: { xs: "100%", sm: 300 },
             maxWidth: "100%",
           }}
         />
@@ -121,6 +125,8 @@ export function RolesPermissionsPage() {
             component={RouterLink}
             to={paths.add}
             variant="contained"
+            startIcon={<Plus size={14} />}
+            sx={(currentTheme) => getListingToolbarButtonSx(currentTheme)}
           >
             Add Role
           </Button>

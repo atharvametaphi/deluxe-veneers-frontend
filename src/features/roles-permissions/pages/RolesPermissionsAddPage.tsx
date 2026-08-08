@@ -116,7 +116,7 @@ export function RolesPermissionsAddPage() {
       <MasterSectionCard>
         <Stack
           sx={(theme) => ({
-            gap: theme.spacing(3),
+            gap: theme.spacing(1.5),
           })}
         >
           {canCreateRole && errorMessage ? (
@@ -125,6 +125,7 @@ export function RolesPermissionsAddPage() {
 
           {canCreateRole ? (
             <MasterFormFields
+              compact
               definition={{
                 fields: activeFields as MasterFieldDefinition[],
                 gridColumns: 4,
@@ -143,7 +144,7 @@ export function RolesPermissionsAddPage() {
           <Box
             sx={(theme) => ({
               display: "flex",
-              justifyContent: "center",
+              justifyContent: "flex-end",
               gap: theme.spacing(1.5),
               flexWrap: "wrap",
             })}

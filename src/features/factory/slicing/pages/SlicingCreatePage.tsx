@@ -24,11 +24,27 @@ import {
   ErpSelectField,
 } from "../../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import {
+  appendFactoryProcessRun,
+  buildFactorySourceAllocationKey,
+  computeProcessEntryBalance,
   FactoryPageShell,
+  FactoryProcessBalanceSummary,
+  FactorySourceOverviewPanel,
   getFactoryPaths,
+  getFactoryQuantityAllocationConfig,
+  getProcessQuantityOverflowError,
+  resolveLineItemProcessedQuantity,
+  resolveOriginalQuantity,
   slicingDefinition,
+  sumProcessedLineItemQuantity,
+  useFactoryProcessRunTotals,
 } from "../../shared";
 import { listingToolbarButtonSx, recordFormActionButtonSx } from "../../../shared/buttonStyles";
+import { formatSQM } from "../../../shared/numberFormat";
+import {
+  transactionTableBodyCellSx,
+  transactionTableHeaderCellSx,
+} from "../../../shared/listingTableStyles";
 
 type SourceRow = {
   id: string;
@@ -38,12 +54,6 @@ type SourceRow = {
 type SlicingLocationState = {
   sourceRow?: SourceRow;
   sourceRows?: SourceRow[];
-};
-
-type HeaderColumn = {
-  key: keyof SlicingSourceSummary;
-  label: string;
-  minWidth: number;
 };
 
 type LineItemColumn = {
@@ -92,18 +102,6 @@ type SlicingLineItem = {
   id: string;
   values: SlicingLineItemValues;
 };
-
-const sourceHeaderColumns: readonly HeaderColumn[] = [
-  { key: "itemSubCategory", label: "Item Sub Category", minWidth: 170 },
-  { key: "itemName", label: "Item Name", minWidth: 170 },
-  { key: "color", label: "Color", minWidth: 150 },
-  { key: "length", label: "Length", minWidth: 120 },
-  { key: "width", label: "Width", minWidth: 120 },
-  { key: "height", label: "Height", minWidth: 120 },
-  { key: "cmt", label: "CMT", minWidth: 120 },
-  { key: "amount", label: "Amount", minWidth: 140 },
-  { key: "remark", label: "Remark", minWidth: 200 },
-] as const;
 
 const lineItemColumns: readonly LineItemColumn[] = [
   {
@@ -211,11 +209,80 @@ export function SlicingCreatePage() {
     createEmptyLineItemValues(),
   );
 
-  const sourceTableWidth = useMemo(
-    () =>
-      sourceHeaderColumns.reduce((total, column) => total + column.minWidth, 0),
+  const sourceOverviewItems = useMemo(
+    () => buildSlicingSourceOverviewItems(sourceSummary, sourceRow),
+    [sourceRow, sourceSummary],
+  );
+  const quantityConfig = useMemo(
+    () => getFactoryQuantityAllocationConfig("slicing"),
     [],
   );
+  const sourceAllocationKey = useMemo(
+    () =>
+      buildFactorySourceAllocationKey(
+        "slicing",
+        sourceRow as Record<string, unknown> | undefined,
+      ),
+    [sourceRow],
+  );
+  const runTotals = useFactoryProcessRunTotals(sourceAllocationKey);
+  const originalQuantity = useMemo(
+    () =>
+      quantityConfig
+        ? resolveOriginalQuantity(
+            sourceRow as Record<string, unknown> | undefined,
+            quantityConfig,
+          )
+        : 0,
+    [quantityConfig, sourceRow],
+  );
+  const currentProcessedQuantity = useMemo(
+    () =>
+      sumProcessedLineItemQuantity(
+        lineItems.map((item) => ({ values: item.values as unknown as Record<string, string> })),
+        "slicing",
+      ),
+    [lineItems],
+  );
+  const balanceSummary = useMemo(
+    () =>
+      computeProcessEntryBalance({
+        originalQuantity,
+        previouslyProcessed: runTotals.processed,
+        currentProcessed: currentProcessedQuantity,
+      }),
+    [currentProcessedQuantity, originalQuantity, runTotals.processed],
+  );
+  const quantityOverflowError = getProcessQuantityOverflowError({
+    originalQuantity,
+    previouslyProcessed: runTotals.processed,
+    currentProcessed: currentProcessedQuantity,
+  });
+  const showBalanceSummary = Boolean(
+    quantityConfig && originalQuantity > 0 && lineItems.length > 0,
+  );
+  const draftProjectedOverflow = useMemo(() => {
+    if (!quantityConfig || originalQuantity <= 0 || allLineItemValuesEmpty(draftValues)) {
+      return "";
+    }
+
+    return getProcessQuantityOverflowError({
+      originalQuantity,
+      previouslyProcessed: runTotals.processed,
+      currentProcessed:
+        currentProcessedQuantity +
+        resolveLineItemProcessedQuantity(
+          draftValues as unknown as Record<string, string>,
+          "slicing",
+        ),
+    });
+  }, [
+    currentProcessedQuantity,
+    draftValues,
+    originalQuantity,
+    quantityConfig,
+    runTotals.processed,
+  ]);
   const lineItemsTableWidth = useMemo(
     () =>
       lineItemColumns.reduce((total, column) => total + column.minWidth, 84),
@@ -231,6 +298,21 @@ export function SlicingCreatePage() {
     const validationErrors = getLineItemValidationErrors(draftValues);
 
     if (hasValidationErrors(validationErrors)) {
+      setDraftSubmitAttempted(true);
+      return;
+    }
+
+    const draftQty = resolveLineItemProcessedQuantity(
+      draftValues as unknown as Record<string, string>,
+      "slicing",
+    );
+    const overflow = getProcessQuantityOverflowError({
+      originalQuantity,
+      previouslyProcessed: runTotals.processed,
+      currentProcessed: currentProcessedQuantity + draftQty,
+    });
+
+    if (overflow) {
       setDraftSubmitAttempted(true);
       return;
     }
@@ -272,6 +354,29 @@ export function SlicingCreatePage() {
       return;
     }
 
+    const otherProcessed = sumProcessedLineItemQuantity(
+      lineItems
+        .filter((row) => row.id !== rowId)
+        .map((item) => ({
+          values: item.values as unknown as Record<string, string>,
+        })),
+      "slicing",
+    );
+    const editedQty = resolveLineItemProcessedQuantity(
+      editingValues as unknown as Record<string, string>,
+      "slicing",
+    );
+    const overflow = getProcessQuantityOverflowError({
+      originalQuantity,
+      previouslyProcessed: runTotals.processed,
+      currentProcessed: otherProcessed + editedQty,
+    });
+
+    if (overflow) {
+      setEditingSubmitAttempted(true);
+      return;
+    }
+
     setLineItems((current) =>
       current.map((row) =>
         row.id === rowId
@@ -298,66 +403,21 @@ export function SlicingCreatePage() {
     >
       <Stack
         sx={(currentTheme) => ({
-          gap: currentTheme.spacing(3),
+          gap: currentTheme.spacing(2),
         })}
       >
-        <Box
-          sx={(currentTheme) => ({
-            border: `1px solid ${currentTheme.customTokens.borders.default}`,
-            borderRadius: `${currentTheme.customTokens.radius.md}px`,
-            backgroundColor: currentTheme.customTokens.surfaces.surface,
-            overflow: "hidden",
-          })}
-        >
-          <Box sx={getScrollableTableSx(theme)}>
-            <Table
-              size="small"
-              sx={{ minWidth: sourceTableWidth, tableLayout: "auto" }}
-            >
-              <TableHead>
-                <TableRow>
-                  {sourceHeaderColumns.map((column) => (
-                    <TableCell
-                      key={column.key}
-                      sx={getHeaderCellSx(theme, column.minWidth)}
-                    >
-                      {column.label}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-
-              <TableBody>
-                <TableRow>
-                  {sourceHeaderColumns.map((column) => (
-                    <TableCell key={column.key} sx={getBodyCellSx(theme)}>
-                      {renderReadOnlyCell(
-                        sourceSummary[column.key],
-                        theme,
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableBody>
-            </Table>
-          </Box>
-        </Box>
+        <FactorySourceOverviewPanel items={sourceOverviewItems} />
 
         <Box
           sx={(currentTheme) => ({
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "repeat(1, minmax(0, 1fr))",
-              md: "repeat(2, minmax(0, 1fr))",
-              xl: "repeat(5, minmax(0, 1fr))",
+            width: {
+              xs: "100%",
+              sm: currentTheme.spacing(28),
             },
-            gap: currentTheme.spacing(2),
+            maxWidth: "100%",
           })}
         >
-          <FieldWrapper
-            label="Slicing Date"
-            required
-          >
+          <FieldWrapper label="Slicing Date">
             <ErpDatePickerField
               helperText={hasSubmitted ? getSlicingFormError("slicingDate", formValues) : ""}
               onChange={(value) =>
@@ -366,6 +426,7 @@ export function SlicingCreatePage() {
                   slicingDate: value,
                 }))
               }
+              size="dense"
               state={
                 hasSubmitted && getSlicingFormError("slicingDate", formValues)
                   ? "error"
@@ -374,106 +435,20 @@ export function SlicingCreatePage() {
               value={formValues.slicingDate}
             />
           </FieldWrapper>
-
-          <FieldWrapper
-            label="Shift"
-            required
-          >
-            <ErpSelectField
-              helperText={hasSubmitted ? getSlicingFormError("shift", formValues) : ""}
-              onChange={(value) =>
-                setFormValues((current) => ({
-                  ...current,
-                  shift: value,
-                }))
-              }
-              options={["Day", "General", "Evening", "Night"]}
-              state={
-                hasSubmitted && getSlicingFormError("shift", formValues)
-                  ? "error"
-                  : "default"
-              }
-              value={formValues.shift}
-            />
-          </FieldWrapper>
-
-          <FieldWrapper label="No. of Workers" required>
-            {(() => {
-              const errorText = hasSubmitted
-                ? getSlicingFormError("noOfWorkers", formValues)
-                : "";
-
-              return (
-            <TextField
-              error={Boolean(errorText)}
-              fullWidth
-              helperText={errorText}
-              size="small"
-              value={formValues.noOfWorkers}
-              onChange={(event) =>
-                setFormValues((current) => ({
-                  ...current,
-                  noOfWorkers: event.target.value,
-                }))
-              }
-              sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
-            />
-              );
-            })()}
-          </FieldWrapper>
-
-          <FieldWrapper label="No. of Working Hours" required>
-            {(() => {
-              const errorText = hasSubmitted
-                ? getSlicingFormError("noOfWorkingHours", formValues)
-                : "";
-
-              return (
-            <TextField
-              error={Boolean(errorText)}
-              fullWidth
-              helperText={errorText}
-              size="small"
-              value={formValues.noOfWorkingHours}
-              onChange={(event) =>
-                setFormValues((current) => ({
-                  ...current,
-                  noOfWorkingHours: event.target.value,
-                }))
-              }
-              sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
-            />
-              );
-            })()}
-          </FieldWrapper>
-
-          <FieldWrapper label="No. of Total Hours" required>
-            {(() => {
-              const errorText = hasSubmitted
-                ? getSlicingFormError("noOfTotalHours", formValues)
-                : "";
-
-              return (
-            <TextField
-              error={Boolean(errorText)}
-              fullWidth
-              helperText={errorText}
-              size="small"
-              value={formValues.noOfTotalHours}
-              onChange={(event) =>
-                setFormValues((current) => ({
-                  ...current,
-                  noOfTotalHours: event.target.value,
-                }))
-              }
-              sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
-            />
-              );
-            })()}
-          </FieldWrapper>
         </Box>
 
-        <Stack sx={{ gap: theme.spacing(2) }}>
+        <Stack sx={{ gap: theme.spacing(1.5) }}>
+          <Typography
+            sx={(currentTheme) => ({
+              color: currentTheme.customTokens.text.secondary,
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            })}
+          >
+            Process Details
+          </Typography>
           <Box
             sx={{
               border: `1px solid ${theme.customTokens.borders.default}`,
@@ -529,8 +504,23 @@ export function SlicingCreatePage() {
             sx={{
               display: "flex",
               justifyContent: "flex-end",
+              alignItems: "center",
+              gap: theme.spacing(1.5),
+              flexWrap: "wrap",
             }}
           >
+            {draftSubmitAttempted && draftProjectedOverflow ? (
+              <Typography
+                sx={(currentTheme) => ({
+                  color: currentTheme.palette.error.main,
+                  fontSize: "0.75rem",
+                  fontWeight: 500,
+                  mr: "auto",
+                })}
+              >
+                {draftProjectedOverflow}
+              </Typography>
+            ) : null}
             <Button
               disableElevation
               onClick={handleAddLineItem}
@@ -543,6 +533,18 @@ export function SlicingCreatePage() {
           </Box>
 
           {lineItems.length > 0 ? (
+            <Stack spacing={1}>
+              <Typography
+                sx={(currentTheme) => ({
+                  color: currentTheme.customTokens.text.secondary,
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                })}
+              >
+                Processed Items
+              </Typography>
             <Box
               sx={{
                 border: `1px solid ${theme.customTokens.borders.default}`,
@@ -648,13 +650,28 @@ export function SlicingCreatePage() {
                 </Table>
               </Box>
             </Box>
+            </Stack>
+          ) : null}
+
+          {showBalanceSummary && quantityConfig ? (
+            <FactoryProcessBalanceSummary
+              balanceQuantity={balanceSummary.balanceQuantity}
+              errorText={
+                hasSubmitted || draftSubmitAttempted
+                  ? quantityOverflowError
+                  : ""
+              }
+              processedQuantity={balanceSummary.processedQuantity}
+              sourceQuantity={balanceSummary.sourceQuantity}
+              unitLabel={quantityConfig.unitLabel}
+            />
           ) : null}
         </Stack>
 
         <Box
           sx={{
             display: "flex",
-            justifyContent: "center",
+            justifyContent: "flex-end",
             gap: theme.spacing(1),
             flexWrap: "wrap",
           }}
@@ -682,20 +699,36 @@ export function SlicingCreatePage() {
                 lineItems.length === 0 ||
                 (draftHasValues && hasValidationErrors(draftErrors)) ||
                 Boolean(editingRowId && hasValidationErrors(editingErrors));
+              const quantityInvalid = Boolean(quantityOverflowError);
 
               if (lineItemsInvalid) {
                 setDraftSubmitAttempted(true);
                 setEditingSubmitAttempted(Boolean(editingRowId));
               }
 
-              if (hasSlicingFormErrors(formValues) || lineItemsInvalid) {
+              if (
+                hasSlicingFormErrors(formValues) ||
+                lineItemsInvalid ||
+                quantityInvalid
+              ) {
                 return;
+              }
+
+              if (quantityConfig && originalQuantity > 0) {
+                appendFactoryProcessRun({
+                  stageSlug: "slicing",
+                  sourceKey: sourceAllocationKey,
+                  processedNow: currentProcessedQuantity,
+                  wastageNow: 0,
+                  pendingBalance: Math.max(0, balanceSummary.balanceQuantity),
+                  remark: "",
+                });
               }
 
               navigate(paths.list);
             }}
           >
-            Submit
+            Save Process
           </Button>
         </Box>
       </Stack>
@@ -720,11 +753,6 @@ function FieldWrapper({
         sx={{ display: "flex", gap: 0.25 }}
       >
         <span>{label}</span>
-        {required ? (
-          <Box component="span" sx={(theme) => ({ color: theme.palette.error.main })}>
-            *
-          </Box>
-        ) : null}
       </Typography>
       {children}
     </Stack>
@@ -755,6 +783,49 @@ function buildSourceSummary(sourceRow?: SourceRow): SlicingSourceSummary {
   };
 }
 
+function buildSlicingSourceOverviewItems(
+  sourceSummary: SlicingSourceSummary,
+  sourceRow?: SourceRow,
+) {
+  const sourceProcess =
+    getStringValue(sourceRow, ["issuedFrom", "issuedFor", "process", "warehouseName"]) ||
+    "Warehouse B";
+  const orderNo = getStringValue(sourceRow, ["orderNo"]);
+  const orderItemNo = getStringValue(sourceRow, ["orderItemNo"]);
+  const bundleLot =
+    getStringValue(sourceRow, ["bundleNumber", "palletNo", "groupNo", "lotNo", "logNo"]);
+  const originalLeaves =
+    getStringValue(sourceRow, [
+      "noOfLeaves",
+      "issuedLeaves",
+      "noOfLeavesSheets",
+      "availableUnits",
+      "totalUnits",
+    ]) || sourceSummary.cmt;
+
+  return [
+    { label: "Reference No", value: sourceSummary.srNo },
+    { label: "Source Process / Warehouse", value: sourceProcess },
+    ...(orderNo ? [{ label: "Order No", value: orderNo }] : []),
+    ...(orderItemNo ? [{ label: "Order Item No", value: orderItemNo }] : []),
+    { label: "Item Name", value: sourceSummary.itemName },
+    { label: "Sub Category", value: sourceSummary.itemSubCategory },
+    { label: "Color", value: sourceSummary.color },
+    {
+      label: "Dimensions",
+      value: [sourceSummary.length, sourceSummary.width]
+        .filter(Boolean)
+        .join(" × "),
+    },
+    { label: "Thickness", value: sourceSummary.height },
+    ...(bundleLot ? [{ label: "Bundle / Pallet / Lot", value: bundleLot }] : []),
+    { label: "Original Quantity", value: originalLeaves },
+    { label: "CMT", value: sourceSummary.cmt },
+    { label: "Amount", value: sourceSummary.amount },
+    { label: "Remark", value: sourceSummary.remark },
+  ];
+}
+
 function createDefaultLineItemValues(
   sourceSummary: SlicingSourceSummary,
   sourceRow?: SourceRow,
@@ -764,13 +835,7 @@ function createDefaultLineItemValues(
     color: sourceSummary.color,
     thickness:
       getStringValue(sourceRow, ["thickness", "height"]) || sourceSummary.height,
-    noOfLeaves:
-      getStringValue(sourceRow, [
-        "issuedLeaves",
-        "noOfLeaves",
-        "noOfLeavesSheets",
-        "totalNoOfSheets",
-      ]) || "2",
+    noOfLeaves: "",
     character: "",
     pattern: "",
     series: "",
@@ -812,20 +877,10 @@ const slicingFormFieldLabels: Record<keyof SlicingFormValues, string> = {
 };
 
 function getSlicingFormError(
-  key: keyof SlicingFormValues,
-  values: SlicingFormValues,
+  _key: keyof SlicingFormValues,
+  _values: SlicingFormValues,
 ) {
-  const value = values[key];
-
-  if (value instanceof Date) {
-    return "";
-  }
-
-  if (typeof value === "string" && value.trim().length > 0) {
-    return "";
-  }
-
-  return `${slicingFormFieldLabels[key]} is required.`;
+  return "";
 }
 
 function getLineItemValidationErrors(values: SlicingLineItemValues) {
@@ -858,13 +913,13 @@ function getFieldValidationError(
   return "";
 }
 
-function isLineItemColumnRequired(column: LineItemColumn) {
-  return column.key !== "remark";
+function isLineItemColumnRequired(_column: LineItemColumn) {
+  return false;
 }
 
 function ColumnLabel({
   label,
-  required,
+  required: _required,
 }: {
   label: string;
   required: boolean;
@@ -872,7 +927,6 @@ function ColumnLabel({
   return (
     <Stack component="span" direction="row" spacing={0.25}>
       <span>{label}</span>
-      {required ? <span>*</span> : null}
     </Stack>
   );
 }
@@ -911,33 +965,23 @@ function calculateCmt(length: string, width: string, height: string) {
   const heightValue = Number.parseFloat(height.replace(/[^\d.]/g, "")) || 0;
 
   if (!lengthValue || !widthValue || !heightValue) {
-    return "0.000";
+    return formatSQM(0);
   }
 
-  return ((lengthValue * widthValue * heightValue) / 1000).toFixed(3);
+  return formatSQM((lengthValue * widthValue * heightValue) / 1000);
 }
 
 function getHeaderCellSx(theme: Theme, minWidth: number) {
   return {
-    minWidth,
-    backgroundColor: theme.customTokens.brand.primary,
-    borderBottom: `1px solid ${theme.customTokens.brand.primaryScale[800]}`,
-    borderRight: `1px solid ${theme.customTokens.brand.primaryScale[800]}`,
-    color: theme.customTokens.text.inverse,
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: 700,
-    py: theme.spacing(1.5),
-    whiteSpace: "nowrap",
+    ...transactionTableHeaderCellSx(theme, minWidth),
+    borderRight: `1px solid ${theme.customTokens.borders.divider}`,
   } as const;
 }
 
 function getBodyCellSx(theme: Theme) {
   return {
-    borderBottom: `1px solid ${theme.customTokens.borders.default}`,
-    borderRight: `1px solid ${theme.customTokens.borders.default}`,
-    py: theme.spacing(1),
-    verticalAlign: "top",
-    whiteSpace: "nowrap",
+    ...transactionTableBodyCellSx(theme),
+    borderRight: `1px solid ${theme.customTokens.borders.divider}`,
   } as const;
 }
 
@@ -947,7 +991,7 @@ function getActionHeaderCellSx(theme: Theme, minWidth: number) {
     position: "sticky" as const,
     right: 0,
     zIndex: 3,
-    boxShadow: `-1px 0 0 ${theme.customTokens.brand.primaryScale[800]}`,
+    boxShadow: `-1px 0 0 ${theme.customTokens.borders.default}`,
   } as const;
 }
 

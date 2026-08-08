@@ -7,8 +7,8 @@ import {
   type UserManagementRecord,
 } from "./userManagementConfig";
 
-const USER_MANAGEMENT_STORAGE_KEY = "deluxe-veneers-user-management-records";
-const USER_PASSWORD_STORAGE_KEY = "deluxe-veneers-user-management-passwords";
+const USER_MANAGEMENT_STORAGE_KEY = "deluxe-veneers-user-management-records-v2";
+const USER_PASSWORD_STORAGE_KEY = "deluxe-veneers-user-management-passwords-v2";
 const SYSTEM_USER_NAME = "Atharva Patil";
 const DEFAULT_USER_PASSWORD = "admin";
 

@@ -4,6 +4,12 @@ import type {
 } from "../../../components/data-display/EnterpriseDataTable";
 import type { MasterFieldDefinition } from "../../masters/shared";
 import {
+  formatAmount,
+  formatMeasurement,
+  formatSQM,
+  formatSqfFromSqm,
+} from "../../shared/numberFormat";
+import {
   createFactoryRows,
   createSection,
   expandFactoryRowsForTabs,
@@ -146,28 +152,26 @@ const productNames = [
 const grades = ["A", "B", "Premium", "Select", "Commercial", "Export"] as const;
 const cuts = ["Quarter Cut", "Crown Cut", "Rift Cut", "Natural", "Rotary", "Plain"] as const;
 const shifts = ["Day", "Morning", "General", "Evening", "Night", "Second"] as const;
-const SQM_TO_SQF = 10.7639;
 
 function day(value: number) {
   return asDate(`2026-07-${String(value).padStart(2, "0")}`);
 }
 
 function amount(index: number, base = 42000) {
-  return `${(base + index * 8250).toLocaleString("en-IN")}.00`;
+  return formatAmount(base + index * 8250);
 }
 
 function toSqf(sqm: string) {
-  const value = Number.parseFloat(sqm);
-  return Number.isFinite(value) ? (value * SQM_TO_SQF).toFixed(3) : "";
+  return formatSqfFromSqm(sqm);
 }
 
 function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") {
   const sequence = index + 1;
-  const sqm = (95.25 + index * 8.4).toFixed(3);
-  const consumedSqm = (54.2 + index * 4.4).toFixed(3);
-  const consumeSqm = (42.1 + index * 3.3).toFixed(3);
-  const issuedSqm = (72.4 + index * 6.2).toFixed(3);
-  const outputSqm = (64.8 + index * 5.8).toFixed(3);
+  const sqm = formatSQM(95.25 + index * 8.4);
+  const consumedSqm = formatSQM(54.2 + index * 4.4);
+  const consumeSqm = formatSQM(42.1 + index * 3.3);
+  const issuedSqm = formatSQM(72.4 + index * 6.2);
+  const outputSqm = formatSQM(64.8 + index * 5.8);
 
   return {
     issuedFrom: warehouseName,
@@ -208,7 +212,7 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
     orderItemNo: `ITEM-${String(sequence).padStart(3, "0")}`,
     productName: productNames[index % productNames.length],
     logNo: `LOG-${String(3000 + sequence)}`,
-    cmt: (1.18 + index * 0.16).toFixed(3),
+    cmt: formatMeasurement(1.18 + index * 0.16),
     noOfSheets: String(18 + index * 2),
     noOfLeaves: String(42 + index * 3),
     cut: cuts[index % cuts.length],
@@ -262,7 +266,7 @@ function factoryRows(
 ) {
   return createFactoryRows<FactoryRecord>(
     prefix,
-    Array.from({ length: 6 }, (_, index) => {
+    Array.from({ length: 2 }, (_, index) => {
       const row = commonRow(index, warehouseName) as FactoryRowSeed;
       return override ? override(row, index) : row;
     }),
@@ -284,10 +288,28 @@ const groupingRows = factoryRows("grouping", "Warehouse C", (row) => ({
   issuedFor: "Splicing",
 }));
 
-const sampleSheetRows = factoryRows("sample-sheets", "Warehouse C", (row) => ({
-  ...row,
-  issuedFor: "Finishing",
-}));
+const sampleSheetProcessTypes = [
+  "Fluting",
+  "Embossing",
+  "Finishing",
+  "Decorative",
+  "Marquetry",
+  "Fluting",
+] as const;
+
+const sampleSheetRows = factoryRows("sample-sheets", "Warehouse C", (row, index) => {
+  const sampleProcessType =
+    sampleSheetProcessTypes[index % sampleSheetProcessTypes.length]!;
+
+  return {
+    ...row,
+    issuedFrom: "Grouping",
+    issuedFor: "",
+    sampleProcessType,
+    finishType: sampleProcessType,
+    purpose: `${sampleProcessType} Sample Sheet`,
+  };
+});
 
 const splicingRows = factoryRows("splicing", "Warehouse C", (row) => ({
   ...row,
@@ -480,10 +502,6 @@ const groupingCreateFields = [
   ["sqf", "SQF"],
   ["amount", "Amount"],
   ["groupingDate", "Grouping Date"],
-  ["shift", "Shift"],
-  ["workers", "Workers"],
-  ["noOfWorkingHours", "No of Working Hours"],
-  ["noOfTotalHours", "No of Total Hours"],
 ] as const;
 
 const groupingAddItemFields = [
@@ -528,10 +546,6 @@ const splicingAddItemFields = [
 
 const pressingCreateFields = [
   ["pressingDate", "Pressing Date"],
-  ["shift", "Shift"],
-  ["noOfWorkers", "No of Workers"],
-  ["noOfWorkingHours", "No of Working Hours"],
-  ["noOfTotalHours", "No of Total Hours"],
 ] as const;
 
 const pressingAddItemFields = [
@@ -572,11 +586,7 @@ const cncCreateFields = [
   ["issuedSqm", "SQM"],
   ["issuedSqf", "SQF"],
   ["issueRemark", "Remark"],
-  ["cncDate", "CNC Date"],
-  ["shift", "Shift"],
-  ["workers", "Workers"],
-  ["noOfWorkingHours", "No of Working Hours"],
-  ["noOfTotalHours", "No of Total Hours"],
+  ["cncDate", "CNC / Fluting Date"],
   ["outputNoOfSheets", "No of Sheets"],
   ["outputSqm", "SQM"],
   ["outputSqf", "SQF"],
@@ -598,10 +608,6 @@ const finishingCreateFields = [
   ["issuedSqf", "SQF"],
   ["issueRemark", "Remarks"],
   ["finishingDate", "Finishing Date"],
-  ["shift", "Shift"],
-  ["workers", "Workers"],
-  ["noOfWorkingHours", "No of Working Hours"],
-  ["noOfTotalHours", "No of Total Hours"],
   ["outputNoOfSheets", "No of Sheets"],
   ["outputSqm", "SQM"],
   ["outputSqf", "SQF"],

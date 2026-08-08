@@ -1,23 +1,31 @@
+import type { LucideIcon } from "lucide-react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 
 import {
-  ErpBreadcrumbs,
-  type ErpBreadcrumbItem,
-} from "../../../components/navigation/ErpBreadcrumbs";
+  PageHeader,
+  type PageHeaderBackNav,
+} from "../../../components/navigation/PageHeader";
+import type { ErpBreadcrumbItem } from "../../../components/navigation/ErpBreadcrumbs";
 
 interface MasterPageShellProps extends PropsWithChildren {
-  breadcrumbs: ErpBreadcrumbItem[];
-  title: string;
   actions?: ReactNode;
+  backNav?: PageHeaderBackNav | null;
+  breadcrumbs?: ErpBreadcrumbItem[];
   contentGap?: number;
+  icon?: LucideIcon;
+  subtitle?: string;
+  title: string;
 }
 
 export function MasterPageShell({
   actions,
-  breadcrumbs,
+  backNav,
+  breadcrumbs = [],
   children,
-  contentGap = 3,
+  contentGap = 2,
+  icon,
+  subtitle,
   title,
 }: MasterPageShellProps) {
   return (
@@ -25,37 +33,23 @@ export function MasterPageShell({
       sx={(theme) => ({
         minHeight: "100%",
         bgcolor: "background.paper",
-        px: { xs: theme.spacing(2), md: theme.spacing(3) },
-        py: { xs: theme.spacing(2), md: theme.spacing(3) },
+        px: { xs: theme.spacing(1.75), md: theme.spacing(2.5) },
+        py: { xs: theme.spacing(1.5), md: theme.spacing(1.75) },
       })}
     >
       <Stack
         sx={(theme) => ({
-          gap: theme.spacing(contentGap),
+          gap: theme.spacing(Math.min(contentGap, 1.5)),
         })}
       >
-        <Stack
-          sx={(theme) => ({
-            gap: theme.spacing(1.5),
-            pb: theme.spacing(2.5),
-            borderBottom: `1px solid ${theme.customTokens.borders.divider}`,
-          })}
-        >
-          <ErpBreadcrumbs items={breadcrumbs} />
-
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            justifyContent="space-between"
-            alignItems={{ xs: "flex-start", md: "center" }}
-            spacing={2}
-          >
-            <Typography variant="h2" color="text.primary">
-              {title}
-            </Typography>
-
-            {actions}
-          </Stack>
-        </Stack>
+        <PageHeader
+          actions={actions}
+          backNav={backNav}
+          breadcrumbs={breadcrumbs}
+          icon={icon}
+          subtitle={subtitle}
+          title={title}
+        />
 
         {children}
       </Stack>

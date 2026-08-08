@@ -17,6 +17,13 @@ import {
 import type { Theme } from "@mui/material/styles";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
+import {
+  getSelectClosedValueSx,
+  getSelectDropdownListboxSx,
+  getSelectDropdownOptionSx,
+  getSelectDropdownPaperSx,
+} from "../../../features/shared/dropdownMenuStyles";
+
 export type InteractiveFieldState =
   | "default"
   | "filled"
@@ -33,6 +40,12 @@ type BaseFieldProps = {
   placeholder?: string | undefined;
   size?: FieldSize;
   state?: InteractiveFieldState;
+  /** Optional override — Masters forms use 36px without changing other modules. */
+  controlHeight?: number | undefined;
+  /** Optional radius override (Masters: 6). */
+  controlRadius?: number | undefined;
+  /** Subtle maroon focus ring for Masters; default keeps existing glow. */
+  focusRing?: "default" | "subtle" | undefined;
 };
 
 export type ErpSelectFieldProps = BaseFieldProps & {
@@ -132,13 +145,20 @@ function formatDateLabel(value: Date | null) {
   }).format(value);
 }
 
-function getControlMetrics(theme: Theme, size: FieldSize) {
+function getControlMetrics(
+  theme: Theme,
+  size: FieldSize,
+  controlHeightOverride?: number,
+) {
+  const controlHeight =
+    controlHeightOverride ?? (size === "dense" ? 38 : 40);
+
   return {
     calendarWidth: size === "dense" ? theme.spacing(24) : theme.spacing(26),
-    controlHeight: size === "dense" ? theme.spacing(4) : theme.spacing(4.5),
+    controlHeight,
     daySize: size === "dense" ? theme.spacing(3.25) : theme.spacing(3.5),
     iconButtonSize: size === "dense" ? theme.spacing(3.25) : theme.spacing(3.5),
-    menuItemHeight: size === "dense" ? theme.spacing(4) : theme.spacing(4.5),
+    menuItemHeight: size === "dense" ? 38 : 40,
     popoverPadding: size === "dense" ? 0.75 : 1,
   } as const;
 }
@@ -147,6 +167,7 @@ function getInteractiveFieldStyles(
   theme: Theme,
   state: InteractiveFieldState = "default",
   open = false,
+  focusRing: "default" | "subtle" = "default",
 ) {
   const isDisabled = state === "disabled";
   const isError = state === "error";
@@ -162,15 +183,18 @@ function getInteractiveFieldStyles(
         ? theme.customTokens.borders.hover
         : theme.customTokens.borders.default;
 
+  const focusShadow =
+    focusRing === "subtle"
+      ? "0 0 0 1px rgba(116, 22, 22, 0.08)"
+      : `0 0 0 3px ${theme.customTokens.navigation.activeBackground}`;
+
   return {
     backgroundColor:
       isDisabled || isReadOnly
         ? theme.customTokens.surfaces.alt
         : theme.customTokens.surfaces.surface,
     borderColor,
-    boxShadow: isFocus
-      ? `0 0 0 3px ${theme.customTokens.navigation.activeBackground}`
-      : "none",
+    boxShadow: isFocus && !isError ? focusShadow : "none",
     color: isDisabled
       ? theme.palette.text.disabled
       : theme.palette.text.primary,
@@ -192,16 +216,11 @@ function FieldValue({
 
   return (
     <Typography
+      title={hasValue ? value : undefined}
       variant="body2"
       sx={{
         color: hasValue ? theme.palette.text.primary : theme.palette.text.secondary,
-        fontSize:
-          size === "dense"
-            ? theme.typography.caption.fontSize
-            : theme.typography.body2.fontSize,
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
+        ...getSelectClosedValueSx(theme, size === "dense"),
       }}
     >
       {hasValue ? value : "\u00a0"}
@@ -582,7 +601,10 @@ function CalendarSurface({
 }
 
 export function ErpSelectField({
+  controlHeight,
+  controlRadius,
   dropdownWidth,
+  focusRing = "default",
   helperText,
   maxVisibleOptions = defaultVisibleOptionLimit,
   onChange,
@@ -594,12 +616,13 @@ export function ErpSelectField({
   value,
 }: ErpSelectFieldProps) {
   const theme = useTheme();
-  const metrics = getControlMetrics(theme, size);
+  const metrics = getControlMetrics(theme, size, controlHeight);
+  const resolvedRadius = controlRadius ?? theme.customTokens.radius.md;
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [searchText, setSearchText] = useState("");
 
   const open = Boolean(anchorEl);
-  const styles = getInteractiveFieldStyles(theme, state, open);
+  const styles = getInteractiveFieldStyles(theme, state, open, focusRing);
   const shouldSearchOptions = searchable || options.length > 25;
   const visibleOptions = useMemo(
     () =>
@@ -631,6 +654,12 @@ export function ErpSelectField({
   };
 
   const fieldSearchValue = open ? searchText : value;
+  const preferredMenuMinWidth =
+    typeof dropdownWidth === "number"
+      ? dropdownWidth
+      : typeof dropdownWidth === "string"
+        ? Number.parseFloat(dropdownWidth) || undefined
+        : undefined;
 
   return (
     <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
@@ -638,6 +667,7 @@ export function ErpSelectField({
         sx={{
           position: "relative",
           width: "100%",
+          minWidth: 0,
           gap: theme.spacing(0.75),
         }}
       >
@@ -645,6 +675,7 @@ export function ErpSelectField({
           <TextField
             fullWidth
             disabled={state === "disabled"}
+            title={!open && value.trim() ? value : undefined}
             value={fieldSearchValue}
             onChange={(event) => {
               if (!open) {
@@ -686,6 +717,7 @@ export function ErpSelectField({
                           : theme.customTokens.navigation.activeText
                       }
                       size={size === "dense" ? 14 : theme.customTokens.iconSizes.sm}
+                      strokeWidth={2}
                       style={{
                         transform: open ? "rotate(180deg)" : "rotate(0deg)",
                         transition: "transform 160ms ease",
@@ -699,7 +731,7 @@ export function ErpSelectField({
               "& .MuiOutlinedInput-root": {
                 height: metrics.controlHeight,
                 minHeight: metrics.controlHeight,
-                borderRadius: `${theme.customTokens.radius.md}px`,
+                borderRadius: `${resolvedRadius}px`,
                 backgroundColor: styles.backgroundColor,
                 boxShadow: styles.boxShadow,
                 color: styles.color,
@@ -721,11 +753,12 @@ export function ErpSelectField({
                 },
               },
               "& .MuiInputBase-input": {
-                fontSize:
-                  size === "dense"
-                    ? theme.typography.caption.fontSize
-                    : theme.typography.body2.fontSize,
+                ...getSelectClosedValueSx(theme, size === "dense"),
                 py: 0,
+              },
+              "& .MuiInputAdornment-root": {
+                marginLeft: theme.spacing(0.5),
+                flexShrink: 0,
               },
             }}
           />
@@ -738,7 +771,7 @@ export function ErpSelectField({
               width: "100%",
               textAlign: "left",
               border: `1px solid ${styles.borderColor}`,
-              borderRadius: `${theme.customTokens.radius.md}px`,
+              borderRadius: `${resolvedRadius}px`,
               backgroundColor: styles.backgroundColor,
               boxShadow: styles.boxShadow,
               boxSizing: "border-box",
@@ -746,7 +779,8 @@ export function ErpSelectField({
               cursor: styles.cursor,
               height: metrics.controlHeight,
               minHeight: metrics.controlHeight,
-              px: theme.spacing(1.5),
+              pl: theme.spacing(1.5),
+              pr: theme.spacing(1),
               py: 0,
               display: "flex",
               alignItems: "center",
@@ -765,7 +799,7 @@ export function ErpSelectField({
             }}
             type="button"
           >
-            <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Box sx={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
               <FieldValue
                 size={size}
                 theme={theme}
@@ -773,18 +807,28 @@ export function ErpSelectField({
               />
             </Box>
 
-            <ChevronDown
-              color={
-                state === "disabled" || state === "readOnly"
-                  ? theme.palette.text.disabled
-                  : theme.customTokens.navigation.activeText
-              }
-              size={size === "dense" ? 14 : theme.customTokens.iconSizes.sm}
-              style={{
-                transform: open ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 160ms ease",
+            <Box
+              component="span"
+              sx={{
+                display: "inline-flex",
+                flexShrink: 0,
+                alignItems: "center",
               }}
-            />
+            >
+              <ChevronDown
+                color={
+                  state === "disabled" || state === "readOnly"
+                    ? theme.palette.text.disabled
+                    : theme.customTokens.navigation.activeText
+                }
+                size={size === "dense" ? 14 : theme.customTokens.iconSizes.sm}
+                strokeWidth={2}
+                style={{
+                  transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 160ms ease",
+                }}
+              />
+            </Box>
           </Box>
         )}
 
@@ -796,48 +840,21 @@ export function ErpSelectField({
 
         <Popper
           anchorEl={anchorEl}
+          disablePortal={false}
           open={open}
           placement="bottom-start"
           sx={{ zIndex: theme.zIndex.modal }}
         >
           <Paper
-            sx={{
-              mt: theme.spacing(0.75),
-              width: dropdownWidth ?? (anchorEl ? anchorEl.clientWidth : theme.spacing(30)),
-              minWidth: anchorEl ? anchorEl.clientWidth : undefined,
-              maxHeight: theme.spacing(30),
-              border: `1px solid ${theme.customTokens.borders.default}`,
-              borderRadius: `${theme.customTokens.radius.md}px`,
-              backgroundColor: theme.customTokens.surfaces.surface,
-              boxShadow: "none",
-              overflow: "hidden",
+            onMouseDown={(event) => {
+              // Keep portaled menu clicks from racing ClickAwayListener close.
+              event.preventDefault();
             }}
+            sx={getSelectDropdownPaperSx(theme, anchorEl?.clientWidth, {
+              preferredMinWidth: preferredMenuMinWidth,
+            })}
           >
-            <Box
-              role="listbox"
-              sx={{
-                maxHeight: theme.spacing(30),
-                overflowY: "auto",
-                overflowX: "hidden",
-                py: 0,
-                scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
-                scrollbarWidth: "thin",
-                "&::-webkit-scrollbar": {
-                  width: 6,
-                },
-                "&::-webkit-scrollbar-track": {
-                  backgroundColor: theme.customTokens.surfaces.alt,
-                  borderRadius: 999,
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  backgroundColor: theme.customTokens.brand.primary,
-                  borderRadius: 999,
-                },
-                "&::-webkit-scrollbar-thumb:hover": {
-                  backgroundColor: theme.customTokens.brand.primaryScale[800],
-                },
-              }}
-            >
+            <Box role="listbox" sx={getSelectDropdownListboxSx(theme)}>
               {visibleOptions.map((option) => {
                 const selected = option === value;
 
@@ -845,19 +862,14 @@ export function ErpSelectField({
                   <MenuItem
                     key={option}
                     selected={selected}
+                    title={option}
                     onClick={() => {
                       onChange(option);
                       setAnchorEl(null);
                     }}
                     sx={{
-                      minHeight: metrics.menuItemHeight,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      fontSize:
-                        size === "dense"
-                          ? theme.typography.caption.fontSize
-                          : theme.typography.body2.fontSize,
+                      minHeight: "auto",
+                      ...getSelectDropdownOptionSx(theme, size === "dense"),
                       "&.Mui-selected": {
                         backgroundColor: theme.customTokens.brand.primary,
                         color: theme.customTokens.text.inverse,
@@ -882,10 +894,8 @@ export function ErpSelectField({
                   disabled
                   sx={{
                     minHeight: metrics.menuItemHeight,
-                    fontSize:
-                      size === "dense"
-                        ? theme.typography.caption.fontSize
-                        : theme.typography.body2.fontSize,
+                    fontSize: "14px",
+                    fontWeight: 400,
                   }}
                 >
                   No options found
@@ -926,6 +936,9 @@ function getVisibleSelectOptions({
 }
 
 export function ErpDatePickerField({
+  controlHeight,
+  controlRadius,
+  focusRing = "default",
   helperText,
   onChange,
   placeholder: _placeholder,
@@ -934,13 +947,14 @@ export function ErpDatePickerField({
   value,
 }: ErpDatePickerFieldProps) {
   const theme = useTheme();
-  const metrics = getControlMetrics(theme, size);
+  const metrics = getControlMetrics(theme, size, controlHeight);
+  const resolvedRadius = controlRadius ?? theme.customTokens.radius.md;
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [month, setMonth] = useState<Date>(startOfMonth(value ?? new Date()));
   const [calendarView, setCalendarView] = useState<CalendarView>("days");
 
   const open = Boolean(anchorEl);
-  const styles = getInteractiveFieldStyles(theme, state, open);
+  const styles = getInteractiveFieldStyles(theme, state, open, focusRing);
 
   const displayValue = formatDateLabel(value);
   const handlePrevious = () => {
@@ -991,7 +1005,7 @@ export function ErpDatePickerField({
           width: "100%",
           textAlign: "left",
           border: `1px solid ${styles.borderColor}`,
-          borderRadius: `${theme.customTokens.radius.md}px`,
+          borderRadius: `${resolvedRadius}px`,
           backgroundColor: styles.backgroundColor,
           boxShadow: styles.boxShadow,
           boxSizing: "border-box",
@@ -1029,6 +1043,7 @@ export function ErpDatePickerField({
               : theme.customTokens.navigation.activeText
           }
           size={size === "dense" ? 14 : theme.customTokens.iconSizes.sm}
+          strokeWidth={2}
         />
       </Box>
 

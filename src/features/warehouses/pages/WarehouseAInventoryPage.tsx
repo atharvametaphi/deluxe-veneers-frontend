@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
+  CircleX,
   Eye,
   FileOutput,
   Pencil,
@@ -19,20 +20,29 @@ import {
 } from "../../../components/data-display/EnterpriseDataTable";
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { MasterPageShell } from "../../masters/shared";
-import {
-  getInventoryPaths,
-  inventoryToolbarButtonSx,
-} from "../../inventory/shared";
+import { getInventoryPaths } from "../../inventory/shared";
 import { canAccessPermission } from "../../permissions";
+import {
+  getListingToolbarButtonSx,
+  getListingToolbarOutlinedButtonSx,
+  portalButtonGroupGap,
+} from "../../shared/buttonStyles";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
+import { exportRowsToCsv } from "../../shared/exportToCsv";
 import {
   warehouseAInventoryConfigs,
   type WarehouseInventoryRow,
   type WarehouseAInventorySlug,
 } from "../shared/warehouseTableData";
 import {
+  getWarehouseAInwardRows,
+  subscribeWarehouseAInwardUpdates,
+} from "../shared/warehouseAInwardStore";
+import {
   getWarehouseQcStatus,
-  markWarehouseQcDone,
+  isWarehouseQcTransferred,
+  markWarehouseQcFail,
+  markWarehouseQcPass,
   resolveWarehouseQcRows,
   subscribeWarehouseQcStatusUpdates,
 } from "../shared/warehouseQcStore";
@@ -73,6 +83,7 @@ export function WarehouseAInventoryModulePage({
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState("");
   const [qcStatusRevision, setQcStatusRevision] = useState(0);
+  const [inwardRevision, setInwardRevision] = useState(0);
   const activeInventory = getActiveWarehouseAInventory(
     searchParams.get("inventory"),
   );
@@ -81,15 +92,30 @@ export function WarehouseAInventoryModulePage({
   const canEdit = canAccessPermission("warehouseA", "edit");
   const canView = canAccessPermission("warehouseA", "view");
   const activeInventoryListPath = `${warehouseRootPath}?inventory=${activeInventory}`;
-  const resolvedRows = useMemo(
-    () => resolveWarehouseQcRows(activeConfig.rows),
-    [activeConfig.rows, qcStatusRevision],
-  );
+  const resolvedRows = useMemo(() => {
+    const inwardRows = getWarehouseAInwardRows(activeInventory);
+    const mergedRows = mergeWarehouseARows(activeConfig.rows, inwardRows);
+
+    return resolveWarehouseQcRows(mergedRows);
+  }, [
+    activeConfig.rows,
+    activeInventory,
+    inwardRevision,
+    qcStatusRevision,
+  ]);
 
   useEffect(
     () =>
       subscribeWarehouseQcStatusUpdates(() =>
         setQcStatusRevision((current) => current + 1),
+      ),
+    [],
+  );
+
+  useEffect(
+    () =>
+      subscribeWarehouseAInwardUpdates(() =>
+        setInwardRevision((current) => current + 1),
       ),
     [],
   );
@@ -111,55 +137,68 @@ export function WarehouseAInventoryModulePage({
   const getRowActions = useMemo(
     () => (row: WarehouseInventoryRow) => {
       const actions: EnterpriseTableAction<WarehouseInventoryRow>[] = [
-      ...(canView
-        ? [
-            {
-              id: "view",
-              label: "View",
-              icon: Eye,
-              onSelect: (row: WarehouseInventoryRow) =>
-                navigate(
-                  addReturnToQuery(
-                    getInventoryPaths(
-                      row.inventorySlug,
-                      "issued",
-                      "warehouse-a",
-                    ).view(row.inventoryRecordId),
-                    activeInventoryListPath,
+        ...(canView
+          ? [
+              {
+                id: "view",
+                label: "View",
+                icon: Eye,
+                onSelect: (selectedRow: WarehouseInventoryRow) =>
+                  navigate(
+                    addReturnToQuery(
+                      getInventoryPaths(
+                        selectedRow.inventorySlug,
+                        "issued",
+                        "warehouse-a",
+                      ).view(selectedRow.inventoryRecordId),
+                      activeInventoryListPath,
+                    ),
                   ),
-                ),
-            },
-          ]
-        : []),
-      ...(canEdit
-        ? [
-            {
-              id: "edit",
-              label: "Edit",
-              icon: Pencil,
-              onSelect: (row: WarehouseInventoryRow) =>
-                navigate(
-                  addReturnToQuery(
-                    getInventoryPaths(
-                      row.inventorySlug,
-                      "issued",
-                      "warehouse-a",
-                    ).edit(row.inventoryRecordId),
-                    activeInventoryListPath,
+              },
+            ]
+          : []),
+        ...(canEdit
+          ? [
+              {
+                id: "edit",
+                label: "Edit",
+                icon: Pencil,
+                onSelect: (selectedRow: WarehouseInventoryRow) =>
+                  navigate(
+                    addReturnToQuery(
+                      getInventoryPaths(
+                        selectedRow.inventorySlug,
+                        "issued",
+                        "warehouse-a",
+                      ).edit(selectedRow.inventoryRecordId),
+                      activeInventoryListPath,
+                    ),
                   ),
-                ),
-            },
-          ]
-        : []),
+              },
+            ]
+          : []),
       ];
 
-      if (canEdit && getWarehouseQcStatus(row) !== "done") {
+      const qcStatus = getWarehouseQcStatus(row);
+      const alreadyTransferred = isWarehouseQcTransferred(row);
+
+      if (canEdit && qcStatus === "pending" && !alreadyTransferred) {
         actions.push({
-          id: "mark-qc-done",
-          label: "Mark as QC Done",
+          id: "qc-pass",
+          label: "QC Pass",
           icon: BadgeCheck,
           onSelect: (selectedRow) => {
-            markWarehouseQcDone(selectedRow);
+            markWarehouseQcPass(selectedRow);
+            setQcStatusRevision((current) => current + 1);
+          },
+        });
+        actions.push({
+          id: "qc-fail",
+          label: "QC Fail",
+          icon: CircleX,
+          tone: "danger",
+          onSelect: (selectedRow) => {
+            markWarehouseQcFail(selectedRow);
             setQcStatusRevision((current) => current + 1);
           },
         });
@@ -176,6 +215,7 @@ export function WarehouseAInventoryModulePage({
         { label: warehouseName },
         { label: activeConfig.title },
       ]}
+      subtitle="Incoming material and warehouse inventory."
       title={warehouseName}
     >
       <Stack
@@ -200,17 +240,22 @@ export function WarehouseAInventoryModulePage({
           <ClearableSearchField
             value={searchValue}
             onChange={setSearchValue}
+            placeholder="Search inventory..."
             sx={{
-              width: { xs: "100%", md: 320 },
+              width: { xs: "100%", sm: 300 },
               maxWidth: "100%",
             }}
           />
 
           <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.25}
+            direction="row"
+            spacing={portalButtonGroupGap}
             useFlexGap
-            sx={{ alignItems: { xs: "stretch", lg: "center" } }}
+            sx={{
+              alignItems: "center",
+              justifyContent: "flex-end",
+              flexWrap: "wrap",
+            }}
           >
             {canCreate ? (
               <Button
@@ -219,9 +264,9 @@ export function WarehouseAInventoryModulePage({
                   getInventoryPaths(activeInventory, "issued", "warehouse-a").add,
                   activeInventoryListPath,
                 )}
-                startIcon={<Plus size={16} />}
+                startIcon={<Plus size={15} />}
                 variant="contained"
-                sx={inventoryToolbarButtonSx}
+                sx={(theme) => getListingToolbarButtonSx(theme)}
               >
                 Add Stock
               </Button>
@@ -229,12 +274,19 @@ export function WarehouseAInventoryModulePage({
 
             <Button
               variant="outlined"
-              startIcon={<FileOutput size={16} />}
-              sx={inventoryToolbarButtonSx}
+              startIcon={<FileOutput size={15} />}
+              disabled={filteredRows.length === 0}
+              onClick={() =>
+                exportRowsToCsv(
+                  filteredRows,
+                  activeConfig.columns,
+                  `warehouse-a-${activeInventory}`,
+                )
+              }
+              sx={(theme) => getListingToolbarOutlinedButtonSx(theme)}
             >
               Export
             </Button>
-
           </Stack>
         </Stack>
 
@@ -249,6 +301,25 @@ export function WarehouseAInventoryModulePage({
       </Stack>
     </MasterPageShell>
   );
+}
+
+function mergeWarehouseARows(
+  configRows: readonly WarehouseInventoryRow[],
+  inwardRows: readonly WarehouseInventoryRow[],
+) {
+  const seenIds = new Set<string>();
+  const merged: WarehouseInventoryRow[] = [];
+
+  [...inwardRows, ...configRows].forEach((row) => {
+    if (seenIds.has(row.id)) {
+      return;
+    }
+
+    seenIds.add(row.id);
+    merged.push(row);
+  });
+
+  return merged;
 }
 
 function addReturnToQuery(path: string, returnTo: string) {

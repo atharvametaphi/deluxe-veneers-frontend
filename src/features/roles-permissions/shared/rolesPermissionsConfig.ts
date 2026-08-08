@@ -121,7 +121,7 @@ const rolePermissionSeedRows: readonly RolePermissionSeedRow[] = [
 ];
 
 const rolePermissionDetails: readonly RolePermissionDetail[] =
-  rolePermissionSeedRows.map((row, index) => ({
+  rolePermissionSeedRows.slice(0, 2).map((row, index) => ({
     id: `role-${index + 1}`,
     ...row,
     statusLabel: row.isActive ? "Active" : "Inactive",

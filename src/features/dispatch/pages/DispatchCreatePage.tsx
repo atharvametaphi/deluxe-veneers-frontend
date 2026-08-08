@@ -15,6 +15,7 @@ import {
   TableRow,
   TextField,
   Typography,
+  useTheme,
 } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
@@ -36,6 +37,22 @@ import {
   recordFormActionButtonSx,
   recordViewActionButtonSx,
 } from "../../shared/buttonStyles";
+import { FormSectionHeader } from "../../shared/formSectionStyles";
+import {
+  formatAmount as formatAmountShared,
+  formatQuantity,
+  formatSQM,
+  parseNumericValue,
+} from "../../shared/numberFormat";
+import {
+  getAutocompleteListboxSx,
+  getAutocompletePaperSx,
+  getAutocompletePopperSlotProps,
+} from "../../shared/dropdownMenuStyles";
+import {
+  transactionTableBodyCellSx,
+  transactionTableHeaderCellSx,
+} from "../../shared/listingTableStyles";
 import { ErpDatePickerField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 
 const ALL_OPTION = "All";
@@ -192,7 +209,6 @@ export function DispatchCreatePage({
   const [loadedRecords, setLoadedRecords] = useState<readonly PackingRecord[]>(
     () => (sourceRecord ? [sourceRecord] : []),
   );
-  const [showRequiredErrors, setShowRequiredErrors] = useState(false);
   const customerOptions = useMemo(
     () => uniqueOptions(dispatchSourceRecords, "customerName"),
     [dispatchSourceRecords],
@@ -262,7 +278,6 @@ export function DispatchCreatePage({
     const nextValues = buildDispatchInitialValues(sourceRecord);
     setValues(nextValues);
     setLoadedRecords(sourceRecord ? [sourceRecord] : []);
-    setShowRequiredErrors(false);
   }, [sourceRecord]);
 
   if ((mode === "edit" || mode === "view") && !sourceRecord) {
@@ -312,9 +327,11 @@ export function DispatchCreatePage({
       <MasterSectionCard>
         <Stack
           sx={(theme) => ({
-            gap: theme.spacing(3),
+            gap: theme.spacing(1.5),
           })}
         >
+          <FormSectionHeader title="Dispatch Details" />
+
           <Box
             sx={(theme) => ({
               display: "grid",
@@ -323,40 +340,29 @@ export function DispatchCreatePage({
                 md: "repeat(2, minmax(0, 1fr))",
                 xl: "repeat(4, minmax(0, 1fr))",
               },
-              gap: theme.spacing(2),
+              gap: theme.spacing(1.25),
               alignItems: "start",
             })}
           >
-            <LabeledField label="Dispatch Date" required>
+            <LabeledField label="Dispatch Date">
               <ErpDatePickerField
-                helperText={
-                  showRequiredErrors && !values.dispatchDate
-                    ? "Dispatch Date is required"
-                    : ""
-                }
+                helperText=""
                 onChange={(nextValue) =>
                   setValues((current) => ({
                     ...current,
                     dispatchDate: nextValue,
                   }))
                 }
-                state={
-                  readOnly
-                    ? "readOnly"
-                    : showRequiredErrors && !values.dispatchDate
-                      ? "error"
-                      : "default"
-                }
+                state={readOnly ? "readOnly" : "default"}
                 value={values.dispatchDate}
               />
             </LabeledField>
 
             <SingleSelectField
               disabled={readOnly}
-              error={showRequiredErrors && !values.customerName}
+              error={false}
               label="Customer Name"
               options={customerOptions}
-              required
               value={values.customerName}
               onChange={(nextValue) => {
                 setValues((current) => ({
@@ -374,10 +380,9 @@ export function DispatchCreatePage({
 
             <MultiSelectField
               disabled={readOnly || !values.customerName}
-              error={showRequiredErrors && values.orderCategories.length === 0}
+              error={false}
               label="Order Category"
               options={orderCategoryOptions}
-              required
               value={values.orderCategories}
               onChange={(nextValue) => {
                 setValues((current) => ({
@@ -394,10 +399,9 @@ export function DispatchCreatePage({
 
             <MultiSelectField
               disabled={readOnly || values.orderCategories.length === 0}
-              error={showRequiredErrors && values.productCategories.length === 0}
+              error={false}
               label="Product Category"
               options={productCategoryOptions}
-              required
               value={values.productCategories}
               onChange={(nextValue) => {
                 setValues((current) => ({
@@ -414,7 +418,7 @@ export function DispatchCreatePage({
             {canSelectPackingList ? (
               <MultiSelectField
                 disabled={readOnly}
-                error={showRequiredErrors && values.packingList.length === 0}
+                error={false}
                 label="Packing List"
                 labelAction={
                   !readOnly ? (
@@ -427,7 +431,6 @@ export function DispatchCreatePage({
                         ),
                       );
                       setLoadedRecords(selectedRecords);
-                      setShowRequiredErrors(false);
                     }}
                     sx={loadButtonSx}
                     variant="contained"
@@ -437,7 +440,6 @@ export function DispatchCreatePage({
                   ) : null
                 }
                 options={packingListOptions}
-                required
                 showAllOption
                 showCheckboxes
                 value={values.packingList}
@@ -455,9 +457,8 @@ export function DispatchCreatePage({
 
             <TextInputField
               disabled={readOnly}
-              error={showRequiredErrors && !values.buyerAddress}
+              error={false}
               label="Address of Buyer"
-              required
               value={values.buyerAddress}
               onChange={(nextValue) =>
                 setValues((current) => ({ ...current, buyerAddress: nextValue }))
@@ -466,9 +467,8 @@ export function DispatchCreatePage({
 
             <TextInputField
               disabled={readOnly}
-              error={showRequiredErrors && !values.sellerAddress}
+              error={false}
               label="Address of Seller"
-              required
               value={values.sellerAddress}
               onChange={(nextValue) =>
                 setValues((current) => ({ ...current, sellerAddress: nextValue }))
@@ -477,10 +477,9 @@ export function DispatchCreatePage({
 
             <SingleSelectField
               disabled={readOnly}
-              error={showRequiredErrors && !values.transactionType}
+              error={false}
               label="Transaction Type"
               options={transactionTypeOptions}
-              required
               value={values.transactionType}
               onChange={(nextValue) =>
                 setValues((current) => ({
@@ -492,10 +491,9 @@ export function DispatchCreatePage({
 
             <SingleSelectField
               disabled={readOnly}
-              error={showRequiredErrors && !values.transporter}
+              error={false}
               label="Transporter"
               options={transporterMasterOptions}
-              required
               value={values.transporter}
               onChange={(nextValue) =>
                 setValues((current) => ({ ...current, transporter: nextValue }))
@@ -504,10 +502,9 @@ export function DispatchCreatePage({
 
             <SingleSelectField
               disabled={readOnly}
-              error={showRequiredErrors && !values.transportMode}
+              error={false}
               label="Transport Mode"
               options={transportModeOptions}
-              required
               value={values.transportMode}
               onChange={(nextValue) =>
                 setValues((current) => ({ ...current, transportMode: nextValue }))
@@ -523,13 +520,6 @@ export function DispatchCreatePage({
               }
             />
           </Box>
-
-          {showRequiredErrors && !hasLoadedItems ? (
-            <Alert severity="warning">
-              Select customer, order category, product category, packing list and
-              click Load before submitting dispatch.
-            </Alert>
-          ) : null}
 
           {hasLoadedItems ? (
             <>
@@ -582,24 +572,6 @@ export function DispatchCreatePage({
                 <Button
                   type="button"
                   onClick={() => {
-                    setShowRequiredErrors(true);
-
-                    if (
-                      !values.dispatchDate ||
-                      !values.customerName ||
-                      values.orderCategories.length === 0 ||
-                      values.productCategories.length === 0 ||
-                      values.packingList.length === 0 ||
-                      !values.buyerAddress ||
-                      !values.sellerAddress ||
-                      !values.transactionType ||
-                      !values.transporter ||
-                      !values.transportMode ||
-                      !hasLoadedItems
-                    ) {
-                      return;
-                    }
-
                     loadedRecords.forEach((record) => {
                       const itemAmount = parseAmount(record.amount);
                       const grandTotal = itemAmount * 1.18;
@@ -662,13 +634,13 @@ function SingleSelectField({
   required?: boolean;
   value: string;
 }) {
+  const theme = useTheme();
   const normalizedOptions = uniqueStrings([value, ...options]);
 
   return (
     <LabeledField label={label} required={Boolean(required)}>
       <Autocomplete
         disabled={disabled}
-        disablePortal
         options={normalizedOptions}
         value={value || null}
         onChange={(_, nextValue) => onChange(nextValue ?? "")}
@@ -678,12 +650,31 @@ function SingleSelectField({
             error={error}
             helperText={error ? `${label} is required` : undefined}
             size="small"
-            sx={fieldSx}
+            title={value.trim() ? value : undefined}
+            sx={{
+              ...fieldSx,
+              "& .MuiInputBase-input": {
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              },
+            }}
           />
         )}
+        renderOption={(props, option) => (
+          <li {...props} title={option}>
+            {option}
+          </li>
+        )}
         slotProps={{
+          popper: {
+            ...getAutocompletePopperSlotProps(theme, 420),
+          },
           paper: {
-            sx: dropdownPaperSx,
+            sx: getAutocompletePaperSx(theme),
+          },
+          listbox: {
+            sx: getAutocompleteListboxSx(theme),
           },
         }}
       />
@@ -714,6 +705,7 @@ function MultiSelectField({
   showCheckboxes?: boolean;
   value: readonly string[];
 }) {
+  const theme = useTheme();
   const normalizedOptions = uniqueStrings([...value, ...options]);
   const finalOptions =
     showAllOption && normalizedOptions.length > 0
@@ -730,7 +722,6 @@ function MultiSelectField({
         multiple
         disableCloseOnSelect
         disabled={disabled}
-        disablePortal
         options={finalOptions}
         value={[...value]}
         onChange={(_, nextValue) => {
@@ -750,15 +741,21 @@ function MultiSelectField({
                 key={key}
                 label={option}
                 size="small"
+                title={option}
                 {...tagProps}
-                sx={(theme) => ({
+                sx={(currentTheme) => ({
                   height: 22,
-                  borderRadius: `${theme.customTokens.radius.pill}px`,
-                  backgroundColor: theme.customTokens.surfaces.paper,
-                  color: theme.customTokens.text.secondary,
-                  fontSize: theme.typography.caption.fontSize,
+                  maxWidth: 220,
+                  borderRadius: `${currentTheme.customTokens.radius.pill}px`,
+                  backgroundColor: currentTheme.customTokens.surfaces.paper,
+                  color: currentTheme.customTokens.text.secondary,
+                  fontSize: currentTheme.typography.caption.fontSize,
+                  "& .MuiChip-label": {
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  },
                   "& .MuiChip-deleteIcon": {
-                    color: theme.customTokens.neutrals[500],
+                    color: currentTheme.customTokens.neutrals[500],
                     fontSize: 15,
                   },
                 })}
@@ -776,21 +773,26 @@ function MultiSelectField({
             <Box
               component="li"
               {...props}
-              sx={(theme) => ({
-                alignItems: "center",
-                gap: showCheckboxes ? theme.spacing(1) : 0,
-                fontSize: theme.typography.body2.fontSize,
+              title={option}
+              sx={(currentTheme) => ({
+                alignItems: "flex-start",
+                gap: showCheckboxes ? currentTheme.spacing(1) : 0,
+                fontSize: currentTheme.typography.body2.fontSize,
+                whiteSpace: "normal",
+                overflowWrap: "anywhere",
+                lineHeight: 1.35,
               })}
             >
               {showCheckboxes ? (
                 <Checkbox
                   checked={checked}
                   size="small"
-                  sx={(theme) => ({
-                    color: theme.customTokens.neutrals[500],
+                  sx={(currentTheme) => ({
+                    color: currentTheme.customTokens.neutrals[500],
                     p: 0,
+                    mt: 0.25,
                     "&.Mui-checked": {
-                      color: theme.palette.primary.main,
+                      color: currentTheme.palette.primary.main,
                     },
                   })}
                 />
@@ -809,8 +811,14 @@ function MultiSelectField({
           />
         )}
         slotProps={{
+          popper: {
+            ...getAutocompletePopperSlotProps(theme, 420),
+          },
           paper: {
-            sx: dropdownPaperSx,
+            sx: getAutocompletePaperSx(theme),
+          },
+          listbox: {
+            sx: getAutocompleteListboxSx(theme),
           },
         }}
       />
@@ -884,17 +892,6 @@ function LabeledField({
           })}
         >
           {label}
-          {required ? (
-            <Box
-              component="span"
-              sx={(theme) => ({
-                color: theme.palette.error.main,
-                ml: theme.spacing(0.25),
-              })}
-            >
-              *
-            </Box>
-          ) : null}
         </Typography>
         {labelAction}
       </Box>
@@ -1076,34 +1073,35 @@ function uniqueStrings(values: readonly string[]) {
 }
 
 function parseAmount(value: string) {
-  const numericValue = Number(value.replace(/,/g, ""));
-  return Number.isFinite(numericValue) ? numericValue : 0;
+  return parseNumericValue(value) ?? 0;
 }
 
 function formatAmount(value: number) {
-  return value.toLocaleString("en-IN", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-  });
+  return formatAmountShared(value);
 }
 
 function formatPlainNumber(value: number, fractionDigits: number) {
-  return value.toLocaleString("en-IN", {
-    maximumFractionDigits: fractionDigits,
-    minimumFractionDigits: fractionDigits,
-  });
+  if (fractionDigits === 0) {
+    return formatQuantity(value);
+  }
+
+  if (fractionDigits === 3) {
+    return formatSQM(value);
+  }
+
+  return formatAmountShared(value);
 }
 
 const fieldSx: SxProps<Theme> = (theme) => ({
   "& .MuiOutlinedInput-root": {
     border: `1px solid ${theme.customTokens.neutrals[400]}`,
-    height: 36,
-    minHeight: 36,
+    height: 34,
+    minHeight: 34,
     borderRadius: `${theme.customTokens.radius.md}px`,
     backgroundColor: theme.palette.common.white,
     boxSizing: "border-box",
     color: theme.customTokens.text.primary,
-    fontSize: theme.typography.body2.fontSize,
+    fontSize: "0.8125rem",
     py: 0,
     "& .MuiOutlinedInput-notchedOutline": {
       border: "none",
@@ -1166,34 +1164,6 @@ const loadButtonSx: SxProps<Theme> = (theme) => ({
   },
 });
 
-const dropdownPaperSx: SxProps<Theme> = (theme) => ({
-  border: `1px solid ${theme.customTokens.borders.default}`,
-  borderRadius: `${theme.customTokens.radius.md}px`,
-  boxShadow: "none",
-  mt: theme.spacing(0.5),
-  "& .MuiAutocomplete-listbox": {
-    maxHeight: 240,
-    overflowX: "hidden",
-    p: 0,
-    "&::-webkit-scrollbar": {
-      width: 8,
-    },
-    "&::-webkit-scrollbar-thumb": {
-      backgroundColor: theme.palette.primary.main,
-      borderRadius: theme.customTokens.radius.pill,
-    },
-    "&::-webkit-scrollbar-track": {
-      backgroundColor: theme.customTokens.surfaces.paper,
-    },
-  },
-  "& .MuiAutocomplete-option": {
-    minHeight: 34,
-    "&.Mui-focused, &[aria-selected='true']": {
-      backgroundColor: theme.customTokens.navigation.hoverBackground,
-    },
-  },
-});
-
 const tableContainerSx: SxProps<Theme> = (theme) => ({
   border: `1px solid ${theme.customTokens.borders.default}`,
   borderRadius: `${theme.customTokens.radius.md}px`,
@@ -1213,15 +1183,8 @@ const tableContainerSx: SxProps<Theme> = (theme) => ({
 
 function getHeaderCellSx(theme: Theme, minWidth: number) {
   return {
-    minWidth,
-    borderRight: `1px solid ${theme.customTokens.brand.primaryScale[800]}`,
-    backgroundColor: theme.palette.primary.main,
-    color: theme.palette.common.white,
-    fontSize: "0.8125rem",
-    fontWeight: 600,
-    px: theme.spacing(1.5),
-    py: theme.spacing(1.25),
-    whiteSpace: "nowrap",
+    ...transactionTableHeaderCellSx(theme, minWidth),
+    borderRight: `1px solid ${theme.customTokens.borders.divider}`,
     "&:last-of-type": {
       borderRight: "none",
     },
@@ -1230,13 +1193,9 @@ function getHeaderCellSx(theme: Theme, minWidth: number) {
 
 function getBodyCellSx(theme: Theme) {
   return {
-    borderBottom: `1px solid ${theme.customTokens.borders.default}`,
-    borderRight: `1px solid ${theme.customTokens.borders.default}`,
+    ...transactionTableBodyCellSx(theme),
+    borderRight: `1px solid ${theme.customTokens.borders.divider}`,
     color: theme.customTokens.text.primary,
-    fontSize: "0.8125rem",
-    px: theme.spacing(1.5),
-    py: theme.spacing(1.25),
-    whiteSpace: "nowrap",
     "&:last-of-type": {
       borderRight: "none",
     },

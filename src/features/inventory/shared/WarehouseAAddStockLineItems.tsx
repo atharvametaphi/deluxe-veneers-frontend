@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import {
+  Autocomplete,
   Box,
   Button,
   IconButton,
@@ -22,14 +23,25 @@ import {
   useTheme,
 } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
-import { Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 import {
+  getHsnGstPercentage,
+  getItemMasterRecord,
+  gstMasterOptions,
+  hsnMasterOptions,
+  itemMasterOptions,
   itemSubCategoryMasterOptions,
   unitMasterOptions,
 } from "../../masters/shared/masterDefinitions";
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
+import {
+  getAutocompleteListboxSx,
+  getAutocompletePaperSx,
+  getAutocompletePopperSlotProps,
+} from "../../shared/dropdownMenuStyles";
+import { formatAmount as formatAmountShared } from "../../shared/numberFormat";
 
 export type WarehouseAAddStockSlug =
   | "veneer-blocks"
@@ -38,7 +50,17 @@ export type WarehouseAAddStockSlug =
   | "mdf"
   | "consumables";
 
-type DynamicFieldType = "text" | "select";
+export type WarehouseAGstMode = "intra" | "inter";
+
+export type WarehouseALineItemsTotals = {
+  cgst: number;
+  igst: number;
+  itemAmount: number;
+  sgst: number;
+  totalAmount: number;
+};
+
+type DynamicFieldType = "text" | "select" | "item-name" | "hsn" | "gst" | "computed";
 
 type DynamicFieldConfig = {
   key: string;
@@ -46,6 +68,7 @@ type DynamicFieldConfig = {
   minWidth: number;
   options?: readonly string[];
   placeholder: string;
+  required?: boolean;
   type: DynamicFieldType;
 };
 
@@ -55,450 +78,107 @@ type DynamicLineItem = {
 };
 
 export interface WarehouseAAddStockLineItemsHandle {
+  getFilledLineItems: () => Array<{ id: string; values: Record<string, string> }>;
   validate: () => boolean;
 }
-
-const veneerItemOptions = [
-  "Oak Veneer",
-  "Walnut Veneer",
-  "Teak Veneer",
-  "Ash Veneer",
-] as const;
-
-const plywoodColorOptions = [
-  "Natural Oak",
-  "Walnut Brown",
-  "Teak Gold",
-  "Ash Grey",
-] as const;
-
-const plywoodTypeOptions = [
-  "MR Grade",
-  "BWR Grade",
-  "Marine Grade",
-  "Flexi Plywood",
-] as const;
-
-const mdfTypeOptions = [
-  "Plain MDF",
-  "Moisture Resistant MDF",
-  "Pre-Laminated MDF",
-  "High Density MDF",
-] as const;
 
 const warehouseAAddStockTableConfigs: Record<
   WarehouseAAddStockSlug,
   readonly DynamicFieldConfig[]
 > = {
   "veneer-blocks": [
-    {
-      key: "itemName",
-      label: "Item Name",
-      minWidth: 170,
-      options: veneerItemOptions,
-      placeholder: "Select Item Name",
-      type: "select",
-    },
-    {
-      key: "itemSubCategory",
-      label: "Item Sub Category",
-      minWidth: 170,
-      options: itemSubCategoryMasterOptions,
-      placeholder: "Select Item Sub Category",
-      type: "select",
-    },
-    {
-      key: "logCode",
-      label: "Log Code",
-      minWidth: 140,
-      placeholder: "Enter Log Code",
-      type: "text",
-    },
-    {
-      key: "bundleNumber",
-      label: "Bundle Number",
-      minWidth: 150,
-      placeholder: "Enter Bundle Number",
-      type: "text",
-    },
-    {
-      key: "length",
-      label: "Length",
-      minWidth: 120,
-      placeholder: "Enter Length",
-      type: "text",
-    },
-    {
-      key: "width",
-      label: "Width",
-      minWidth: 120,
-      placeholder: "Enter Width",
-      type: "text",
-    },
-    {
-      key: "thickness",
-      label: "Thickness",
-      minWidth: 120,
-      placeholder: "Enter Thickness",
-      type: "text",
-    },
-    {
-      key: "noOfLeaves",
-      label: "No of Leaves",
-      minWidth: 140,
-      placeholder: "Enter No of Leaves",
-      type: "text",
-    },
-    {
-      key: "totalSqMeter",
-      label: "Total Sq Meter",
-      minWidth: 145,
-      placeholder: "Enter Total Sq Meter",
-      type: "text",
-    },
-    {
-      key: "amount",
-      label: "Amount",
-      minWidth: 130,
-      placeholder: "Enter Amount",
-      type: "text",
-    },
-    {
-      key: "consumables",
-      label: "Consumables",
-      minWidth: 170,
-      placeholder: "Enter Consumables",
-      type: "text",
-    },
-    {
-      key: "remark",
-      label: "Remark",
-      minWidth: 180,
-      placeholder: "Enter Remark",
-      type: "text",
-    },
+    { key: "itemName", label: "Item Name", minWidth: 260, placeholder: "Search or enter item", type: "item-name", required: true },
+    { key: "itemSubCategory", label: "Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
+    { key: "hsn", label: "HSN", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
+    { key: "logCode", label: "Log Code", minWidth: 110, placeholder: "Log Code", type: "text" },
+    { key: "bundleNumber", label: "Bundle No.", minWidth: 110, placeholder: "Bundle No.", type: "text" },
+    { key: "length", label: "Length", minWidth: 90, placeholder: "Length", type: "text", required: true },
+    { key: "width", label: "Width", minWidth: 90, placeholder: "Width", type: "text", required: true },
+    { key: "thickness", label: "Thickness", minWidth: 90, placeholder: "Thickness", type: "text", required: true },
+    { key: "noOfLeaves", label: "No. of Leaves", minWidth: 110, placeholder: "Leaves", type: "text", required: true },
+    { key: "totalSqMeter", label: "Total SQM", minWidth: 100, placeholder: "SQM", type: "text", required: true },
+    { key: "consumables", label: "Consumables", minWidth: 140, placeholder: "Enter consumables", type: "text" },
+    { key: "productAmount", label: "Product Amount", minWidth: 120, placeholder: "0.00", type: "text", required: true },
+    { key: "gstPercentage", label: "GST %", minWidth: 140, options: gstMasterOptions, placeholder: "GST %", type: "gst", required: true },
+    { key: "cgst", label: "CGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "sgst", label: "SGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "igst", label: "IGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "totalAmount", label: "Total Amount", minWidth: 120, placeholder: "0.00", type: "computed" },
+    { key: "remark", label: "Remark", minWidth: 160, placeholder: "Remark", type: "text" },
   ],
   "raw-veneer": [
-    {
-      key: "itemName",
-      label: "Item Name",
-      minWidth: 170,
-      options: veneerItemOptions,
-      placeholder: "Select Item Name",
-      type: "select",
-    },
-    {
-      key: "itemSubCategory",
-      label: "Item Sub Category",
-      minWidth: 170,
-      options: itemSubCategoryMasterOptions,
-      placeholder: "Select Item Sub Category",
-      type: "select",
-    },
-    {
-      key: "logCode",
-      label: "Log Code",
-      minWidth: 140,
-      placeholder: "Enter Log Code",
-      type: "text",
-    },
-    {
-      key: "bundleNumber",
-      label: "Bundle Number",
-      minWidth: 150,
-      placeholder: "Enter Bundle Number",
-      type: "text",
-    },
-    {
-      key: "length",
-      label: "Length",
-      minWidth: 120,
-      placeholder: "Enter Length",
-      type: "text",
-    },
-    {
-      key: "width",
-      label: "Width",
-      minWidth: 120,
-      placeholder: "Enter Width",
-      type: "text",
-    },
-    {
-      key: "thickness",
-      label: "Thickness",
-      minWidth: 120,
-      placeholder: "Enter Thickness",
-      type: "text",
-    },
-    {
-      key: "noOfLeaves",
-      label: "No of Leaves",
-      minWidth: 140,
-      placeholder: "Enter No of Leaves",
-      type: "text",
-    },
-    {
-      key: "totalSqMeter",
-      label: "Total Sq Meter",
-      minWidth: 145,
-      placeholder: "Enter Total Sq Meter",
-      type: "text",
-    },
-    {
-      key: "amount",
-      label: "Amount",
-      minWidth: 130,
-      placeholder: "Enter Amount",
-      type: "text",
-    },
-    {
-      key: "consumables",
-      label: "Consumables",
-      minWidth: 170,
-      placeholder: "Enter Consumables",
-      type: "text",
-    },
-    {
-      key: "remark",
-      label: "Remark",
-      minWidth: 180,
-      placeholder: "Enter Remark",
-      type: "text",
-    },
+    { key: "itemName", label: "Item Name", minWidth: 260, placeholder: "Search or enter item", type: "item-name", required: true },
+    { key: "itemSubCategory", label: "Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
+    { key: "hsn", label: "HSN", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
+    { key: "logCode", label: "Log Code", minWidth: 110, placeholder: "Log Code", type: "text" },
+    { key: "bundleNumber", label: "Bundle No.", minWidth: 110, placeholder: "Bundle No.", type: "text" },
+    { key: "length", label: "Length", minWidth: 90, placeholder: "Length", type: "text", required: true },
+    { key: "width", label: "Width", minWidth: 90, placeholder: "Width", type: "text", required: true },
+    { key: "thickness", label: "Thickness", minWidth: 90, placeholder: "Thickness", type: "text", required: true },
+    { key: "noOfLeaves", label: "No. of Leaves", minWidth: 110, placeholder: "Leaves", type: "text", required: true },
+    { key: "totalSqMeter", label: "Total SQM", minWidth: 100, placeholder: "SQM", type: "text", required: true },
+    { key: "consumables", label: "Consumables", minWidth: 140, placeholder: "Enter consumables", type: "text" },
+    { key: "productAmount", label: "Product Amount", minWidth: 120, placeholder: "0.00", type: "text", required: true },
+    { key: "gstPercentage", label: "GST %", minWidth: 140, options: gstMasterOptions, placeholder: "GST %", type: "gst", required: true },
+    { key: "cgst", label: "CGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "sgst", label: "SGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "igst", label: "IGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "totalAmount", label: "Total Amount", minWidth: 120, placeholder: "0.00", type: "computed" },
+    { key: "remark", label: "Remark", minWidth: 160, placeholder: "Remark", type: "text" },
   ],
   plywood: [
-    {
-      key: "itemName",
-      label: "Item Name",
-      minWidth: 170,
-      options: [
-        "Decorative Plywood",
-        "Premium Plywood",
-        "Flexi Plywood",
-        "Architectural Plywood",
-      ],
-      placeholder: "Select Item Name",
-      type: "select",
-    },
-    {
-      key: "itemSubCategory",
-      label: "Item Sub Category",
-      minWidth: 170,
-      options: itemSubCategoryMasterOptions,
-      placeholder: "Select Item Sub Category",
-      type: "select",
-    },
-    {
-      key: "color",
-      label: "Color",
-      minWidth: 150,
-      options: plywoodColorOptions,
-      placeholder: "Select Color",
-      type: "select",
-    },
-    {
-      key: "plywoodType",
-      label: "Plywood Type",
-      minWidth: 170,
-      options: plywoodTypeOptions,
-      placeholder: "Select Plywood Type",
-      type: "select",
-    },
-    {
-      key: "length",
-      label: "Length",
-      minWidth: 120,
-      placeholder: "Enter Length",
-      type: "text",
-    },
-    {
-      key: "width",
-      label: "Width",
-      minWidth: 120,
-      placeholder: "Enter Width",
-      type: "text",
-    },
-    {
-      key: "thickness",
-      label: "Thickness",
-      minWidth: 120,
-      placeholder: "Enter Thickness",
-      type: "text",
-    },
-    {
-      key: "sheets",
-      label: "Sheets",
-      minWidth: 120,
-      placeholder: "Enter Sheets",
-      type: "text",
-    },
-    {
-      key: "totalSqMeter",
-      label: "Total Sq Meter",
-      minWidth: 145,
-      placeholder: "Enter Total Sq Meter",
-      type: "text",
-    },
-    {
-      key: "amount",
-      label: "Amount",
-      minWidth: 130,
-      placeholder: "Enter Amount",
-      type: "text",
-    },
-    {
-      key: "consumables",
-      label: "Consumables",
-      minWidth: 170,
-      placeholder: "Enter Consumables",
-      type: "text",
-    },
-    {
-      key: "remarks",
-      label: "Remarks",
-      minWidth: 180,
-      placeholder: "Enter Remarks",
-      type: "text",
-    },
+    { key: "itemName", label: "Item Name", minWidth: 260, placeholder: "Search or enter item", type: "item-name", required: true },
+    { key: "itemSubCategory", label: "Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
+    { key: "hsn", label: "HSN", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
+    { key: "color", label: "Color", minWidth: 160, options: ["Natural Oak", "Walnut Brown", "Teak Gold", "Ash Grey"], placeholder: "Color", type: "select" },
+    { key: "plywoodType", label: "Plywood Type", minWidth: 180, options: ["MR Grade", "BWR Grade", "Marine Grade", "Flexi Plywood"], placeholder: "Type", type: "select" },
+    { key: "length", label: "Length", minWidth: 90, placeholder: "Length", type: "text", required: true },
+    { key: "width", label: "Width", minWidth: 90, placeholder: "Width", type: "text", required: true },
+    { key: "thickness", label: "Thickness", minWidth: 90, placeholder: "Thickness", type: "text", required: true },
+    { key: "sheets", label: "Qty", minWidth: 90, placeholder: "Qty", type: "text", required: true },
+    { key: "totalSqMeter", label: "Total SQM", minWidth: 100, placeholder: "SQM", type: "text", required: true },
+    { key: "consumables", label: "Consumables", minWidth: 140, placeholder: "Enter consumables", type: "text" },
+    { key: "productAmount", label: "Product Amount", minWidth: 120, placeholder: "0.00", type: "text", required: true },
+    { key: "gstPercentage", label: "GST %", minWidth: 140, options: gstMasterOptions, placeholder: "GST %", type: "gst", required: true },
+    { key: "cgst", label: "CGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "sgst", label: "SGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "igst", label: "IGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "totalAmount", label: "Total Amount", minWidth: 120, placeholder: "0.00", type: "computed" },
+    { key: "remarks", label: "Remark", minWidth: 160, placeholder: "Remark", type: "text" },
   ],
   mdf: [
-    {
-      key: "itemName",
-      label: "Item Name",
-      minWidth: 170,
-      options: [
-        "Plain MDF",
-        "Router MDF",
-        "Pre-Laminated MDF",
-        "High Density MDF",
-      ],
-      placeholder: "Select Item Name",
-      type: "select",
-    },
-    {
-      key: "itemSubCategory",
-      label: "Item Sub Category",
-      minWidth: 170,
-      options: itemSubCategoryMasterOptions,
-      placeholder: "Select Item Sub Category",
-      type: "select",
-    },
-    {
-      key: "mdfType",
-      label: "MDF Type",
-      minWidth: 160,
-      options: mdfTypeOptions,
-      placeholder: "Select MDF Type",
-      type: "select",
-    },
-    {
-      key: "length",
-      label: "Length",
-      minWidth: 120,
-      placeholder: "Enter Length",
-      type: "text",
-    },
-    {
-      key: "width",
-      label: "Width",
-      minWidth: 120,
-      placeholder: "Enter Width",
-      type: "text",
-    },
-    {
-      key: "thickness",
-      label: "Thickness",
-      minWidth: 120,
-      placeholder: "Enter Thickness",
-      type: "text",
-    },
-    {
-      key: "noOfSheets",
-      label: "No of Sheets",
-      minWidth: 145,
-      placeholder: "Enter No of Sheets",
-      type: "text",
-    },
-    {
-      key: "totalSqm",
-      label: "Total SQM",
-      minWidth: 140,
-      placeholder: "Enter Total SQM",
-      type: "text",
-    },
-    {
-      key: "amount",
-      label: "Amount",
-      minWidth: 130,
-      placeholder: "Enter Amount",
-      type: "text",
-    },
-    {
-      key: "consumables",
-      label: "Consumables",
-      minWidth: 170,
-      placeholder: "Enter Consumables",
-      type: "text",
-    },
-    {
-      key: "remark",
-      label: "Remark",
-      minWidth: 180,
-      placeholder: "Enter Remark",
-      type: "text",
-    },
+    { key: "itemName", label: "Item Name", minWidth: 260, placeholder: "Search or enter item", type: "item-name", required: true },
+    { key: "itemSubCategory", label: "Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
+    { key: "hsn", label: "HSN", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
+    { key: "mdfType", label: "MDF Type", minWidth: 180, options: ["Plain MDF", "Moisture Resistant MDF", "Pre-Laminated MDF", "High Density MDF"], placeholder: "Type", type: "select" },
+    { key: "length", label: "Length", minWidth: 90, placeholder: "Length", type: "text", required: true },
+    { key: "width", label: "Width", minWidth: 90, placeholder: "Width", type: "text", required: true },
+    { key: "thickness", label: "Thickness", minWidth: 90, placeholder: "Thickness", type: "text", required: true },
+    { key: "noOfSheets", label: "Qty", minWidth: 90, placeholder: "Qty", type: "text", required: true },
+    { key: "totalSqm", label: "Total SQM", minWidth: 100, placeholder: "SQM", type: "text", required: true },
+    { key: "consumables", label: "Consumables", minWidth: 140, placeholder: "Enter consumables", type: "text" },
+    { key: "productAmount", label: "Product Amount", minWidth: 120, placeholder: "0.00", type: "text", required: true },
+    { key: "gstPercentage", label: "GST %", minWidth: 140, options: gstMasterOptions, placeholder: "GST %", type: "gst", required: true },
+    { key: "cgst", label: "CGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "sgst", label: "SGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "igst", label: "IGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "totalAmount", label: "Total Amount", minWidth: 120, placeholder: "0.00", type: "computed" },
+    { key: "remark", label: "Remark", minWidth: 160, placeholder: "Remark", type: "text" },
   ],
   consumables: [
-    {
-      key: "supplierItemName",
-      label: "Supplier Item Name",
-      minWidth: 190,
-      placeholder: "Enter Supplier Item Name",
-      type: "text",
-    },
-    {
-      key: "subCategory",
-      label: "Consumable Category",
-      minWidth: 180,
-      placeholder: "Enter Consumable Category",
-      type: "text",
-    },
-    {
-      key: "itemName",
-      label: "Consumable Name",
-      minWidth: 180,
-      placeholder: "Enter Consumable Name",
-      type: "text",
-    },
-    {
-      key: "unitName",
-      label: "Unit Name",
-      minWidth: 150,
-      options: unitMasterOptions,
-      placeholder: "Select Unit Name",
-      type: "select",
-    },
-    {
-      key: "quantity",
-      label: "Quantity",
-      minWidth: 120,
-      placeholder: "Enter Quantity",
-      type: "text",
-    },
-    {
-      key: "amount",
-      label: "Amount",
-      minWidth: 130,
-      placeholder: "Enter Amount",
-      type: "text",
-    },
-    {
-      key: "remark",
-      label: "Remark",
-      minWidth: 180,
-      placeholder: "Enter Remark",
-      type: "text",
-    },
+    { key: "supplierItemName", label: "Supplier Item Name", minWidth: 220, placeholder: "Supplier Item", type: "text", required: true },
+    { key: "subCategory", label: "Sub Category", minWidth: 200, placeholder: "Sub Category", type: "text", required: true },
+    { key: "itemName", label: "Item Name", minWidth: 220, placeholder: "Item Name", type: "text", required: true },
+    { key: "unitName", label: "Unit Name", minWidth: 160, options: unitMasterOptions, placeholder: "Unit", type: "select", required: true },
+    { key: "quantity", label: "Qty", minWidth: 90, placeholder: "Qty", type: "text", required: true },
+    { key: "consumables", label: "Consumables", minWidth: 140, placeholder: "Enter consumables", type: "text" },
+    { key: "productAmount", label: "Product Amount", minWidth: 120, placeholder: "0.00", type: "text", required: true },
+    { key: "gstPercentage", label: "GST %", minWidth: 140, options: gstMasterOptions, placeholder: "GST %", type: "gst", required: true },
+    { key: "cgst", label: "CGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "sgst", label: "SGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "igst", label: "IGST", minWidth: 100, placeholder: "0.00", type: "computed" },
+    { key: "totalAmount", label: "Total Amount", minWidth: 120, placeholder: "0.00", type: "computed" },
+    { key: "remark", label: "Remark", minWidth: 160, placeholder: "Remark", type: "text" },
   ],
 };
 
@@ -511,154 +191,221 @@ export function isWarehouseAAddStockSlug(
 export const WarehouseAAddStockLineItems = forwardRef<
   WarehouseAAddStockLineItemsHandle,
   {
-    onAmountTotalChange?: (amount: number) => void;
+    gstMode?: WarehouseAGstMode;
+    onTotalsChange?: (totals: WarehouseALineItemsTotals) => void;
     slug: WarehouseAAddStockSlug;
   }
 >(function WarehouseAAddStockLineItems({
-  onAmountTotalChange,
+  gstMode = "intra",
+  onTotalsChange,
   slug,
 }, ref) {
   const theme = useTheme();
   const columnConfig = warehouseAAddStockTableConfigs[slug];
   const nextRowId = useRef(1);
-  const [draftValues, setDraftValues] = useState<Record<string, string>>(() =>
-    createEmptyValues(columnConfig),
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const [lineItems, setLineItems] = useState<DynamicLineItem[]>(() => [
+    createEmptyRow(slug, nextRowId, columnConfig),
+  ]);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [rowErrors, setRowErrors] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const [pendingFocusRowId, setPendingFocusRowId] = useState<string | null>(
+    null,
   );
-  const [lineItems, setLineItems] = useState<DynamicLineItem[]>([]);
-  const [draftSubmitAttempted, setDraftSubmitAttempted] = useState(false);
-  const [editingRowId, setEditingRowId] = useState<string | null>(null);
-  const [editingValues, setEditingValues] = useState<Record<string, string>>(
-    () => createEmptyValues(columnConfig),
-  );
-  const [editingSubmitAttempted, setEditingSubmitAttempted] = useState(false);
 
   useEffect(() => {
     nextRowId.current = 1;
-    setDraftValues(createEmptyValues(columnConfig));
-    setDraftSubmitAttempted(false);
-    setEditingRowId(null);
-    setEditingValues(createEmptyValues(columnConfig));
-    setEditingSubmitAttempted(false);
-    setLineItems([]);
-  }, [columnConfig]);
+    setLineItems([createEmptyRow(slug, nextRowId, columnConfig)]);
+    setSubmitAttempted(false);
+    setRowErrors({});
+  }, [columnConfig, slug]);
 
   useEffect(() => {
-    onAmountTotalChange?.(
-      lineItems.reduce(
-        (total, row) => total + parseAmountValue(row.values.amount ?? ""),
-        0,
-      ),
+    setLineItems((current) =>
+      current.map((row) => ({
+        ...row,
+        values: applyTaxCalculations(row.values, gstMode),
+      })),
     );
-  }, [lineItems, onAmountTotalChange]);
+  }, [gstMode]);
+
+  useEffect(() => {
+    onTotalsChange?.(summarizeLineItemTotals(lineItems));
+  }, [lineItems, onTotalsChange]);
+
+  useEffect(() => {
+    if (!pendingFocusRowId) {
+      return;
+    }
+
+    const scrollEl = tableScrollRef.current;
+    if (!scrollEl) {
+      setPendingFocusRowId(null);
+      return;
+    }
+
+    scrollEl.scrollTo({ left: 0, behavior: "smooth" });
+
+    const rowEl = scrollEl.querySelector(
+      `[data-line-item-id="${pendingFocusRowId}"]`,
+    );
+    const firstInput = rowEl?.querySelector<HTMLElement>(
+      "input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly])",
+    );
+
+    firstInput?.focus();
+    setPendingFocusRowId(null);
+  }, [lineItems, pendingFocusRowId]);
 
   const tableMinWidth = useMemo(
     () =>
-      columnConfig.reduce((total, column) => total + column.minWidth, 0) + 132,
+      columnConfig.reduce((total, column) => total + column.minWidth, 0) + 72,
     [columnConfig],
   );
 
+  const handleFieldChange = (rowId: string, key: string, value: string) => {
+    setLineItems((current) =>
+      current.map((row) => {
+        if (row.id !== rowId) {
+          return row;
+        }
+
+        let nextValues = {
+          ...row.values,
+          [key]: value,
+        };
+
+        if (key === "itemName") {
+          nextValues = applyItemMasterDefaults(nextValues, value);
+        }
+
+        if (key === "hsn" && !nextValues.gstPercentage) {
+          const gstFromHsn = getHsnGstPercentage(value);
+          if (gstFromHsn) {
+            nextValues.gstPercentage = gstFromHsn;
+          }
+        }
+
+        nextValues = applyTaxCalculations(nextValues, gstMode);
+
+        return {
+          ...row,
+          values: nextValues,
+        };
+      }),
+    );
+
+    if (submitAttempted) {
+      setRowErrors((current) => {
+        const next = { ...current };
+        const row = lineItems.find((item) => item.id === rowId);
+        let nextValues = {
+          ...(row?.values ?? {}),
+          [key]: value,
+        };
+
+        if (key === "itemName") {
+          nextValues = applyItemMasterDefaults(nextValues, value);
+        }
+
+        nextValues = applyTaxCalculations(nextValues, gstMode);
+        const errors = getLineItemValidationErrors(columnConfig, nextValues);
+
+        if (hasValidationErrors(errors)) {
+          next[rowId] = errors;
+        } else {
+          delete next[rowId];
+        }
+
+        return next;
+      });
+    }
+  };
+
   const handleAddLineItem = () => {
-    if (allValuesEmpty(draftValues)) {
-      setDraftSubmitAttempted(true);
-      return;
-    }
-
-    const validationErrors = getLineItemValidationErrors(columnConfig, draftValues);
-
-    if (hasValidationErrors(validationErrors)) {
-      setDraftSubmitAttempted(true);
-      return;
-    }
-
-    const nextId = `${slug}-${nextRowId.current}`;
-    nextRowId.current += 1;
-
-    setLineItems((current) => [
-      ...current,
-      {
-        id: nextId,
-        values: { ...draftValues },
-      },
-    ]);
-    setDraftValues(createEmptyValues(columnConfig));
-    setDraftSubmitAttempted(false);
+    const newRow = createEmptyRow(slug, nextRowId, columnConfig);
+    setLineItems((current) => [...current, newRow]);
+    setPendingFocusRowId(newRow.id);
   };
 
   const handleDeleteLineItem = (rowId: string) => {
-    setLineItems((current) => current.filter((row) => row.id !== rowId));
+    setLineItems((current) => {
+      if (current.length <= 1) {
+        return [
+          {
+            ...current[0],
+            values: createEmptyValues(columnConfig),
+          },
+        ];
+      }
 
-    if (editingRowId === rowId) {
-      setEditingRowId(null);
-      setEditingValues(createEmptyValues(columnConfig));
-      setEditingSubmitAttempted(false);
-    }
-  };
+      return current.filter((row) => row.id !== rowId);
+    });
 
-  const handleStartEdit = (row: DynamicLineItem) => {
-    setEditingRowId(row.id);
-    setEditingValues({ ...row.values });
-    setEditingSubmitAttempted(false);
-  };
-
-  const handleSaveEdit = (rowId: string) => {
-    const validationErrors = getLineItemValidationErrors(
-      columnConfig,
-      editingValues,
-    );
-
-    if (hasValidationErrors(validationErrors)) {
-      setEditingSubmitAttempted(true);
-      return;
-    }
-
-    setLineItems((current) =>
-      current.map((row) =>
-        row.id === rowId
-          ? {
-              ...row,
-              values: { ...editingValues },
-            }
-          : row,
-      ),
-    );
-    setEditingRowId(null);
-    setEditingValues(createEmptyValues(columnConfig));
-    setEditingSubmitAttempted(false);
+    setRowErrors((current) => {
+      const next = { ...current };
+      delete next[rowId];
+      return next;
+    });
   };
 
   useImperativeHandle(
     ref,
     () => ({
+      getFilledLineItems: () =>
+        lineItems
+          .filter((row) => !allValuesEmpty(row.values))
+          .map((row) => ({
+            id: row.id,
+            values: {
+              ...row.values,
+              amount: row.values.productAmount ?? row.values.amount ?? "",
+            },
+          })),
       validate: () => {
-        const draftHasValues = !allValuesEmpty(draftValues);
-        const draftErrors = getLineItemValidationErrors(columnConfig, draftValues);
-        const editingErrors = getLineItemValidationErrors(
-          columnConfig,
-          editingValues,
+        setSubmitAttempted(true);
+
+        const nextErrors: Record<string, Record<string, string>> = {};
+        const filledRows = lineItems.filter(
+          (row) => !allValuesEmpty(row.values),
         );
 
-        if (lineItems.length === 0 || (draftHasValues && hasValidationErrors(draftErrors))) {
-          setDraftSubmitAttempted(true);
+        if (filledRows.length === 0) {
+          const firstRow = lineItems[0];
+
+          if (firstRow) {
+            nextErrors[firstRow.id] = getLineItemValidationErrors(
+              columnConfig,
+              firstRow.values,
+            );
+          }
+
+          setRowErrors(nextErrors);
           return false;
         }
 
-        if (editingRowId && hasValidationErrors(editingErrors)) {
-          setEditingSubmitAttempted(true);
-          return false;
-        }
+        let isValid = true;
 
-        return true;
+        filledRows.forEach((row) => {
+          const errors = getLineItemValidationErrors(columnConfig, row.values);
+
+          if (hasValidationErrors(errors)) {
+            nextErrors[row.id] = errors;
+            isValid = false;
+          }
+        });
+
+        setRowErrors(nextErrors);
+        return isValid;
       },
     }),
-    [columnConfig, draftValues, editingRowId, editingValues, lineItems.length],
+    [columnConfig, lineItems],
   );
 
   return (
-    <Stack
-      sx={{
-        gap: theme.spacing(2),
-      }}
-    >
+    <Stack sx={{ gap: theme.spacing(1.5) }}>
       <Box
         sx={{
           border: `1px solid ${theme.customTokens.borders.default}`,
@@ -667,8 +414,11 @@ export const WarehouseAAddStockLineItems = forwardRef<
           overflow: "hidden",
         }}
       >
-        <Box sx={getScrollableTableSx(theme)}>
-          <Table size="small" sx={{ minWidth: tableMinWidth, tableLayout: "auto" }}>
+        <Box ref={tableScrollRef} sx={getScrollableTableSx(theme)}>
+          <Table
+            size="small"
+            sx={{ minWidth: tableMinWidth, tableLayout: "fixed" }}
+          >
             <TableHead>
               <TableRow>
                 {columnConfig.map((column) => (
@@ -682,168 +432,193 @@ export const WarehouseAAddStockLineItems = forwardRef<
                     />
                   </TableCell>
                 ))}
+                <TableCell sx={getActionHeaderCellSx(theme, 64)}>
+                  Actions
+                </TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
-              <TableRow
-                sx={{
-                  "&:nth-of-type(even)": {
-                    backgroundColor: theme.customTokens.surfaces.alt,
-                  },
-                }}
-              >
-                {columnConfig.map((column) => (
-                  <TableCell key={column.key} sx={getBodyCellSx(theme)}>
-                    {renderEditableField({
-                      column,
-                      onChange: (value) =>
-                        setDraftValues((current) => ({
-                          ...current,
-                          [column.key]: value,
-                        })),
-                      theme,
-                      value: draftValues[column.key] ?? "",
-                      errorText: draftSubmitAttempted
-                        ? getFieldValidationError(column, draftValues)
-                        : "",
-                    })}
-                  </TableCell>
-                ))}
-              </TableRow>
+              {lineItems.map((row, index) => {
+                const errors = rowErrors[row.id] ?? {};
+
+                return (
+                  <TableRow
+                    key={row.id}
+                    data-line-item-id={row.id}
+                    sx={{
+                      "&:nth-of-type(even)": {
+                        backgroundColor: theme.customTokens.surfaces.alt,
+                      },
+                    }}
+                  >
+                    {columnConfig.map((column) => (
+                      <TableCell key={column.key} sx={getBodyCellSx(theme)}>
+                        {renderEditableField({
+                          column,
+                          onChange: (value) =>
+                            handleFieldChange(row.id, column.key, value),
+                          theme,
+                          value: row.values[column.key] ?? "",
+                          errorText: errors[column.key] ?? "",
+                        })}
+                      </TableCell>
+                    ))}
+
+                    <TableCell
+                      align="center"
+                      sx={getActionBodyCellSx(theme, 64, index)}
+                    >
+                      <IconButton
+                        aria-label="Remove item"
+                        disabled={
+                          lineItems.length <= 1 && allValuesEmpty(row.values)
+                        }
+                        onClick={() => handleDeleteLineItem(row.id)}
+                        size="small"
+                        sx={getActionButtonSx(theme)}
+                      >
+                        <Trash2 size={15} />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Box>
       </Box>
 
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "flex-end",
-        }}
-      >
+      <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
         <Button
           disableElevation
           onClick={handleAddLineItem}
           startIcon={<Plus size={14} />}
           sx={getAddItemButtonSx(theme)}
-          variant="contained"
+          variant="outlined"
         >
           Add Item
         </Button>
       </Box>
 
-      {lineItems.length > 0 ? (
-        <Box
-          sx={{
-            border: `1px solid ${theme.customTokens.borders.default}`,
-            borderRadius: `${theme.customTokens.radius.md}px`,
-            backgroundColor: theme.customTokens.surfaces.surface,
-            overflow: "hidden",
-          }}
-        >
-          <Box sx={getScrollableTableSx(theme)}>
-            <Table
-              size="small"
-              sx={{ minWidth: tableMinWidth + 120, tableLayout: "auto" }}
-            >
-              <TableHead>
-                <TableRow>
-                  {columnConfig.map((column) => (
-                    <TableCell
-                      key={column.key}
-                      sx={getHeaderCellSx(theme, column.minWidth)}
-                    >
-                      <ColumnLabel
-                        label={column.label}
-                        required={isDynamicColumnRequired(column)}
-                      />
-                    </TableCell>
-                  ))}
-
-                  <TableCell sx={getActionHeaderCellSx(theme, 120)}>
-                    Actions
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-
-              <TableBody>
-                {lineItems.map((row, index) => {
-                  const isEditing = editingRowId === row.id;
-
-                  return (
-                    <TableRow
-                      key={row.id}
-                      sx={{
-                        "&:nth-of-type(even)": {
-                          backgroundColor: theme.customTokens.surfaces.alt,
-                        },
-                      }}
-                    >
-                      {columnConfig.map((column) => (
-                        <TableCell key={column.key} sx={getBodyCellSx(theme)}>
-                          {isEditing
-                            ? renderEditableField({
-                                column,
-                                onChange: (value) =>
-                                  setEditingValues((current) => ({
-                                    ...current,
-                                    [column.key]: value,
-                                  })),
-                                theme,
-                                value: editingValues[column.key] ?? "",
-                                errorText: editingSubmitAttempted
-                                  ? getFieldValidationError(column, editingValues)
-                                  : "",
-                              })
-                            : renderReadOnlyCell(
-                                row.values[column.key] ?? "",
-                                theme,
-                              )}
-                        </TableCell>
-                      ))}
-
-                      <TableCell
-                        align="center"
-                        sx={getActionBodyCellSx(theme, 120, index)}
-                      >
-                        <Stack
-                          direction="row"
-                          justifyContent="center"
-                          spacing={0.5}
-                        >
-                          <IconButton
-                            aria-label={isEditing ? "Save item" : "Edit item"}
-                            onClick={() =>
-                              isEditing
-                                ? handleSaveEdit(row.id)
-                                : handleStartEdit(row)
-                            }
-                            sx={getActionButtonSx(theme)}
-                          >
-                            {isEditing ? <Save size={16} /> : <Pencil size={16} />}
-                          </IconButton>
-
-                          <IconButton
-                            aria-label="Delete item"
-                            onClick={() => handleDeleteLineItem(row.id)}
-                            sx={getActionButtonSx(theme)}
-                          >
-                            <Trash2 size={16} />
-                          </IconButton>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Box>
-        </Box>
+      {submitAttempted && Object.keys(rowErrors).length > 0 ? (
+        <Typography variant="caption" color="error">
+          Complete required item fields before saving.
+        </Typography>
       ) : null}
     </Stack>
   );
 });
+
+function applyItemMasterDefaults(
+  values: Record<string, string>,
+  itemName: string,
+) {
+  const item = getItemMasterRecord(itemName);
+
+  if (!item) {
+    return values;
+  }
+
+  const nextValues = { ...values };
+  const subCategory = String(item.subCategory ?? "");
+  const hsn = String(item.hsn ?? "");
+  const gst = String(item.gst ?? "");
+
+  if (subCategory) {
+    nextValues.itemSubCategory = subCategory;
+  }
+
+  if (hsn) {
+    nextValues.hsn = hsn;
+  }
+
+  if (gst) {
+    nextValues.gstPercentage = gst;
+  } else if (hsn) {
+    const gstFromHsn = getHsnGstPercentage(hsn);
+    if (gstFromHsn) {
+      nextValues.gstPercentage = gstFromHsn;
+    }
+  }
+
+  return nextValues;
+}
+
+function applyTaxCalculations(
+  values: Record<string, string>,
+  gstMode: WarehouseAGstMode,
+) {
+  const productAmount = parseAmountValue(values.productAmount ?? "");
+  const gstPercentage = parseAmountValue(
+    (values.gstPercentage ?? "").replace(/%/g, ""),
+  );
+  const gstAmount = productAmount * (gstPercentage / 100);
+
+  let cgst = 0;
+  let sgst = 0;
+  let igst = 0;
+
+  if (gstMode === "inter") {
+    igst = gstAmount;
+  } else {
+    cgst = gstAmount / 2;
+    sgst = gstAmount / 2;
+  }
+
+  const totalAmount = productAmount + cgst + sgst + igst;
+
+  return {
+    ...values,
+    cgst: formatAmount(cgst),
+    sgst: formatAmount(sgst),
+    igst: formatAmount(igst),
+    totalAmount: formatAmount(totalAmount),
+  };
+}
+
+function summarizeLineItemTotals(
+  lineItems: readonly DynamicLineItem[],
+): WarehouseALineItemsTotals {
+  return lineItems.reduce<WarehouseALineItemsTotals>(
+    (totals, row) => {
+      if (allValuesEmpty(row.values)) {
+        return totals;
+      }
+
+      return {
+        itemAmount:
+          totals.itemAmount + parseAmountValue(row.values.productAmount ?? ""),
+        cgst: totals.cgst + parseAmountValue(row.values.cgst ?? ""),
+        sgst: totals.sgst + parseAmountValue(row.values.sgst ?? ""),
+        igst: totals.igst + parseAmountValue(row.values.igst ?? ""),
+        totalAmount:
+          totals.totalAmount + parseAmountValue(row.values.totalAmount ?? ""),
+      };
+    },
+    {
+      itemAmount: 0,
+      cgst: 0,
+      sgst: 0,
+      igst: 0,
+      totalAmount: 0,
+    },
+  );
+}
+
+function createEmptyRow(
+  slug: WarehouseAAddStockSlug,
+  nextRowId: { current: number },
+  columns: readonly DynamicFieldConfig[],
+): DynamicLineItem {
+  const id = `${slug}-${nextRowId.current}`;
+  nextRowId.current += 1;
+
+  return {
+    id,
+    values: createEmptyValues(columns),
+  };
+}
 
 function createEmptyValues(columns: readonly DynamicFieldConfig[]) {
   return columns.reduce<Record<string, string>>((accumulator, column) => {
@@ -853,7 +628,13 @@ function createEmptyValues(columns: readonly DynamicFieldConfig[]) {
 }
 
 function allValuesEmpty(values: Record<string, string>) {
-  return Object.values(values).every((value) => value.trim().length === 0);
+  return Object.entries(values).every(([key, value]) => {
+    if (["cgst", "sgst", "igst", "totalAmount"].includes(key)) {
+      return true;
+    }
+
+    return value.trim().length === 0;
+  });
 }
 
 function getLineItemValidationErrors(
@@ -889,21 +670,20 @@ function getFieldValidationError(
   return "";
 }
 
-function isDynamicColumnRequired(column: DynamicFieldConfig) {
-  return !["remark", "remarks"].includes(column.key.toLowerCase());
+function isDynamicColumnRequired(_column: DynamicFieldConfig) {
+  return false;
 }
 
 function ColumnLabel({
   label,
-  required,
+  required: _required,
 }: {
   label: string;
   required: boolean;
 }) {
   return (
-    <Stack component="span" direction="row" spacing={0.25}>
+    <Stack component="span" direction="row" spacing={0.25} alignItems="center">
       <span>{label}</span>
-      {required ? <span>*</span> : null}
     </Stack>
   );
 }
@@ -913,25 +693,32 @@ function parseAmountValue(value: string) {
   return Number.isFinite(numericValue) ? numericValue : 0;
 }
 
+function formatAmount(value: number) {
+  return formatAmountShared(value);
+}
+
 function getHeaderCellSx(theme: Theme, minWidth: number) {
   return {
     minWidth,
-    backgroundColor: theme.customTokens.brand.primary,
-    borderBottom: `1px solid ${theme.customTokens.brand.primaryScale[800]}`,
-    color: theme.customTokens.text.inverse,
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: 700,
-    py: theme.spacing(1.5),
+    width: minWidth,
+    backgroundColor: theme.customTokens.surfaces.alt,
+    borderBottom: `1px solid ${theme.customTokens.borders.default}`,
+    color: theme.customTokens.text.secondary,
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    letterSpacing: "0.01em",
+    px: theme.spacing(1),
+    py: theme.spacing(1),
     whiteSpace: "nowrap",
   } as const;
 }
 
 function getBodyCellSx(theme: Theme) {
   return {
-    borderBottom: `1px solid ${theme.customTokens.borders.default}`,
-    py: theme.spacing(1),
+    borderBottom: `1px solid ${theme.customTokens.borders.divider}`,
+    px: theme.spacing(0.75),
+    py: theme.spacing(0.75),
     verticalAlign: "top",
-    whiteSpace: "nowrap",
   } as const;
 }
 
@@ -941,7 +728,7 @@ function getActionHeaderCellSx(theme: Theme, minWidth: number) {
     position: "sticky" as const,
     right: 0,
     zIndex: 3,
-    boxShadow: `-1px 0 0 ${theme.customTokens.brand.primaryScale[800]}`,
+    boxShadow: `-1px 0 0 ${theme.customTokens.borders.default}`,
   } as const;
 }
 
@@ -956,11 +743,12 @@ function getActionBodyCellSx(
     right: 0,
     zIndex: 1,
     minWidth,
+    width: minWidth,
     backgroundColor:
       rowIndex % 2 === 0
         ? theme.customTokens.surfaces.surface
         : theme.customTokens.surfaces.alt,
-    boxShadow: `-1px 0 0 ${theme.customTokens.borders.default}`,
+    boxShadow: `-1px 0 0 ${theme.customTokens.borders.divider}`,
   } as const;
 }
 
@@ -969,25 +757,29 @@ function getScrollableTableSx(theme: Theme) {
     overflowX: "auto",
     overflowY: "hidden",
     scrollbarWidth: "thin",
-    scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
+    scrollbarColor: `${theme.customTokens.borders.default} ${theme.customTokens.surfaces.alt}`,
     "&::-webkit-scrollbar": {
-      height: 8,
+      height: 6,
     },
     "&::-webkit-scrollbar-track": {
       backgroundColor: theme.customTokens.surfaces.alt,
     },
     "&::-webkit-scrollbar-thumb": {
       borderRadius: 999,
-      backgroundColor: theme.customTokens.brand.primary,
+      backgroundColor: theme.customTokens.borders.default,
     },
   } as const;
 }
 
 function getActionButtonSx(theme: Theme) {
   return {
-    color: theme.customTokens.navigation.activeText,
+    color: theme.customTokens.text.secondary,
     "&:hover": {
       backgroundColor: theme.customTokens.navigation.hoverBackground,
+      color: theme.palette.error.main,
+    },
+    "&.Mui-disabled": {
+      opacity: 0.35,
     },
   } as const;
 }
@@ -995,12 +787,12 @@ function getActionButtonSx(theme: Theme) {
 function getAddItemButtonSx(theme: Theme) {
   return {
     minHeight: 34,
-    px: theme.spacing(2),
+    px: theme.spacing(1.75),
     borderRadius: `${theme.customTokens.radius.md}px`,
-    backgroundColor: theme.customTokens.brand.primary,
-    color: theme.customTokens.text.inverse,
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: 700,
+    borderColor: theme.customTokens.borders.default,
+    color: theme.customTokens.brand.primary,
+    fontSize: "0.8125rem",
+    fontWeight: 600,
     lineHeight: 1,
     textTransform: "none",
     boxShadow: "none",
@@ -1008,7 +800,8 @@ function getAddItemButtonSx(theme: Theme) {
       mr: theme.spacing(0.75),
     },
     "&:hover": {
-      backgroundColor: theme.customTokens.brand.primaryScale[800],
+      borderColor: theme.customTokens.brand.primary,
+      backgroundColor: theme.customTokens.navigation.hoverBackground,
       boxShadow: "none",
     },
   } as const;
@@ -1026,13 +819,148 @@ function renderEditableField({
   onChange: (value: string) => void;
   theme: Theme;
   value: string;
-}) {
-  if (column.type === "select") {
+}): ReactNode {
+  if (column.type === "computed") {
+    return (
+      <TextField
+        fullWidth
+        size="small"
+        value={value}
+        sx={getCompactFieldSx(theme, "readOnly", { dense: true })}
+        slotProps={{
+          input: {
+            readOnly: true,
+          },
+        }}
+      />
+    );
+  }
+
+  if (column.type === "item-name") {
+    return (
+      <Autocomplete
+        freeSolo
+        options={[...itemMasterOptions]}
+        value={value}
+        onChange={(_, nextValue) =>
+          onChange(typeof nextValue === "string" ? nextValue : nextValue ?? "")
+        }
+        onInputChange={(_, nextValue, reason) => {
+          if (reason === "input" || reason === "clear") {
+            onChange(nextValue);
+          }
+        }}
+        slotProps={{
+          popper: getAutocompletePopperSlotProps(theme, 420),
+          paper: {
+            sx: getAutocompletePaperSx(theme),
+          },
+          listbox: {
+            sx: getAutocompleteListboxSx(theme),
+          },
+        }}
+        renderOption={(props, option) => (
+          <li {...props} title={option}>
+            {option}
+          </li>
+        )}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            error={Boolean(errorText)}
+            helperText={errorText || undefined}
+            placeholder={column.placeholder}
+            size="small"
+            title={value.trim() ? value : undefined}
+            sx={{
+              ...getCompactFieldSx(theme, errorText ? "error" : "default", {
+                dense: true,
+              }),
+              "& .MuiInputBase-input": {
+                fontSize: theme.typography.caption.fontSize,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              },
+              "& .MuiFormHelperText-root": {
+                mx: 0,
+                mt: 0.25,
+                fontSize: "0.65rem",
+                lineHeight: 1.2,
+              },
+            }}
+          />
+        )}
+      />
+    );
+  }
+
+  if (column.type === "hsn") {
+    return (
+      <Autocomplete
+        freeSolo
+        options={column.options ? [...column.options] : [...hsnMasterOptions]}
+        value={value}
+        onChange={(_, nextValue) =>
+          onChange(typeof nextValue === "string" ? nextValue : nextValue ?? "")
+        }
+        onInputChange={(_, nextValue, reason) => {
+          if (reason === "input" || reason === "clear") {
+            onChange(nextValue);
+          }
+        }}
+        slotProps={{
+          popper: getAutocompletePopperSlotProps(theme, 360),
+          paper: {
+            sx: getAutocompletePaperSx(theme),
+          },
+          listbox: {
+            sx: getAutocompleteListboxSx(theme, true),
+          },
+        }}
+        renderOption={(props, option) => (
+          <li {...props} title={option}>
+            {option}
+          </li>
+        )}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            error={Boolean(errorText)}
+            helperText={errorText || undefined}
+            placeholder={column.placeholder}
+            size="small"
+            title={value.trim() ? value : undefined}
+            sx={{
+              ...getCompactFieldSx(theme, errorText ? "error" : "default", {
+                dense: true,
+              }),
+              "& .MuiInputBase-input": {
+                fontSize: theme.typography.caption.fontSize,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              },
+              "& .MuiFormHelperText-root": {
+                mx: 0,
+                mt: 0.25,
+                fontSize: "0.65rem",
+                lineHeight: 1.2,
+              },
+            }}
+          />
+        )}
+      />
+    );
+  }
+
+  if (column.type === "gst" || column.type === "select") {
     return (
       <ErpSelectField
-        helperText={errorText}
+        helperText={errorText || undefined}
         onChange={onChange}
         options={column.options ?? []}
+        size="dense"
         state={errorText ? "error" : "default"}
         value={value}
       />
@@ -1043,30 +971,26 @@ function renderEditableField({
     <TextField
       error={Boolean(errorText)}
       fullWidth
-      helperText={errorText}
+      helperText={errorText || undefined}
+      placeholder={column.placeholder}
       size="small"
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
-    />
-  );
-}
-
-function renderReadOnlyCell(
-  value: string,
-  theme: Theme,
-): ReactNode {
-  return (
-    <Typography
-      variant="body2"
-      color="text.primary"
       sx={{
-        minHeight: theme.spacing(4.5),
-        display: "flex",
-        alignItems: "center",
+        ...getCompactFieldSx(theme, errorText ? "error" : "default", {
+          dense: true,
+        }),
+        "& .MuiInputBase-input": {
+          fontSize: theme.typography.caption.fontSize,
+        },
+        "& .MuiFormHelperText-root": {
+          mx: 0,
+          mt: 0.25,
+          fontSize: "0.65rem",
+          lineHeight: 1.2,
+          whiteSpace: "normal",
+        },
       }}
-    >
-      {value.trim().length > 0 ? value : "-"}
-    </Typography>
+    />
   );
 }

@@ -1,12 +1,17 @@
+import type { LucideIcon } from "lucide-react";
+import { Factory } from "lucide-react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Stack, Typography } from "@mui/material";
+import { Stack } from "@mui/material";
 
 import type { ErpBreadcrumbItem } from "../../../components/navigation/ErpBreadcrumbs";
+import type { PageHeaderBackNav } from "../../../components/navigation/PageHeader";
 import { MasterPageShell } from "../../masters/shared";
 
 interface FactoryPageShellProps extends PropsWithChildren {
   actions?: ReactNode;
-  breadcrumbs: ErpBreadcrumbItem[];
+  backNav?: PageHeaderBackNav | null;
+  breadcrumbs?: ErpBreadcrumbItem[];
+  icon?: LucideIcon;
   processTabs?: ReactNode;
   subtitle?: string;
   title: string;
@@ -14,8 +19,10 @@ interface FactoryPageShellProps extends PropsWithChildren {
 
 export function FactoryPageShell({
   actions,
-  breadcrumbs,
+  backNav,
+  breadcrumbs = [],
   children,
+  icon = Factory,
   processTabs,
   subtitle,
   title,
@@ -23,21 +30,18 @@ export function FactoryPageShell({
   return (
     <MasterPageShell
       actions={actions}
+      backNav={backNav}
       breadcrumbs={breadcrumbs}
-      contentGap={processTabs ? 0 : 3}
+      contentGap={2}
+      icon={icon}
+      subtitle={subtitle}
       title={title}
     >
       <Stack
         sx={(theme) => ({
-          gap: processTabs && !subtitle ? theme.spacing(2) : theme.spacing(3),
+          gap: theme.spacing(2),
         })}
       >
-        {subtitle ? (
-          <Typography variant="body2" color="text.secondary">
-            {subtitle}
-          </Typography>
-        ) : null}
-
         {processTabs}
 
         {children}

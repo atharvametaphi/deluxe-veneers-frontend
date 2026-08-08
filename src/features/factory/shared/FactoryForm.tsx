@@ -29,6 +29,10 @@ import {
   recordFormActionButtonSx,
   recordViewActionButtonSx,
 } from "../../shared/buttonStyles";
+import {
+  formSectionCardSx,
+  FormSectionHeader,
+} from "../../shared/formSectionStyles";
 import { FactoryPageShell } from "./FactoryPageShell";
 import {
   buildFactoryInitialValues,
@@ -136,33 +140,36 @@ export function FactoryForm<Row extends FactoryRecord>({
       <MasterSectionCard>
         <Stack
           sx={(theme) => ({
-            gap: theme.spacing(4),
+            gap: theme.spacing(1.5),
           })}
         >
-          {visibleFormSections.map((section) => (
+          {visibleFormSections.map((section, sectionIndex) => (
             <Stack
               key={section.title}
               sx={(theme) => ({
-                gap: theme.spacing(2),
+                gap: theme.spacing(1.25),
               })}
             >
-              <Stack
-                sx={(theme) => ({
-                  gap: theme.spacing(0.75),
-                })}
-              >
-                <Typography variant="h3" color="text.primary">
-                  {section.title}
-                </Typography>
+              <FormSectionHeader
+                title={section.title}
+                variant={sectionIndex === 0 ? "cardTop" : "nested"}
+              />
 
-                {section.description ? (
-                  <Typography variant="body2" color="text.secondary">
-                    {section.description}
-                  </Typography>
-                ) : null}
-              </Stack>
+              {section.description ? (
+                <Typography
+                  sx={(theme) => ({
+                    color: theme.customTokens.text.secondary,
+                    fontSize: "12.5px",
+                    fontWeight: 400,
+                    lineHeight: 1.4,
+                  })}
+                >
+                  {section.description}
+                </Typography>
+              ) : null}
 
               <MasterFormFields
+                compact
                 definition={{
                   gridColumns: 4,
                   fields: section.fields,
@@ -173,6 +180,7 @@ export function FactoryForm<Row extends FactoryRecord>({
                     [key]: value,
                   }))
                 }
+                presentation={mode === "view" ? "details" : "form"}
                 readOnly={mode === "view"}
                 showRequiredErrors={mode === "add" && hasSubmitted}
                 values={values}
@@ -187,9 +195,11 @@ export function FactoryForm<Row extends FactoryRecord>({
           <Box
             sx={(theme) => ({
               display: "flex",
-              justifyContent: "center",
+              justifyContent: "flex-end",
               gap: theme.spacing(1),
               flexWrap: "wrap",
+              pt: theme.spacing(0.5),
+              borderTop: `1px solid ${theme.customTokens.borders.divider}`,
             })}
           >
             {mode === "view" ? (
@@ -287,23 +297,26 @@ function FactoryItemTable({
   );
 
   return (
-    <Stack
+    <Box
       sx={(theme) => ({
-        gap: theme.spacing(2),
+        ...formSectionCardSx(theme),
       })}
     >
-      <Typography variant="h3" color="text.primary">
-        Item Details
-      </Typography>
-
-      <Box
+      <Stack
         sx={(theme) => ({
-          border: `1px solid ${theme.customTokens.borders.default}`,
-          borderRadius: `${theme.customTokens.radius.md}px`,
-          backgroundColor: theme.customTokens.surfaces.surface,
-          overflow: "hidden",
+          gap: theme.spacing(1.15),
         })}
       >
+        <FormSectionHeader title="Item Details" />
+
+        <Box
+          sx={(theme) => ({
+            border: `1px solid ${theme.customTokens.borders.default}`,
+            borderRadius: "8px",
+            backgroundColor: theme.customTokens.surfaces.surface,
+            overflow: "hidden",
+          })}
+        >
         <Box
           sx={(theme) => ({
             overflowX: "auto",
@@ -336,13 +349,15 @@ function FactoryItemTable({
                     key={field.key}
                     sx={(theme) => ({
                       minWidth: getFactoryItemColumnWidth(field.label),
-                      backgroundColor: theme.customTokens.brand.primary,
-                      borderBottom: `1px solid ${theme.customTokens.brand.primaryScale[800]}`,
-                      borderRight: `1px solid ${theme.customTokens.brand.primaryScale[800]}`,
-                      color: theme.customTokens.text.inverse,
-                      fontSize: theme.typography.caption.fontSize,
-                      fontWeight: 700,
-                      py: theme.spacing(1.5),
+                      backgroundColor: theme.customTokens.neutrals[100],
+                      borderBottom: `1px solid ${theme.customTokens.borders.default}`,
+                      borderRight: `1px solid ${theme.customTokens.borders.divider}`,
+                      color: theme.customTokens.neutrals[700],
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      letterSpacing: "0.02em",
+                      textTransform: "uppercase",
+                      py: theme.spacing(0.85),
                       whiteSpace: "nowrap",
                     })}
                   >
@@ -374,7 +389,8 @@ function FactoryItemTable({
           </Table>
         </Box>
       </Box>
-    </Stack>
+      </Stack>
+    </Box>
   );
 }
 

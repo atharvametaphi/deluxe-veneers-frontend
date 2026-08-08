@@ -56,7 +56,9 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
     });
   }, [localDefinition.rows, searchValue]);
 
-  const addButtonLabel = `Add ${localDefinition.title.replace(/ Master$/, "")}`;
+  const entityLabel = localDefinition.title.replace(/ Master$/, "");
+  const addButtonLabel = `Add ${entityLabel}`;
+  const searchPlaceholder = `Search ${entityLabel.toLowerCase()}s...`;
 
   const handleStatusChange = (row: MasterRecord, checked: boolean) => {
     updateLocalMasterStatus(localDefinition, row, checked);
@@ -69,6 +71,8 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
         { label: localDefinition.title },
       ]}
       title={localDefinition.title}
+      subtitle={`Manage ${entityLabel.toLowerCase()} records used across the system.`}
+      contentGap={2}
     >
       {!canOpenPage ? (
         <Alert severity="warning">
@@ -77,16 +81,17 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
       ) : null}
 
       <Stack
-        direction={{ xs: "column", md: "row" }}
-        alignItems={{ xs: "stretch", md: "center" }}
+        direction={{ xs: "column", sm: "row" }}
+        alignItems={{ xs: "stretch", sm: "center" }}
         justifyContent="space-between"
-        spacing={2}
+        spacing={1.5}
       >
         <ClearableSearchField
           value={searchValue}
           onChange={setSearchValue}
+          placeholder={searchPlaceholder}
           sx={{
-            width: { xs: "100%", md: 320 },
+            width: { xs: "100%", sm: 300 },
             maxWidth: "100%",
           }}
         />
@@ -96,11 +101,8 @@ export function MasterListingPage({ definition }: MasterListingPageProps) {
             component={RouterLink}
             to={paths.add}
             variant="contained"
-            startIcon={<Plus size={14} />}
-            sx={{
-              ...getListingToolbarButtonSx(theme),
-              alignSelf: { xs: "flex-start", md: "center" },
-            }}
+            startIcon={<Plus size={15} />}
+            sx={(theme) => getListingToolbarButtonSx(theme)}
           >
             {addButtonLabel}
           </Button>

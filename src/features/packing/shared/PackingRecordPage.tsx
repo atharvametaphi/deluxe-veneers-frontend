@@ -39,13 +39,33 @@ import {
   recordViewActionButtonSx,
 } from "../../shared/buttonStyles";
 import {
+  formInlineActionButtonSx,
+  formSectionCardSx,
+  FormSectionHeader,
+} from "../../shared/formSectionStyles";
+import { SizedMasterFormFields } from "../../shared/SizedMasterFormFields";
+import type { FormFieldSize } from "../../shared/formFieldSizes";
+import { transactionTableHeaderCellSx } from "../../shared/listingTableStyles";
+import {
   createPackingEntry,
   getPackingPaths,
+  isFinishedOrderPackingEligible,
+  isRawOrderPackingEligible,
   packingOrderTypeOptions,
   type PackingRecord,
   updatePackingRecord,
   usePackingRecords,
 } from "./packingStore";
+
+const packingCreateFieldSizes: Partial<Record<string, FormFieldSize>> = {
+  packingDate: "sm",
+  customerName: "md",
+  orderType: "sm",
+  orderNo: "sm",
+  preparedBy: "md",
+  checkedBy: "md",
+  remark: "lg",
+};
 
 const packingDetailFields: readonly MasterFieldDefinition[] = [
   { key: "packingId", label: "Packing ID", type: "text" },
@@ -133,8 +153,8 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
     [id, packingRecords],
   );
   const packingSourceRows = useMemo(
-    () => buildPackingSourceRows(orderRecords),
-    [orderRecords],
+    () => buildPackingSourceRows(orderRecords, packingRecords),
+    [orderRecords, packingRecords],
   );
   const customerOptions = useMemo(
     () =>
@@ -291,7 +311,7 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
         {
           label:
             mode === "add"
-              ? "Create Packing"
+              ? "Issue for Packing"
               : mode === "edit"
                 ? "Edit Packing"
                 : "View Packing",
@@ -299,53 +319,78 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
       ]}
       title={
         mode === "add"
-          ? "Create Packing"
+          ? "Issue for Packing"
           : mode === "edit"
             ? "Edit Packing"
             : "View Packing"
       }
+      subtitle={
+        mode === "add"
+          ? "Only packing-eligible items appear. Raw = stock-ready orders. Finished = factory-completed routes only."
+          : undefined
+      }
+      contentGap={1.5}
     >
       <MasterSectionCard>
         <Stack
           sx={(theme) => ({
-            gap: theme.spacing(3),
+            gap: theme.spacing(1.25),
           })}
         >
-          <MasterFormFields
-            definition={{
-              fields: activeFields,
-              gridColumns: 4,
-            }}
-            onChange={(key, value) =>
-              setValues((current) => {
-                const nextValues = {
+          <FormSectionHeader title="Packing Details" />
+
+          {mode === "add" ? (
+            <SizedMasterFormFields
+              fields={activeFields}
+              onChange={(key, value) =>
+                setValues((current) => {
+                  const nextValues = {
+                    ...current,
+                    [key]: value,
+                  };
+
+                  if (key === "orderType") {
+                    nextValues.orderNo = "";
+                  }
+
+                  if (key === "orderNo" && typeof value === "string") {
+                    const selectedOrder = packingSourceRows.find(
+                      (row) =>
+                        row.orderNo === value &&
+                        matchesPackingOrderType(row.orderType, selectedOrderType),
+                    );
+
+                    if (selectedOrder) {
+                      nextValues.customerName = selectedOrder.customerName;
+                    }
+                  }
+
+                  return nextValues;
+                })
+              }
+              showRequiredErrors={hasSubmitted}
+              sizes={packingCreateFieldSizes}
+              values={values}
+            />
+          ) : (
+            <MasterFormFields
+              compact
+              definition={{
+                fields: activeFields,
+                gridColumns: 4,
+              }}
+              onChange={(key, value) =>
+                setValues((current) => ({
                   ...current,
                   [key]: value,
-                };
-
-                if (key === "orderType") {
-                  nextValues.orderNo = "";
-                }
-
-                if (key === "orderNo" && typeof value === "string") {
-                  const selectedOrder = packingSourceRows.find(
-                    (row) =>
-                      row.orderNo === value &&
-                      matchesPackingOrderType(row.orderType, selectedOrderType),
-                  );
-
-                  if (selectedOrder) {
-                    nextValues.customerName = selectedOrder.customerName;
-                  }
-                }
-
-                return nextValues;
-              })
-            }
-            readOnly={mode === "view"}
-            showRequiredErrors={mode === "add" && hasSubmitted}
-            values={values}
-          />
+                }))
+              }
+              presentation={mode === "view" ? "details" : "form"}
+              readOnly={mode === "view"}
+              showRequiredErrors={false}
+              values={values}
+            />
+          )}
 
           {mode !== "add" && record ? (
             <PackingItemDetailsTable record={record} />
@@ -355,7 +400,7 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
             <EnterpriseDataTable
               columns={packingSourceColumns}
               defaultRowsPerPage={10}
-              emptyStateLabel="No order items match the selected filters."
+              emptyStateLabel="No packing-eligible order items match. Finished items require factory completion before packing."
               hidePagination
               maxBodyHeight={420}
               onSelectionChange={(selectedRows) =>
@@ -370,9 +415,10 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
           <Box
             sx={(theme) => ({
               display: "flex",
-              justifyContent: "center",
-              gap: theme.spacing(1.5),
+              justifyContent: "flex-end",
+              gap: theme.spacing(1.25),
               flexWrap: "wrap",
+              pt: 0.25,
             })}
           >
             {mode === "view" ? (
@@ -446,20 +492,24 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
 
                       if (showOrderSourceTable && selectedSourceRows.length > 0) {
                         selectedSourceRows.forEach((row) => {
+                          const isRaw =
+                            normalizePackingOrderType(row.orderType) === "Raw";
                           createPackingEntry(undefined, {
                             amount: row.amount,
                             customerName: selectedCustomerName || row.customerName,
-                            issuedFrom: "Orders",
+                            issuedFrom: isRaw ? "Warehouse C" : "Factory",
                             itemName: row.itemName,
                             length: row.length,
                             noOfSheets: row.noOfSheets,
                             orderNo: row.orderNo,
                             orderItemNo: row.orderItemNo,
                             orderType: normalizePackingOrderType(row.orderType),
-                            packingDate,
-                            productCategory:
-                              row.productCategory,
-                            remark,
+                            productCategory: row.productCategory,
+                            remark: isRaw
+                              ? `Stock eligible · ${row.orderNo}`
+                              : `Factory completed · ${row.orderNo}`,
+                            sourceOrderId: row.sourceOrderId,
+                            sourceOrderItemId: row.id,
                             sqf: row.sqf,
                             sqm: row.sqm,
                             thickness: row.thickness,
@@ -473,28 +523,18 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
                           });
                         });
                       } else {
-                        createPackingEntry(record?.id, {
+                        createPackingEntry(undefined, {
+                          completeImmediately: false,
                           packingDate,
-                          ...(typeof values.customerName === "string"
-                            ? { customerName: values.customerName }
-                            : {}),
-                          ...(typeof values.orderType === "string"
-                            ? { orderType: values.orderType }
-                            : {}),
-                          ...(typeof values.orderNo === "string"
-                            ? { orderNo: values.orderNo }
-                            : {}),
-                          ...(typeof values.productCategory === "string"
-                            ? { productCategory: values.productCategory }
-                            : {}),
+                          remark,
+                          customerName: selectedCustomerName,
+                          orderType: selectedOrderType,
+                          orderNo: selectedOrderNo,
                           ...(typeof values.preparedBy === "string"
                             ? { preparedBy: values.preparedBy }
                             : {}),
                           ...(typeof values.checkedBy === "string"
                             ? { checkedBy: values.checkedBy }
-                            : {}),
-                          ...(typeof values.remark === "string"
-                            ? { remark: values.remark }
                             : {}),
                         });
                       }
@@ -507,11 +547,15 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
 
                     navigate(paths.list);
                   }}
-                  startIcon={<Save size={16} />}
-                  sx={recordFormActionButtonSx}
+                  startIcon={mode === "add" ? undefined : <Save size={15} strokeWidth={2} />}
+                  sx={(theme) =>
+                    mode === "add"
+                      ? formInlineActionButtonSx(theme)
+                      : recordFormActionButtonSx
+                  }
                   variant="contained"
                 >
-                  {mode === "add" ? "Submit" : "Save"}
+                  {mode === "add" ? "Add to Packing Queue" : "Save"}
                 </Button>
               </>
             )}
@@ -524,23 +568,27 @@ export function PackingRecordPage({ mode }: PackingRecordPageProps) {
 
 function PackingItemDetailsTable({ record }: { record: PackingRecord }) {
   return (
-    <Stack
+    <Box
       sx={(theme) => ({
-        gap: theme.spacing(1),
+        ...formSectionCardSx(theme),
       })}
     >
-      <Typography variant="body1" color="text.primary" fontWeight={600}>
-        Item Details
-      </Typography>
-
-      <Box
+      <Stack
         sx={(theme) => ({
-          border: `1px solid ${theme.customTokens.borders.default}`,
-          borderRadius: `${theme.customTokens.radius.sm}px`,
-          backgroundColor: theme.customTokens.surfaces.surface,
-          overflow: "hidden",
+          gap: theme.spacing(1.15),
         })}
       >
+        <FormSectionHeader title="Item Details" />
+
+        <Box
+          sx={(theme) => ({
+            border: `1px solid ${theme.customTokens.borders.default}`,
+            borderRadius: "8px",
+            backgroundColor: theme.customTokens.surfaces.surface,
+            overflow: "hidden",
+            mx: -0.25,
+          })}
+        >
         <Box
           sx={(theme) => ({
             overflowX: "auto",
@@ -571,16 +619,10 @@ function PackingItemDetailsTable({ record }: { record: PackingRecord }) {
                   <TableCell
                     key={column.key}
                     sx={(theme) => ({
+                      ...transactionTableHeaderCellSx(theme, column.minWidth),
                       minWidth: column.minWidth,
                       width: column.minWidth,
-                      backgroundColor: theme.palette.primary.main,
-                      borderRight: `1px solid ${theme.palette.primary.dark}`,
-                      color: theme.palette.primary.contrastText,
-                      fontSize: theme.typography.caption.fontSize,
-                      fontWeight: 700,
-                      px: theme.spacing(1.5),
-                      py: theme.spacing(1.25),
-                      whiteSpace: "nowrap",
+                      borderRight: `1px solid ${theme.customTokens.borders.divider}`,
                     })}
                   >
                     {column.label}
@@ -609,8 +651,9 @@ function PackingItemDetailsTable({ record }: { record: PackingRecord }) {
             </TableBody>
           </Table>
         </Box>
-      </Box>
-    </Stack>
+        </Box>
+      </Stack>
+    </Box>
   );
 }
 
@@ -741,8 +784,32 @@ function formatPackingDetailValue(value: PackingRecord[keyof PackingRecord]) {
   return String(value);
 }
 
-function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
+function buildPackingSourceRows(
+  orderRecords: readonly OrderRecord[],
+  packingRecords: readonly PackingRecord[],
+) {
+  const activePackingKeys = new Set(
+    packingRecords
+      .filter((record) => record.packingState !== "reverted")
+      .map(
+        (record) =>
+          `${record.orderNo.trim().toLowerCase()}::${record.orderItemNo.trim().toLowerCase()}`,
+      ),
+  );
+
   return orderRecords.flatMap<PackingSourceRow>((record) => {
+    const variant = getOrderVariantFromType(record.orderType);
+    const eligible =
+      variant === "raw"
+        ? isRawOrderPackingEligible(record)
+        : variant === "finished"
+          ? isFinishedOrderPackingEligible(record)
+          : false;
+
+    if (!eligible) {
+      return [];
+    }
+
     const lineItems = getOrderLineItems(record.id);
     const normalizedLineItems =
       lineItems.length > 0
@@ -766,25 +833,36 @@ function buildPackingSourceRows(orderRecords: readonly OrderRecord[]) {
             },
           ];
 
-    return normalizedLineItems.map((item, index) => ({
-      id: `${record.id}-${item.id}`,
-      sourceOrderId: record.id,
-      customerName: record.customerName,
-      orderNo: record.orderNo,
-      orderItemNo: String(index + 1),
-      orderType: normalizePackingOrderType(record.orderType),
-      productCategory: getPackingSourceProductCategory(record, item, index),
-      finishedType: item.finishedType ?? "",
-      itemName: item.itemName,
-      groupNo: item.series || "-",
-      length: item.length,
-      width: item.width,
-      thickness: item.thickness,
-      noOfSheets: item.quantitySheets,
-      sqm: item.sqm,
-      sqf: item.totalSqm,
-      amount: item.amount,
-    }));
+    return normalizedLineItems.flatMap((item, index) => {
+      const orderItemNo = `OI-${String(index + 1).padStart(3, "0")}`;
+      const packingKey = `${record.orderNo.trim().toLowerCase()}::${orderItemNo.toLowerCase()}`;
+
+      if (activePackingKeys.has(packingKey)) {
+        return [];
+      }
+
+      return [
+        {
+          id: `${record.id}-${item.id}`,
+          sourceOrderId: record.id,
+          customerName: record.customerName,
+          orderNo: record.orderNo,
+          orderItemNo,
+          orderType: normalizePackingOrderType(record.orderType),
+          productCategory: getPackingSourceProductCategory(record, item, index),
+          finishedType: item.finishedType ?? "",
+          itemName: item.itemName,
+          groupNo: item.series || "-",
+          length: item.length,
+          width: item.width,
+          thickness: item.thickness,
+          noOfSheets: item.quantitySheets,
+          sqm: item.sqm,
+          sqf: item.totalSqm,
+          amount: item.amount,
+        },
+      ];
+    });
   });
 }
 

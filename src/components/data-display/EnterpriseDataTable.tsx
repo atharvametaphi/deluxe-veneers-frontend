@@ -11,7 +11,6 @@ import {
   ListFilter,
   MoreHorizontal,
   Pencil,
-  X,
 } from "lucide-react";
 import {
   Box,
@@ -20,8 +19,6 @@ import {
   Chip,
   Checkbox,
   IconButton,
-  InputAdornment,
-  Menu,
   MenuItem,
   Select,
   Stack,
@@ -31,13 +28,44 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
   useTheme,
 } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
 
 import { ErpToggleSwitch } from "../inputs/ErpToggleSwitch";
+import type { ColumnFilterOption } from "../../features/shared/SearchableMultiSelectColumnFilter";
+import { formatDisplayValueByField } from "../../features/shared/numberFormat";
+import {
+  ActiveColumnFiltersBar,
+  buildActiveFilterChips,
+  buildDistinctColumnFilterOptions,
+  ColumnFilterPopoverRouter,
+  getColumnFilterBadgeCount,
+  isActiveColumnFilter,
+  matchColumnFilter,
+  type ColumnFilterType,
+  type ColumnFilterValue,
+} from "../../features/shared/columnFilters";
+import { actionMenuTriggerSx } from "../../features/shared/actionMenuStyles";
+import {
+  isFilterableListingColumn,
+  resolveListingColumnFilterType,
+} from "../../features/shared/listingColumnFilters";
+import {
+  getListingColumnMinWidth,
+  listingPageNumberButtonSx,
+  listingPaginationIconButtonSx,
+  listingTableBodyCellSx,
+  listingTableContainerSx,
+  listingTableHeaderCellSx,
+  listingTableHeaderIconButtonSx,
+} from "../../features/shared/listingTableStyles";
+import {
+  portalIconSize,
+  portalIconStroke,
+} from "../../features/shared/portalIconStandards";
+import { RowActionsMenu } from "../../features/shared/RowActionsMenu";
 
 export type EnterpriseTableCellValue =
   | string
@@ -65,6 +93,10 @@ export interface EnterpriseTableColumn<
 > {
   key: keyof Row & string;
   label: string;
+  /** When set, overrides automatic filterability heuristics. */
+  filterable?: boolean;
+  /** When set, overrides automatic filter-type inference. */
+  filterType?: ColumnFilterType;
 }
 
 type AuditColumnType = "created" | "updated";
@@ -86,6 +118,7 @@ export interface EnterpriseTableAction<
   label: string;
   icon?: LucideIcon;
   onSelect: (row: Row) => void;
+  tone?: "primary" | "danger" | "default";
 }
 
 interface EnterpriseDataTableProps<Row extends EnterpriseTableRow> {
@@ -112,7 +145,7 @@ interface EnterpriseDataTableProps<Row extends EnterpriseTableRow> {
 export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   actions = [],
   actionColumnLabel = "Actions",
-  actionColumnWidth = 88,
+  actionColumnWidth = 64,
   columns,
   defaultRowsPerPage = 10,
   emptyStateLabel = "No records found.",
@@ -133,17 +166,14 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   const [sortConfig, setSortConfig] =
     useState<EnterpriseTableSortConfig<Row>>(initialSort);
   const [filters, setFilters] = useState<
-    Partial<Record<keyof Row & string, string>>
+    Partial<Record<keyof Row & string, ColumnFilterValue>>
   >({});
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
-  const [goToPage, setGoToPage] = useState("1");
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [filterMenuAnchor, setFilterMenuAnchor] = useState<HTMLElement | null>(
     null,
   );
-  const [filterMenuWidth, setFilterMenuWidth] = useState(240);
-  const [filterSearch, setFilterSearch] = useState("");
   const [activeFilterColumn, setActiveFilterColumn] = useState<
     (keyof Row & string) | null
   >(null);
@@ -163,33 +193,41 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     () => getEnterpriseDisplayColumns(columns),
     [columns],
   );
-  const filterValueOptions = useMemo(() => {
-    if (!activeFilterColumn) {
-      return [];
-    }
 
-    const normalizedSearch = filterSearch.trim().toLowerCase();
+  const columnFilterMeta = useMemo(() => {
+    const meta: Partial<
+      Record<
+        keyof Row & string,
+        {
+          filterType: ColumnFilterType;
+          options: ColumnFilterOption[];
+          uniqueCount: number;
+        }
+      >
+    > = {};
 
-    return Array.from(
-      new Set(
-        rows
-          .map((row) => formatEnterpriseValue(row[activeFilterColumn]).trim())
-          .filter(Boolean),
-      ),
-    )
-      .filter(
-        (value) =>
-          !normalizedSearch ||
-          value.toLowerCase().includes(normalizedSearch),
-      )
-      .sort((first, second) =>
-        first.localeCompare(second, undefined, {
-          numeric: true,
-          sensitivity: "base",
-        }),
-      )
-      .slice(0, 100);
-  }, [activeFilterColumn, filterSearch, rows]);
+    displayColumns.forEach((column) => {
+      const sampleValues = rows.map((row) => row[column.key]);
+      const filterType = resolveListingColumnFilterType({
+        key: column.key,
+        label: column.label,
+        override: column.filterType,
+        sampleValues,
+      });
+      const formattedValues = rows.map((row) =>
+        formatEnterpriseValue(row[column.key], column.key, column.label),
+      );
+      const options = buildDistinctColumnFilterOptions(formattedValues);
+
+      meta[column.key] = {
+        filterType,
+        options,
+        uniqueCount: options.length,
+      };
+    });
+
+    return meta;
+  }, [displayColumns, rows]);
 
   useEffect(() => {
     setSortConfig(initialSort);
@@ -197,17 +235,30 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) =>
-      Object.entries(filters).every(([key, value]) => {
-        if (!value) {
+      Object.entries(filters).every(([key, filterValue]) => {
+        const typedFilter = filterValue as ColumnFilterValue | undefined;
+
+        if (!isActiveColumnFilter(typedFilter)) {
           return true;
         }
 
-        return formatEnterpriseValue(row[key])
-          .toLowerCase()
-          .includes(value.trim().toLowerCase());
+        const rawValue = row[key as keyof Row & string];
+        const cellValue = formatEnterpriseValue(
+          rawValue,
+          key,
+          displayColumns.find((column) => column.key === key)?.label,
+        ).trim();
+        return matchColumnFilter(rawValue, cellValue, typedFilter);
       }),
     );
   }, [filters, rows]);
+
+  const activeFilterChips = useMemo(
+    () => buildActiveFilterChips(filters, displayColumns),
+    [displayColumns, filters],
+  );
+
+  const hasActiveFilters = activeFilterChips.length > 0;
 
   const sortedRows = useMemo(() => {
     if (!sortConfig) {
@@ -246,21 +297,29 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     selectable &&
     currentPageIds.some((rowId) => selectedRowIds.includes(rowId)) &&
     !allCurrentPageSelected;
+  const rangeStart =
+    sortedRows.length === 0 ? 0 : pageStartIndex + 1;
+  const rangeEnd = hidePagination
+    ? sortedRows.length
+    : Math.min(pageStartIndex + rowsPerPage, sortedRows.length);
 
   const selectedRows = useMemo(
     () => rows.filter((row) => selectedRowIds.includes(row.id)),
     [rows, selectedRowIds],
   );
 
+  const activeFilterMeta = activeFilterColumn
+    ? columnFilterMeta[activeFilterColumn]
+    : undefined;
+  const activeFilterColumnDef = activeFilterColumn
+    ? displayColumns.find((column) => column.key === activeFilterColumn)
+    : undefined;
+
   useEffect(() => {
     if (page !== safePage) {
       setPage(safePage);
     }
   }, [page, safePage]);
-
-  useEffect(() => {
-    setGoToPage(String(safePage));
-  }, [safePage]);
 
   useEffect(() => {
     onSelectionChange?.(selectedRows);
@@ -301,50 +360,63 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     columnKey: keyof Row & string,
     event: MouseEvent<HTMLButtonElement>,
   ) => {
-    const anchorElement =
-      event.currentTarget.closest("th") ?? event.currentTarget;
-
     setActiveFilterColumn(columnKey);
-    setFilterSearch(filters[columnKey] ?? "");
-    setFilterMenuWidth(anchorElement.getBoundingClientRect().width);
-    setFilterMenuAnchor(anchorElement as HTMLElement);
+    setFilterMenuAnchor(event.currentTarget);
   };
 
-  const handleFilterSearchChange = (value: string) => {
+  const handleCloseFilter = () => {
+    setFilterMenuAnchor(null);
+    setActiveFilterColumn(null);
+  };
+
+  const handleApplyFilter = (nextFilter: ColumnFilterValue | null) => {
     if (!activeFilterColumn) {
       return;
     }
 
-    setFilterSearch(value);
     setFilters((current) => {
       const nextFilters = { ...current };
-      const normalizedValue = value.trim();
 
-      if (!normalizedValue) {
+      if (!nextFilter || !isActiveColumnFilter(nextFilter)) {
         delete nextFilters[activeFilterColumn];
       } else {
-        nextFilters[activeFilterColumn] = normalizedValue;
+        nextFilters[activeFilterColumn] = nextFilter;
       }
 
       return nextFilters;
     });
-
     setPage(1);
   };
 
-  const handleFilterValueSelect = (value: string) => {
-    if (!activeFilterColumn) {
+  const handleApplyMultiSelectFilter = (values: string[]) => {
+    handleApplyFilter(
+      values.length === 0
+        ? null
+        : {
+            type: "multiSelect",
+            values,
+          },
+    );
+  };
+
+  const handleClearFilter = (columnKey?: keyof Row & string) => {
+    const targetKey = columnKey ?? activeFilterColumn;
+
+    if (!targetKey) {
       return;
     }
 
-    setFilterSearch(value);
-    setFilters((current) => ({
-      ...current,
-      [activeFilterColumn]: value,
-    }));
+    setFilters((current) => {
+      const nextFilters = { ...current };
+      delete nextFilters[targetKey];
+      return nextFilters;
+    });
     setPage(1);
-    setFilterMenuAnchor(null);
-    setActiveFilterColumn(null);
+  };
+
+  const handleClearAllFilters = () => {
+    setFilters({});
+    setPage(1);
   };
 
   const handleToggleRowSelection = (rowId: string) => {
@@ -392,15 +464,18 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
     : actions;
 
   return (
-    <>
-      <Box
-        sx={{
-          border: `1px solid ${theme.customTokens.borders.default}`,
-          borderRadius: `${theme.customTokens.radius.md}px`,
-          overflow: "hidden",
-          backgroundColor: theme.customTokens.surfaces.surface,
-        }}
-      >
+    <Stack spacing={1.25}>
+      {hasActiveFilters ? (
+        <ActiveColumnFiltersBar
+          filters={activeFilterChips}
+          onClearAll={handleClearAllFilters}
+          onRemove={(columnKey) =>
+            handleClearFilter(columnKey as keyof Row & string)
+          }
+        />
+      ) : null}
+
+      <Box sx={listingTableContainerSx(theme)}>
         <TableContainer
           onWheel={handleHorizontalWheel}
           sx={{
@@ -441,11 +516,17 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
             <TableHead>
               <TableRow>
                 {selectable ? (
-                  <TableCell sx={headerCellSx(theme)}>
+                  <TableCell
+                    sx={[
+                      listingTableHeaderCellSx(theme),
+                      compactCheckboxCellSx,
+                    ]}
+                  >
                     <Checkbox
                       checked={Boolean(allCurrentPageSelected)}
                       indeterminate={Boolean(someCurrentPageSelected)}
                       onChange={handleTogglePageSelection}
+                      size="small"
                       sx={headerCheckboxSx(theme)}
                     />
                   </TableCell>
@@ -453,20 +534,53 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
 
                 {displayColumns.map((column) => {
                   const isSorted = sortConfig?.key === column.key;
-                  const isFiltered = Boolean(filters[column.key]);
+                  const columnFilter = filters[column.key];
+                  const isFiltered = isActiveColumnFilter(columnFilter);
+                  const filterBadgeCount = getColumnFilterBadgeCount(columnFilter);
+                  const uniqueCount =
+                    columnFilterMeta[column.key]?.uniqueCount ?? 0;
+                  const columnFilterType =
+                    columnFilterMeta[column.key]?.filterType;
+                  const showFilter = isFilterableListingColumn(
+                    column.key,
+                    column.label,
+                    uniqueCount,
+                    column.filterable,
+                    columnFilterType,
+                  );
+
+                  const columnMinWidth = getListingColumnMinWidth(
+                    column.key,
+                    column.label,
+                  );
 
                   return (
-                    <TableCell key={column.key} sx={headerCellSx(theme)}>
+                    <TableCell
+                      key={column.key}
+                      sx={{
+                        ...listingTableHeaderCellSx(theme),
+                        ...(columnMinWidth
+                          ? { minWidth: columnMinWidth }
+                          : {}),
+                      }}
+                    >
                       <Box
                         sx={{
                           display: "flex",
                           alignItems: "center",
-                          gap: theme.spacing(0.5),
+                          gap: theme.spacing(0.75),
                         }}
                       >
                         <Typography
                           variant="subtitle2"
-                          color={theme.customTokens.text.inverse}
+                          sx={{
+                            fontSize: "inherit",
+                            fontWeight: "inherit",
+                            letterSpacing: "inherit",
+                            textTransform: "inherit",
+                            color: "inherit",
+                            lineHeight: 1.2,
+                          }}
                         >
                           {column.label}
                         </Typography>
@@ -474,7 +588,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                         <IconButton
                           size="small"
                           onClick={() => handleSort(column.key)}
-                          sx={headerIconButtonSx}
+                          sx={listingTableHeaderIconButtonSx(theme)}
                         >
                           <SortIndicator
                             active={isSorted}
@@ -482,20 +596,49 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                           />
                         </IconButton>
 
-                        <IconButton
-                          size="small"
-                          onClick={(event) => handleOpenFilter(column.key, event)}
-                          sx={headerIconButtonSx}
-                        >
-                          <ListFilter
-                            color={
-                              isFiltered
-                                ? theme.customTokens.brand.primaryScale[100]
-                                : theme.customTokens.text.inverse
+                        {showFilter ? (
+                          <IconButton
+                            size="small"
+                            aria-label={`Filter by ${column.label}`}
+                            onClick={(event) =>
+                              handleOpenFilter(column.key, event)
                             }
-                            size={14}
-                          />
-                        </IconButton>
+                            sx={{
+                              ...listingTableHeaderIconButtonSx(theme),
+                              position: "relative",
+                              color: isFiltered
+                                ? theme.customTokens.brand.primary
+                                : theme.customTokens.text.secondary,
+                            }}
+                          >
+                            <ListFilter
+                              size={portalIconSize.tableHeader}
+                              strokeWidth={portalIconStroke.default}
+                            />
+                            {isFiltered && filterBadgeCount > 0 ? (
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  top: -3,
+                                  right: -4,
+                                  minWidth: 14,
+                                  height: 14,
+                                  px: 0.35,
+                                  borderRadius: "999px",
+                                  backgroundColor:
+                                    theme.customTokens.brand.primary,
+                                  color: "#FFFFFF",
+                                  fontSize: "0.625rem",
+                                  fontWeight: 700,
+                                  lineHeight: "14px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {filterBadgeCount > 9 ? "9+" : filterBadgeCount}
+                              </Box>
+                            ) : null}
+                          </IconButton>
+                        ) : null}
                       </Box>
                     </TableCell>
                   );
@@ -507,7 +650,14 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                   >
                     <Typography
                       variant="subtitle2"
-                      color={theme.customTokens.text.inverse}
+                      sx={{
+                        fontSize: "inherit",
+                        fontWeight: "inherit",
+                        letterSpacing: "inherit",
+                        textTransform: "inherit",
+                        color: "inherit",
+                        lineHeight: 1.2,
+                      }}
                     >
                       {actionColumnLabel}
                     </Typography>
@@ -532,7 +682,7 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                 </TableRow>
               ) : null}
 
-              {currentPageRows.map((row, rowIndex) => {
+              {currentPageRows.map((row) => {
                 const isSelected = selectedRowIds.includes(row.id);
 
                 return (
@@ -549,41 +699,60 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                       "& td": {
                         backgroundColor: isSelected
                           ? theme.customTokens.navigation.activeBackground
-                          : rowIndex % 2 === 0
-                            ? theme.customTokens.surfaces.surface
-                            : theme.customTokens.surfaces.alt,
+                          : theme.customTokens.surfaces.surface,
                       },
                       "&:hover td": {
                         backgroundColor: isSelected
                           ? theme.customTokens.brand.primaryScale[100]
-                          : theme.customTokens.navigation.hoverBackground,
+                          : theme.customTokens.surfaces.alt,
                       },
                     }}
                   >
                     {selectable ? (
-                      <TableCell sx={bodyCellSx(theme)}>
+                      <TableCell
+                        sx={[
+                          listingTableBodyCellSx(theme),
+                          compactCheckboxCellSx,
+                        ]}
+                      >
                         <Checkbox
                           checked={isSelected}
                           onClick={(event) => event.stopPropagation()}
                           onChange={() => handleToggleRowSelection(row.id)}
-                          sx={checkboxSx}
+                          size="small"
+                          sx={compactCheckboxSx}
                         />
                       </TableCell>
                     ) : null}
 
-                    {displayColumns.map((column) => (
-                      <TableCell key={column.key} sx={bodyCellSx(theme)}>
-                        {renderEnterpriseTableCell(
-                          row,
-                          column,
-                          statusOverrides,
-                          setStatusOverrides,
-                          isStatusChangeDisabled,
-                          onStatusChange,
-                          theme,
-                        )}
-                      </TableCell>
-                    ))}
+                    {displayColumns.map((column) => {
+                      const columnMinWidth = getListingColumnMinWidth(
+                        column.key,
+                        column.label,
+                      );
+
+                      return (
+                        <TableCell
+                          key={column.key}
+                          sx={{
+                            ...listingTableBodyCellSx(theme),
+                            ...(columnMinWidth
+                              ? { minWidth: columnMinWidth }
+                              : {}),
+                          }}
+                        >
+                          {renderEnterpriseTableCell(
+                            row,
+                            column,
+                            statusOverrides,
+                            setStatusOverrides,
+                            isStatusChangeDisabled,
+                            onStatusChange,
+                            theme,
+                          )}
+                        </TableCell>
+                      );
+                    })}
 
                     {hasActions ? (
                       <TableCell
@@ -608,17 +777,15 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
                             <IconButton
                               size="small"
                               aria-label="Open row actions"
-                              onClick={(event) => handleOpenActionMenu(row.id, event)}
-                              sx={{
-                                color: theme.customTokens.navigation.activeText,
-                                "&:hover": {
-                                  backgroundColor:
-                                    theme.customTokens.navigation.hoverBackground,
-                                  color: theme.customTokens.brand.secondary,
-                                },
-                              }}
+                              onClick={(event) =>
+                                handleOpenActionMenu(row.id, event)
+                              }
+                              sx={actionMenuTriggerSx(theme)}
                             >
-                              <MoreHorizontal size={16} />
+                              <MoreHorizontal
+                                size={portalIconSize.md}
+                                strokeWidth={portalIconStroke.default}
+                              />
                             </IconButton>
                           </Box>
                         )}
@@ -636,358 +803,160 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
             sx={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "space-between",
               gap: theme.spacing(2),
               flexWrap: "wrap",
-              borderTop: `1px solid ${theme.customTokens.borders.default}`,
-              px: { xs: theme.spacing(1.5), md: theme.spacing(2) },
+              borderTop: `1px solid ${theme.customTokens.borders.divider}`,
+              px: { xs: theme.spacing(1.25), md: theme.spacing(1.5) },
               py: theme.spacing(1),
               backgroundColor: theme.customTokens.surfaces.surface,
+              minHeight: 34,
             }}
           >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: theme.spacing(1.25),
-              flexWrap: "wrap",
-              flex: "1 1 640px",
-              minWidth: 0,
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: theme.spacing(0.75),
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
-                ml: "auto",
-              }}
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontSize: "12px", lineHeight: 1.35 }}
             >
-              <Typography variant="caption" color="text.secondary">
-                Rows per page
-              </Typography>
+              Showing {rangeStart}–{rangeEnd} of {sortedRows.length}
+              {hasActiveFilters ? " matching records" : " records"}
+            </Typography>
 
-              <Select
-                size="small"
-                value={String(rowsPerPage)}
-                onChange={(event) => {
-                  setRowsPerPage(Number(event.target.value));
-                  setPage(1);
-                }}
-                sx={{
-                  minWidth: 68,
-                  height: 30,
-                  borderRadius: `${theme.customTokens.radius.md}px`,
-                  "& .MuiSelect-select": {
-                    py: theme.spacing(0.5),
-                    pr: `${theme.spacing(3)} !important`,
-                    pl: theme.spacing(1),
-                    fontSize: theme.typography.caption.fontSize,
-                  },
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.customTokens.borders.default,
-                  },
-                }}
-              >
-                {rowsPerPageOptions.map((option) => (
-                  <MenuItem key={option} value={String(option)}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </Select>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1.5}
+              flexWrap="wrap"
+              useFlexGap
+            >
+              <Stack direction="row" alignItems="center" spacing={0.75}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontSize: "12px" }}
+                >
+                  Rows per page
+                </Typography>
 
-              <Typography variant="caption" color="text.secondary">
-                Go To Page
-              </Typography>
-
-              <TextField
-                size="small"
-                value={goToPage}
-                onChange={(event) => setGoToPage(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") {
-                    return;
-                  }
-
-                  setPage(clampPage(goToPage, totalPages));
-                }}
-                sx={{
-                  width: 58,
-                  "& .MuiOutlinedInput-root": {
+                <Select
+                  size="small"
+                  value={String(rowsPerPage)}
+                  onChange={(event) => {
+                    setRowsPerPage(Number(event.target.value));
+                    setPage(1);
+                  }}
+                  sx={{
+                    minWidth: 64,
                     height: 30,
-                    borderRadius: `${theme.customTokens.radius.md}px`,
-                    fontSize: theme.typography.caption.fontSize,
-                  },
-                  "& .MuiInputBase-input": {
-                    py: theme.spacing(0.5),
-                  },
-                }}
-              />
+                    borderRadius: `${theme.customTokens.radius.sm}px`,
+                    fontSize: "12px",
+                    fontWeight: 400,
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: theme.customTokens.borders.default,
+                    },
+                    "& .MuiSelect-select": {
+                      fontSize: "12px",
+                      fontWeight: 400,
+                      py: 0,
+                      display: "flex",
+                      alignItems: "center",
+                    },
+                  }}
+                >
+                  {rowsPerPageOptions.map((option) => (
+                    <MenuItem key={option} value={String(option)}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Stack>
 
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => setPage(clampPage(goToPage, totalPages))}
-                sx={paginationButtonSx(theme)}
-              >
-                Go
-              </Button>
-
-              <Stack
-                direction="row"
-                spacing={0.5}
-                sx={{ ml: theme.spacing(1) }}
-                useFlexGap
-              >
-                <Button
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                <IconButton
                   aria-label="Previous page"
                   size="small"
-                  variant="outlined"
                   disabled={safePage === 1}
                   onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                  sx={paginationIconButtonSx(theme)}
+                  sx={listingPaginationIconButtonSx(theme)}
                 >
-                  <ChevronLeft size={13} />
-                </Button>
+                  <ChevronLeft size={16} />
+                </IconButton>
 
                 {visiblePaginationPages.map((pageItem, index) =>
                   pageItem === "ellipsis" ? (
                     <Typography
                       key={`pagination-ellipsis-${index}`}
                       variant="caption"
-                      sx={{
-                        alignItems: "center",
-                        color: theme.palette.text.secondary,
-                        display: "inline-flex",
-                        height: 28,
-                        px: theme.spacing(0.5),
-                      }}
+                      color="text.secondary"
+                      sx={{ px: 0.5 }}
                     >
-                      .....
+                      …
                     </Typography>
                   ) : (
                     <Button
                       key={pageItem}
                       size="small"
-                      variant={pageItem === safePage ? "contained" : "outlined"}
                       onClick={() => setPage(pageItem)}
-                      sx={pageNumberButtonSx(theme, pageItem === safePage)}
+                      sx={listingPageNumberButtonSx(
+                        theme,
+                        pageItem === safePage,
+                      )}
                     >
                       {pageItem}
                     </Button>
                   ),
                 )}
 
-                <Button
+                <IconButton
                   aria-label="Next page"
                   size="small"
-                  variant="outlined"
                   disabled={safePage === totalPages}
                   onClick={() =>
                     setPage((current) => Math.min(current + 1, totalPages))
                   }
-                  sx={paginationIconButtonSx(theme)}
+                  sx={listingPaginationIconButtonSx(theme)}
                 >
-                  <ChevronRight size={13} />
-                </Button>
+                  <ChevronRight size={16} />
+                </IconButton>
               </Stack>
-            </Box>
-          </Box>
+            </Stack>
           </Box>
         ) : null}
       </Box>
 
-      <Menu
+      <RowActionsMenu
         anchorEl={actionMenuAnchor}
         open={Boolean(usesActionMenu && actionMenuAnchor && activeRow)}
         onClose={handleCloseActionMenu}
-        MenuListProps={{ dense: true }}
-        PaperProps={{
-          sx: {
-            border: `1px solid ${theme.customTokens.borders.default}`,
-            borderRadius: `${theme.customTokens.radius.md}px`,
-            boxShadow: "none",
-            mt: 1,
-          },
-        }}
-      >
-        {activeRowActions.map((action) => {
-          const Icon = action.icon;
+        actions={
+          activeRow
+            ? activeRowActions.map((action) => ({
+                id: action.id,
+                label: action.label,
+                icon: action.icon,
+                tone: action.tone,
+                onSelect: () => action.onSelect(activeRow),
+              }))
+            : []
+        }
+      />
 
-          return (
-            <MenuItem
-              key={action.id}
-              onClick={() => {
-                if (!activeRow) {
-                  return;
-                }
-
-                action.onSelect(activeRow);
-                handleCloseActionMenu();
-              }}
-              sx={{
-                color: theme.customTokens.text.primary,
-                gap: theme.spacing(1),
-                "&:hover": {
-                  backgroundColor: theme.customTokens.navigation.hoverBackground,
-                  color: theme.customTokens.navigation.activeText,
-                },
-              }}
-            >
-              {Icon ? <Icon size={14} /> : null}
-              {action.label}
-            </MenuItem>
-          );
-        })}
-      </Menu>
-
-      <Menu
-        anchorEl={filterMenuAnchor}
-        open={Boolean(filterMenuAnchor && activeFilterColumn)}
-        onClose={() => {
-          setFilterSearch("");
-          setFilterMenuAnchor(null);
-          setActiveFilterColumn(null);
-        }}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-        MenuListProps={{ dense: true }}
-        PaperProps={{
-          sx: {
-            border: `1px solid ${theme.customTokens.borders.default}`,
-            borderRadius: `${theme.customTokens.radius.md}px`,
-            boxShadow: "none",
-            mt: 1,
-            overflowX: "hidden",
-            width: filterMenuWidth,
-          },
-        }}
-      >
-        <Box
-          sx={{
-            px: theme.spacing(1),
-            py: theme.spacing(0.75),
-          }}
-        >
-          <TextField
-            autoFocus
-            fullWidth
-            size="small"
-            value={filterSearch}
-            onChange={(event) => handleFilterSearchChange(event.target.value)}
-            onClick={(event) => event.stopPropagation()}
-            slotProps={{
-              input: {
-                endAdornment: filterSearch ? (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="Clear filter search"
-                      edge="end"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleFilterSearchChange("");
-                      }}
-                      onMouseDown={(event) => event.preventDefault()}
-                      size="small"
-                      sx={{
-                        color: theme.customTokens.text.secondary,
-                        p: theme.spacing(0.25),
-                        "&:hover": {
-                          backgroundColor:
-                            theme.customTokens.navigation.hoverBackground,
-                          color: theme.palette.primary.main,
-                        },
-                      }}
-                    >
-                      <X size={12} />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-              },
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: `${theme.customTokens.radius.md}px`,
-                fontSize: theme.typography.body2.fontSize,
-              },
-              "& .MuiOutlinedInput-notchedOutline": {
-                borderColor: theme.customTokens.borders.default,
-              },
-            }}
-          />
-        </Box>
-
-        <Box
-          sx={{
-            borderTop: `1px solid ${theme.customTokens.borders.default}`,
-            maxHeight: 224,
-            overflowX: "hidden",
-            overflowY: "auto",
-            py: theme.spacing(0.5),
-            scrollbarWidth: "thin",
-            scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
-            "&::-webkit-scrollbar": {
-              width: 6,
-            },
-            "&::-webkit-scrollbar-track": {
-              backgroundColor: theme.customTokens.surfaces.alt,
-            },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: theme.customTokens.brand.primary,
-              borderRadius: theme.customTokens.radius.pill,
-            },
-          }}
-        >
-          {filterValueOptions.length > 0 ? (
-            filterValueOptions.map((option) => {
-              const selected = option === filters[activeFilterColumn ?? ""];
-
-              return (
-                <MenuItem
-                  key={option}
-                  selected={selected}
-                  onClick={() => handleFilterValueSelect(option)}
-                  sx={{
-                    color: theme.customTokens.text.primary,
-                    fontSize: theme.typography.body2.fontSize,
-                    minHeight: 32,
-                    overflow: "hidden",
-                    px: theme.spacing(1.5),
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    "&.Mui-selected": {
-                      backgroundColor: theme.customTokens.navigation.activeBackground,
-                      color: theme.customTokens.navigation.activeText,
-                      fontWeight: 700,
-                    },
-                    "&.Mui-selected:hover, &:hover": {
-                      backgroundColor: theme.customTokens.navigation.hoverBackground,
-                      color: theme.customTokens.navigation.activeText,
-                    },
-                  }}
-                >
-                  {option}
-                </MenuItem>
-              );
-            })
-          ) : (
-            <MenuItem
-              disabled
-              sx={{
-                color: theme.customTokens.text.secondary,
-                fontSize: theme.typography.caption.fontSize,
-                minHeight: 32,
-                px: theme.spacing(1.5),
-              }}
-            >
-              No values found
-            </MenuItem>
-          )}
-        </Box>
-      </Menu>
-    </>
+      {activeFilterColumnDef && activeFilterMeta ? (
+        <ColumnFilterPopoverRouter
+          open={Boolean(filterMenuAnchor && activeFilterColumn)}
+          anchorEl={filterMenuAnchor}
+          onClose={handleCloseFilter}
+          label={activeFilterColumnDef.label}
+          filterType={activeFilterMeta.filterType}
+          options={activeFilterMeta.options}
+          uniqueCount={activeFilterMeta.uniqueCount}
+          value={filters[activeFilterColumn!]}
+          onApply={handleApplyFilter}
+          onApplyMultiSelect={handleApplyMultiSelectFilter}
+          onClear={() => handleClearFilter()}
+        />
+      ) : null}
+    </Stack>
   );
 
   function SortIndicator({
@@ -999,23 +968,29 @@ export function EnterpriseDataTable<Row extends EnterpriseTableRow>({
   }) {
     if (!active || !direction) {
       return (
-        <ArrowUpDown color={theme.customTokens.text.inverse} size={14} />
+        <ArrowUpDown
+          color={theme.customTokens.neutrals[700]}
+          size={portalIconSize.tableHeader}
+          strokeWidth={portalIconStroke.default}
+        />
       );
     }
 
     if (direction === "asc") {
       return (
         <ArrowUpWideNarrow
-          color={theme.customTokens.brand.primaryScale[100]}
-          size={14}
+          color={theme.customTokens.brand.primary}
+          size={portalIconSize.tableHeader}
+          strokeWidth={portalIconStroke.emphasis}
         />
       );
     }
 
     return (
       <ArrowDownWideNarrow
-        color={theme.customTokens.brand.primaryScale[100]}
-        size={14}
+        color={theme.customTokens.brand.primary}
+        size={portalIconSize.tableHeader}
+        strokeWidth={portalIconStroke.emphasis}
       />
     );
   }
@@ -1026,37 +1001,17 @@ export const standardInventoryTableActions = {
   view: Eye,
 };
 
-function headerCellSx(theme: Theme) {
-  return {
-    position: "sticky" as const,
-    top: 0,
-    zIndex: 2,
-    py: 1.25,
-    px: 1.5,
-    borderBottom: `1px solid ${theme.customTokens.brand.primaryScale[800]}`,
-    backgroundColor: theme.customTokens.brand.primary,
-  };
-}
-
 function actionHeaderCellSx(
   theme: Theme,
   actionColumnWidth: number,
 ) {
   return {
-    ...headerCellSx(theme),
+    ...listingTableHeaderCellSx(theme),
     position: "sticky" as const,
     right: 0,
     zIndex: 5,
     minWidth: actionColumnWidth,
-    boxShadow: `-1px 0 0 ${theme.customTokens.brand.primaryScale[800]}`,
-  };
-}
-
-function bodyCellSx(theme: Theme) {
-  return {
-    py: 1.25,
-    px: 1.5,
-    borderBottom: `1px solid ${theme.customTokens.borders.default}`,
+    boxShadow: `-1px 0 0 ${theme.customTokens.borders.default}`,
   };
 }
 
@@ -1065,7 +1020,7 @@ function actionBodyCellSx(
   actionColumnWidth: number,
 ) {
   return {
-    ...bodyCellSx(theme),
+    ...listingTableBodyCellSx(theme),
     position: "sticky" as const,
     right: 0,
     zIndex: 1,
@@ -1077,7 +1032,7 @@ function actionBodyCellSx(
 
 function emptyStateCellSx(theme: Theme) {
   return {
-    ...bodyCellSx(theme),
+    ...listingTableBodyCellSx(theme),
     py: theme.spacing(4),
     textAlign: "center",
     color: theme.customTokens.text.secondary,
@@ -1086,22 +1041,37 @@ function emptyStateCellSx(theme: Theme) {
 
 function headerCheckboxSx(theme: Theme) {
   return {
-    ...checkboxSx,
-    color: theme.customTokens.text.inverse,
+    ...compactCheckboxSx,
+    color: theme.customTokens.text.secondary,
     "&.Mui-checked": {
-      color: theme.customTokens.text.inverse,
+      color: theme.customTokens.brand.primary,
     },
     "&.MuiCheckbox-indeterminate": {
-      color: theme.customTokens.text.inverse,
+      color: theme.customTokens.brand.primary,
     },
     "&:hover": {
-      backgroundColor: theme.customTokens.brand.secondary,
+      backgroundColor: theme.customTokens.surfaces.alt,
     },
   };
 }
 
-const checkboxSx = {
+const compactCheckboxCellSx = {
+  width: 40,
+  minWidth: 40,
+  maxWidth: 40,
+  px: 0.75,
+  lineHeight: 1,
+};
+
+const compactCheckboxSx = {
+  p: 0,
+  m: 0,
+  width: 22,
+  height: 22,
   color: "text.secondary",
+  "& .MuiSvgIcon-root": {
+    fontSize: 16,
+  },
   "&.Mui-checked": {
     color: "primary.main",
   },
@@ -1109,91 +1079,6 @@ const checkboxSx = {
     color: "primary.main",
   },
 };
-
-const headerIconButtonSx = {
-  width: 24,
-  height: 24,
-  color: "common.white",
-};
-
-function paginationButtonSx(theme: Theme) {
-  return {
-    borderColor: theme.customTokens.borders.default,
-    color: theme.customTokens.navigation.activeText,
-    minHeight: 28,
-    minWidth: 32,
-    px: theme.spacing(1),
-    borderRadius: `${theme.customTokens.radius.md}px`,
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: 700,
-    lineHeight: 1,
-    textTransform: "none",
-    boxShadow: "none",
-    "&:hover": {
-      borderColor: theme.customTokens.brand.primary,
-      backgroundColor: theme.customTokens.navigation.hoverBackground,
-      boxShadow: "none",
-    },
-    "&.Mui-disabled": {
-      borderColor: theme.customTokens.borders.default,
-      color: theme.customTokens.neutrals[400],
-      backgroundColor: theme.customTokens.surfaces.alt,
-    },
-  };
-}
-
-function paginationIconButtonSx(theme: Theme) {
-  return {
-    ...paginationButtonSx(theme),
-    width: 28,
-    minWidth: 28,
-    height: 28,
-    p: 0,
-    color: theme.customTokens.text.primary,
-    "& svg": {
-      color: theme.customTokens.text.primary,
-      strokeWidth: 2.25,
-    },
-    "&:hover": {
-      borderColor: theme.customTokens.text.primary,
-      backgroundColor: theme.customTokens.navigation.hoverBackground,
-      color: theme.customTokens.text.primary,
-      boxShadow: "none",
-    },
-  };
-}
-
-function pageNumberButtonSx(
-  theme: Theme,
-  active: boolean,
-) {
-  return {
-    minHeight: 28,
-    minWidth: 28,
-    px: theme.spacing(0.75),
-    borderRadius: `${theme.customTokens.radius.md}px`,
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: 700,
-    lineHeight: 1,
-    color: active
-      ? theme.customTokens.text.inverse
-      : theme.customTokens.navigation.activeText,
-    backgroundColor: active
-      ? theme.customTokens.brand.primary
-      : "transparent",
-    borderColor: active
-      ? theme.customTokens.brand.primary
-      : theme.customTokens.borders.default,
-    boxShadow: "none",
-    "&:hover": {
-      backgroundColor: active
-        ? theme.customTokens.brand.secondary
-        : theme.customTokens.navigation.hoverBackground,
-      borderColor: theme.customTokens.brand.primary,
-      boxShadow: "none",
-    },
-  };
-}
 
 const enterpriseStatusToggleValueMap: Record<string, boolean> = {
   active: true,
@@ -1249,7 +1134,7 @@ function renderEnterpriseTableCell<Row extends EnterpriseTableRow>(
   const toggleState = getEnterpriseStatusToggleState(column, row[column.key]);
 
   if (toggleState === null) {
-    return formatEnterpriseValue(row[column.key]);
+    return formatEnterpriseValue(row[column.key], column.key, column.label);
   }
 
   const toggleKey = `${row.id}:${column.key}`;
@@ -1504,21 +1389,33 @@ function getAuditInitials(name: string) {
 
 function renderQcStatusChip(value: EnterpriseTableCellValue, theme: Theme) {
   const normalizedValue = formatEnterpriseValue(value).trim().toLowerCase();
-  const isDone =
+  const isInspectionStatus = normalizedValue.includes("inspection");
+  const isPass =
+    normalizedValue === "pass" ||
+    normalizedValue === "qc pass" ||
     normalizedValue === "done" ||
     normalizedValue === "qc done" ||
     normalizedValue === "inspection done";
-  const isInspectionStatus = normalizedValue.includes("inspection");
+  const isFail =
+    normalizedValue === "fail" ||
+    normalizedValue === "qc fail" ||
+    normalizedValue === "failed";
+
   const label = isInspectionStatus
-    ? isDone
+    ? isPass
       ? "Inspection Done"
       : "Inspection Pending"
-    : isDone
-      ? "Done"
-      : "Pending";
-  const palette = isDone
+    : isPass
+      ? "QC Pass"
+      : isFail
+        ? "QC Fail"
+        : "Pending";
+
+  const palette = isPass
     ? theme.customTokens.semanticScale.success
-    : theme.customTokens.semanticScale.warning;
+    : isFail
+      ? theme.customTokens.semanticScale.error
+      : theme.customTokens.semanticScale.warning;
 
   return (
     <Chip
@@ -1541,16 +1438,6 @@ function renderQcStatusChip(value: EnterpriseTableCellValue, theme: Theme) {
 
 function isInspectionStatusValue(value: EnterpriseTableCellValue) {
   return formatEnterpriseValue(value).trim().toLowerCase().startsWith("inspection ");
-}
-
-function clampPage(value: string, totalPages: number) {
-  const parsed = Number(value);
-
-  if (Number.isNaN(parsed) || parsed < 1) {
-    return 1;
-  }
-
-  return Math.min(parsed, totalPages);
 }
 
 function getVisiblePaginationPages(totalPages: number) {
@@ -1586,7 +1473,11 @@ function normalizeSortValue(value: EnterpriseTableCellValue) {
   return textValue.toLowerCase();
 }
 
-function formatEnterpriseValue(value: EnterpriseTableCellValue) {
+function formatEnterpriseValue(
+  value: EnterpriseTableCellValue,
+  key?: string,
+  label?: string,
+) {
   if (value instanceof Date) {
     return new Intl.DateTimeFormat("en-GB", {
       day: "2-digit",
@@ -1601,6 +1492,10 @@ function formatEnterpriseValue(value: EnterpriseTableCellValue) {
 
   if (value === null || typeof value === "undefined") {
     return "";
+  }
+
+  if (key) {
+    return formatDisplayValueByField(value, key, label);
   }
 
   return String(value);

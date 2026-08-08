@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
   Box,
@@ -34,6 +34,24 @@ import {
   recordFormActionButtonSx,
   recordViewActionButtonSx,
 } from "../../shared/buttonStyles";
+import {
+  formatAmount,
+  formatCurrency,
+  formatQuantity,
+  formatSQM,
+} from "../../shared/numberFormat";
+import {
+  type FormFieldSize,
+} from "../../shared/formFieldSizes";
+import {
+  formSectionCardSx,
+  FormSectionHeader,
+} from "../../shared/formSectionStyles";
+import { SizedMasterFormFields } from "../../shared/SizedMasterFormFields";
+import {
+  transactionTableBodyCellSx,
+  transactionTableHeaderCellSx,
+} from "../../shared/listingTableStyles";
 import {
   createOrderRecord,
   getCreateOrderFormFields,
@@ -86,9 +104,9 @@ const orderDetailColumns: readonly DetailColumn<OrderRecord>[] = [
 ];
 
 const rawItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
-  { label: "Item Sub Category", minWidth: 160, getValue: (row) => row.subCategory },
-  { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
   { label: "Product Type", minWidth: 150, getValue: (row) => row.productCategory },
+  { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
+  { label: "Sub Category", minWidth: 160, getValue: (row) => row.subCategory },
   { label: "Series", minWidth: 130, getValue: (row) => row.series },
   { label: "Grade", minWidth: 110, getValue: (row) => row.grade },
   { label: "Length", minWidth: 120, getValue: (row) => row.length },
@@ -99,6 +117,7 @@ const rawItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
   { label: "SQF", minWidth: 130, getValue: (row) => row.totalSqm },
   { label: "Rate per SQF", minWidth: 140, getValue: (row) => row.ratePerSqf },
   { label: "Amount", minWidth: 130, getValue: (row) => row.amount },
+  { label: "Remark", minWidth: 200, getValue: (row) => row.remark },
 ];
 
 const finishedItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
@@ -111,6 +130,7 @@ const finishedItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
   { label: "No. of Sheets", minWidth: 130, getValue: (row) => row.quantitySheets },
   { label: "SQM", minWidth: 120, getValue: (row) => row.sqm },
   { label: "SQF", minWidth: 120, getValue: (row) => row.totalSqm },
+  { label: "Rate per SQF", minWidth: 140, getValue: (row) => row.ratePerSqf },
   { label: "Base Type", minWidth: 130, getValue: (row) => row.baseType },
   { label: "Base Name", minWidth: 160, getValue: (row) => row.baseName },
   { label: "Base Length", minWidth: 130, getValue: (row) => row.baseLength },
@@ -243,49 +263,109 @@ export function OrderRecordPage({
           { label: pageTitle },
         ]}
         title={pageTitle}
+        subtitle={
+          recordVariant === "finished"
+            ? "Finished product demand that may require Factory processing later."
+            : "Customer request for raw / non-finished material."
+        }
       >
-        <MasterSectionCard>
-          <Stack
+        <Stack
+          sx={(theme) => ({
+            gap: theme.spacing(2),
+          })}
+        >
+          <OrderTypeBanner variant={recordVariant} />
+
+          <MasterSectionCard>
+            <Stack spacing={1.5}>
+              <OrderSectionTitle title="Order Summary" />
+              <OrderLabelValueGrid
+                items={orderDetailColumns.map((column) => ({
+                  label: column.label,
+                  value: formatMasterValue(column.getValue(record)),
+                }))}
+              />
+            </Stack>
+          </MasterSectionCard>
+
+          <MasterSectionCard>
+            <Stack spacing={1.5}>
+              <OrderSectionTitle
+                title={
+                  recordVariant === "finished"
+                    ? "Finished Order Items"
+                    : "Raw Order Items"
+                }
+              />
+              {lineItems.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No order items are available.
+                </Typography>
+              ) : (
+                lineItems.map((item, index) => (
+                  <Box
+                    key={item.id}
+                    sx={(theme) => ({
+                      border: `1px solid ${theme.customTokens.borders.default}`,
+                      borderRadius: `${theme.customTokens.radius.md}px`,
+                      px: theme.spacing(1.5),
+                      py: theme.spacing(1.25),
+                    })}
+                  >
+                    <Typography
+                      sx={(theme) => ({
+                        color: theme.customTokens.brand.primary,
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        mb: 1,
+                      })}
+                    >
+                      {recordVariant === "finished"
+                        ? `Order Item No ${formatViewOrderItemNo(item.id, index)}`
+                        : `Item ${index + 1}`}
+                    </Typography>
+                    <OrderLabelValueGrid
+                      items={getItemDetailColumns(recordVariant).map((column) => ({
+                        label: column.label,
+                        value: formatMasterValue(column.getValue(item)),
+                      }))}
+                    />
+                  </Box>
+                ))
+              )}
+            </Stack>
+          </MasterSectionCard>
+
+          <Box
             sx={(theme) => ({
-              gap: theme.spacing(2),
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: theme.spacing(1.25),
             })}
           >
-            <Typography variant="h3" color="text.primary">
-              View Details
-            </Typography>
-
-            <Box
-              sx={(theme) => ({
-                borderBottom: `1px solid ${theme.customTokens.borders.default}`,
-              })}
-            />
-
-            <OrderDetailTable
-              columns={orderDetailColumns}
-              rows={[record]}
-              title="Order Details"
-            />
-
-            <OrderDetailTable
-              columns={getItemDetailColumns(recordVariant)}
-              emptyLabel="No order items are available."
-              rows={lineItems}
-              title="Item Details"
-            />
-
-            <Box
-              sx={(theme) => ({
-                display: "flex",
-                justifyContent: "center",
-                pt: theme.spacing(1),
-              })}
+            <Button
+              onClick={() => navigate(paths.list)}
+              startIcon={<ChevronLeft size={16} />}
+              sx={recordViewActionButtonSx}
+              variant="outlined"
             >
-              <Button onClick={() => navigate(paths.list)} variant="contained">
-                Close
-              </Button>
-            </Box>
-          </Stack>
-        </MasterSectionCard>
+              Back
+            </Button>
+
+            <Button
+              onClick={() => {
+                if (record) {
+                  navigate(paths.edit(record.id));
+                }
+              }}
+              startIcon={<Pencil size={16} />}
+              sx={recordViewActionButtonSx}
+              variant="contained"
+            >
+              Edit
+            </Button>
+          </Box>
+        </Stack>
       </MasterPageShell>
     );
   }
@@ -296,149 +376,120 @@ export function OrderRecordPage({
         { label: moduleConfig.title, to: paths.list },
         { label: pageTitle },
       ]}
+      contentGap={1.5}
       title={pageTitle}
+      subtitle={
+        activeVariant === "finished"
+          ? "Create a finished product customer order."
+          : activeVariant === "raw"
+            ? "Create a raw / non-finished material customer order."
+            : undefined
+      }
     >
-      <MasterSectionCard>
-        <Stack
-          sx={(theme) => ({
-            gap: theme.spacing(3),
-          })}
-        >
-          <MasterFormFields
-            definition={{
-              fields: activeFields as MasterFieldDefinition[],
-              gridColumns: 4,
-            }}
-            fieldActions={{
-              customerName: (
-                <IconButton
-                  aria-label="View customer details"
-                  disabled={!selectedCustomer}
-                  onClick={() => setIsCustomerDetailsOpen(true)}
-                  size="small"
-                  sx={(theme) => ({
-                    color: selectedCustomer
-                      ? theme.customTokens.navigation.activeText
-                      : theme.palette.text.disabled,
-                    height: theme.spacing(2),
-                    minHeight: theme.spacing(2),
-                    p: 0,
-                    width: theme.spacing(2),
-                    "&:hover": {
-                      backgroundColor: theme.customTokens.navigation.hoverBackground,
-                    },
-                  })}
-                >
-                  <Info size={12} />
-                </IconButton>
-              ),
-            }}
-            onChange={(key, value) =>
-              setValues((current) => ({
-                ...current,
-                [key]: value,
-              }))
+      <Stack
+        sx={(theme) => ({
+          gap: theme.spacing(1.5),
+          maxWidth: 1200,
+          width: "100%",
+        })}
+      >
+        <OrderCompactSectionCard>
+          <Stack spacing={1.15}>
+            <OrderSectionTitle title="Order Details" />
+            <OrderHeaderFields
+              fields={getOrderDetailsFields(activeFields as MasterFieldDefinition[])}
+              fieldActions={{
+                customerName: (
+                  <IconButton
+                    aria-label="View customer details"
+                    disabled={!selectedCustomer}
+                    onClick={() => setIsCustomerDetailsOpen(true)}
+                    size="small"
+                    sx={(theme) => ({
+                      color: selectedCustomer
+                        ? theme.customTokens.navigation.activeText
+                        : theme.palette.text.disabled,
+                      height: 28,
+                      minHeight: 28,
+                      p: 0,
+                      width: 28,
+                      "&:hover": {
+                        backgroundColor:
+                          theme.customTokens.navigation.hoverBackground,
+                      },
+                    })}
+                  >
+                    <Info size={16} />
+                  </IconButton>
+                ),
+              }}
+              onChange={(key, value) => {
+                if (key === "orderNo" && mode === "add") {
+                  return;
+                }
+
+                setValues((current) => ({
+                  ...current,
+                  [key]: value,
+                }));
+              }}
+              showRequiredErrors={hasSubmitted}
+              values={{
+                ...values,
+                orderNo:
+                  (typeof values.orderNo === "string" && values.orderNo.trim()
+                    ? values.orderNo
+                    : record?.orderNo) ||
+                  (mode === "add" ? "Auto-generated" : ""),
+              }}
+            />
+          </Stack>
+        </OrderCompactSectionCard>
+
+        <OrderLineItemsTable
+          ref={lineItemsTableRef}
+          items={lineItems}
+          onChange={setLineItems}
+          readOnly={false}
+          variant={activeVariant}
+        />
+
+        <OrderFormFooter
+          lineItems={lineItems}
+          onCancel={() => navigate(paths.list)}
+          onSave={() => {
+            if (!canUseMode) {
+              return;
             }
-            readOnly={mode === "view"}
-            showRequiredErrors={mode !== "view" && hasSubmitted}
-            values={values}
-          />
 
-          <OrderLineItemsTable
-            ref={lineItemsTableRef}
-            items={lineItems}
-            onChange={setLineItems}
-            readOnly={mode === "view"}
-            variant={activeVariant}
-          />
+            setHasSubmitted(true);
 
-          <Box
-            sx={(theme) => ({
-              display: "flex",
-              justifyContent: "center",
-              gap: theme.spacing(1.5),
-              flexWrap: "wrap",
-            })}
-          >
-            {mode === "view" ? (
-              <>
-                <Button
-                  onClick={() => navigate(paths.list)}
-                  startIcon={<ChevronLeft size={16} />}
-                  sx={recordViewActionButtonSx}
-                  variant="outlined"
-                >
-                  Back
-                </Button>
+            const lineItemsAreValid =
+              lineItemsTableRef.current?.validate() ?? true;
 
-                <Button
-                  onClick={() => {
-                    if (record) {
-                      navigate(paths.edit(record.id));
-                    }
-                  }}
-                  startIcon={<Pencil size={16} />}
-                  sx={recordViewActionButtonSx}
-                  variant="contained"
-                >
-                  Edit
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  onClick={() => navigate(paths.list)}
-                  sx={recordFormActionButtonSx}
-                  variant="outlined"
-                >
-                  Cancel
-                </Button>
+            if (
+              hasFormFieldErrors(activeFields, values) ||
+              !lineItemsAreValid
+            ) {
+              return;
+            }
 
-                <Button
-                  type="button"
-                  onClick={() => {
-                    if (!canUseMode) {
-                      return;
-                    }
+            const payload = buildOrderPayload(values, lineItems);
 
-                    setHasSubmitted(true);
+            if (mode === "add") {
+              if (activeVariant) {
+                payload.orderType = getOrderVariantLabel(activeVariant);
+              }
 
-                    const lineItemsAreValid =
-                      lineItemsTableRef.current?.validate() ?? true;
+              createOrderRecord(payload);
+            } else if (record) {
+              updateOrderRecord(record.id, payload);
+            }
 
-                    if (
-                      hasFormFieldErrors(activeFields, values) ||
-                      !lineItemsAreValid
-                    ) {
-                      return;
-                    }
-
-                    const payload = buildOrderPayload(values, lineItems);
-
-                    if (mode === "add") {
-                      if (activeVariant) {
-                        payload.orderType = getOrderVariantLabel(activeVariant);
-                      }
-
-                      createOrderRecord(payload);
-                    } else if (record) {
-                      updateOrderRecord(record.id, payload);
-                    }
-
-                    navigate(paths.list);
-                  }}
-                  startIcon={<Save size={16} />}
-                  sx={recordFormActionButtonSx}
-                  variant="contained"
-                >
-                  Save
-                </Button>
-              </>
-            )}
-          </Box>
-        </Stack>
-      </MasterSectionCard>
+            navigate(paths.list);
+          }}
+        />
+      </Stack>
 
       <CustomerDetailsDialog
         customer={selectedCustomer}
@@ -447,6 +498,313 @@ export function OrderRecordPage({
       />
     </MasterPageShell>
   );
+}
+
+function OrderCompactSectionCard({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      sx={(theme) => ({
+        ...formSectionCardSx(theme),
+      })}
+    >
+      {children}
+    </Box>
+  );
+}
+
+function OrderSectionTitle({ title }: { title: string }) {
+  return <FormSectionHeader title={title} />;
+}
+
+const orderDetailsFieldOrder = [
+  "orderNo",
+  "orderDate",
+  "customerName",
+  "priority",
+  "remark",
+] as const;
+
+const orderHeaderFieldSizes: Partial<Record<string, FormFieldSize>> = {
+  orderNo: "sm",
+  orderDate: "sm",
+  customerName: "md",
+  priority: "xs",
+  remark: "full",
+};
+
+function getOrderDetailsFields(
+  fields: readonly MasterFieldDefinition[],
+): MasterFieldDefinition[] {
+  const byKey = new Map(fields.map((field) => [field.key, field]));
+  const ordered: MasterFieldDefinition[] = [];
+
+  for (const key of orderDetailsFieldOrder) {
+    if (key === "orderNo") {
+      ordered.push({
+        ...(byKey.get("orderNo") ?? { key: "orderNo", label: "Order No", type: "text" }),
+        key: "orderNo",
+        label: "Order No",
+        type: "text",
+        readOnly: true,
+      });
+      continue;
+    }
+
+    const field = byKey.get(key);
+
+    if (field) {
+      ordered.push(field);
+    }
+  }
+
+  for (const field of fields) {
+    if (
+      !orderDetailsFieldOrder.includes(
+        field.key as (typeof orderDetailsFieldOrder)[number],
+      )
+    ) {
+      ordered.push(field);
+    }
+  }
+
+  return ordered;
+}
+
+function OrderHeaderFields({
+  fieldActions,
+  fields,
+  onChange,
+  showRequiredErrors,
+  values,
+}: {
+  fieldActions?: Record<string, ReactNode>;
+  fields: readonly MasterFieldDefinition[];
+  onChange: (key: string, value: MasterFieldValue) => void;
+  showRequiredErrors: boolean;
+  values: Record<string, MasterFieldValue>;
+}) {
+  return (
+    <SizedMasterFormFields
+      fieldActions={fieldActions}
+      fields={fields}
+      onChange={onChange}
+      showRequiredErrors={showRequiredErrors}
+      sizes={orderHeaderFieldSizes}
+      values={values}
+    />
+  );
+}
+
+function OrderFormFooter({
+  lineItems,
+  onCancel,
+  onSave,
+}: {
+  lineItems: readonly OrderLineItem[];
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  const totals = computeOrderLineTotals(lineItems);
+
+  return (
+    <Box
+      sx={(theme) => ({
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: theme.spacing(1.5),
+        border: `1px solid ${theme.customTokens.borders.default}`,
+        borderRadius: "8px",
+        backgroundColor: theme.customTokens.surfaces.surface,
+        px: theme.spacing(1.75),
+        py: theme.spacing(1.25),
+      })}
+    >
+      <Box
+        sx={(theme) => ({
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: theme.spacing(2.5),
+          rowGap: theme.spacing(1),
+          minWidth: 0,
+        })}
+      >
+        <OrderTotalMetric label="Total Items" value={String(totals.totalItems)} />
+        <OrderTotalMetric label="Total Sheets" value={formatTotalNumber(totals.totalSheets, 0)} />
+        <OrderTotalMetric label="Total SQM" value={formatTotalNumber(totals.totalSqm, 3)} />
+        <OrderTotalMetric label="Total SQF" value={formatTotalNumber(totals.totalSqf, 3)} />
+        <OrderTotalMetric
+          emphasize
+          label="Order Amount"
+          value={formatCurrency(totals.orderAmount, { withSymbol: true })}
+        />
+      </Box>
+
+      <Box
+        sx={(theme) => ({
+          display: "flex",
+          gap: theme.spacing(1.25),
+          flexShrink: 0,
+          ml: "auto",
+        })}
+      >
+        <Button
+          type="button"
+          onClick={onCancel}
+          sx={recordFormActionButtonSx}
+          variant="outlined"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          onClick={onSave}
+          startIcon={<Save size={16} />}
+          sx={recordFormActionButtonSx}
+          variant="contained"
+        >
+          Save Order
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
+function OrderTotalMetric({
+  emphasize = false,
+  label,
+  value,
+}: {
+  emphasize?: boolean;
+  label: string;
+  value: string;
+}) {
+  return (
+    <Stack spacing={0.35} sx={{ minWidth: emphasize ? 150 : undefined }}>
+      <Typography
+        sx={(theme) => ({
+          color: theme.customTokens.text.secondary,
+          fontSize: "12px",
+          fontWeight: 500,
+          letterSpacing: "0.02em",
+          textTransform: "uppercase",
+        })}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={(theme) => ({
+          color: emphasize
+            ? theme.customTokens.brand.primary
+            : theme.customTokens.text.primary,
+          fontSize: "14px",
+          fontWeight: 600,
+          lineHeight: 1.4,
+        })}
+      >
+        {value}
+      </Typography>
+    </Stack>
+  );
+}
+
+function computeOrderLineTotals(lineItems: readonly OrderLineItem[]) {
+  return lineItems.reduce(
+    (totals, item) => ({
+      totalItems: totals.totalItems + 1,
+      totalSheets: totals.totalSheets + parseOrderNumber(item.quantitySheets),
+      totalSqm: totals.totalSqm + parseOrderNumber(item.sqm),
+      totalSqf: totals.totalSqf + parseOrderNumber(item.totalSqm),
+      orderAmount: totals.orderAmount + parseOrderNumber(item.amount),
+    }),
+    {
+      totalItems: 0,
+      totalSheets: 0,
+      totalSqm: 0,
+      totalSqf: 0,
+      orderAmount: 0,
+    },
+  );
+}
+
+function parseOrderNumber(value: string | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  const numeric = Number(String(value).replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function formatTotalNumber(value: number, fractionDigits: number) {
+  if (fractionDigits === 0) {
+    return formatQuantity(value);
+  }
+
+  if (fractionDigits === 3) {
+    return formatSQM(value);
+  }
+
+  return formatAmount(value);
+}
+
+function OrderLabelValueGrid({
+  items,
+}: {
+  items: readonly { label: string; value: string }[];
+}) {
+  const visibleItems = items.filter((item) => item.value.trim().length > 0);
+
+  return (
+    <Box
+      sx={(theme) => ({
+        display: "grid",
+        gap: theme.spacing(1.25),
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "repeat(2, minmax(0, 1fr))",
+          md: "repeat(4, minmax(0, 1fr))",
+        },
+      })}
+    >
+      {visibleItems.map((item) => (
+        <Stack key={item.label} spacing={0.35} sx={{ minWidth: 0 }}>
+          <Typography
+            sx={(theme) => ({
+              color: theme.customTokens.text.secondary,
+              fontSize: "0.6875rem",
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+            })}
+          >
+            {item.label}
+          </Typography>
+          <Typography
+            sx={(theme) => ({
+              color: theme.customTokens.text.primary,
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              lineHeight: 1.35,
+              wordBreak: "break-word",
+            })}
+          >
+            {item.value}
+          </Typography>
+        </Stack>
+      ))}
+    </Box>
+  );
+}
+
+function formatViewOrderItemNo(itemId: string, index: number) {
+  const numericTail = String(itemId).match(/(\d+)$/)?.[1];
+  const sequence = numericTail
+    ? Number.parseInt(numericTail, 10)
+    : index + 1;
+
+  return `OI-${String(Number.isFinite(sequence) ? sequence : index + 1).padStart(3, "0")}`;
 }
 
 function CustomerDetailsDialog({
@@ -613,29 +971,17 @@ function getDetailTableMinWidth<TRow>(columns: readonly DetailColumn<TRow>[]) {
 
 function getDetailHeaderCellSx(theme: Theme, minWidth = 130) {
   return {
-    minWidth,
-    backgroundColor: theme.customTokens.brand.primary,
-    borderBottom: `1px solid ${theme.customTokens.brand.primaryScale[800]}`,
-    borderRight: `1px solid ${theme.customTokens.brand.primaryScale[600]}`,
-    color: theme.customTokens.text.inverse,
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: 700,
+    ...transactionTableHeaderCellSx(theme, minWidth, "center"),
+    borderRight: `1px solid ${theme.customTokens.borders.divider}`,
     lineHeight: 1.35,
-    py: theme.spacing(1.25),
-    textAlign: "center",
-    whiteSpace: "nowrap",
   } as const;
 }
 
 function getDetailBodyCellSx(theme: Theme) {
   return {
-    borderBottom: `1px solid ${theme.customTokens.borders.default}`,
-    borderRight: `1px solid ${theme.customTokens.borders.default}`,
+    ...transactionTableBodyCellSx(theme, "center"),
+    borderRight: `1px solid ${theme.customTokens.borders.divider}`,
     color: theme.palette.text.primary,
-    fontSize: theme.typography.caption.fontSize,
-    py: theme.spacing(1.25),
-    textAlign: "center",
-    whiteSpace: "nowrap",
   } as const;
 }
 
@@ -677,7 +1023,12 @@ function buildOrderInitialValues(
     }
 
     if (field.type === "date") {
-      accumulator[field.key] = value instanceof Date ? value : null;
+      if (value instanceof Date) {
+        accumulator[field.key] = value;
+        return accumulator;
+      }
+
+      accumulator[field.key] = !record && field.key === "orderDate" ? new Date() : null;
       return accumulator;
     }
 
@@ -718,7 +1069,14 @@ function buildOrderPayload(
   assignStringValue(payload, "itemName", values.itemName);
   assignStringValue(payload, "length", values.length);
   assignDateValue(payload, "orderDate", values.orderDate);
-  assignStringValue(payload, "orderNo", values.orderNo);
+  if (
+    typeof values.orderNo === "string" &&
+    values.orderNo.trim() &&
+    values.orderNo.trim() !== "Auto-generated" &&
+    values.orderNo.trim() !== "Auto-generated on Save"
+  ) {
+    assignStringValue(payload, "orderNo", values.orderNo);
+  }
   assignStringValue(payload, "orderType", values.orderType);
   assignStringValue(payload, "priority", values.priority);
   assignStringValue(payload, "productCategory", values.productCategory);

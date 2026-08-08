@@ -11,6 +11,8 @@ import type {
 
 export type FactoryProcessTab = "issued" | "done" | "history" | "rejected";
 
+export type GroupingListingTab = FactoryProcessTab | "sample-issued";
+
 const factoryTabOrder: readonly FactoryProcessTab[] = [
   "issued",
   "done",
@@ -40,7 +42,7 @@ export function createFactoryRows<Row extends FactoryRecord>(
 export function expandFactoryRowsForTabs<Row extends FactoryRecord>(
   prefix: string,
   rows: readonly Row[],
-  targetPerTab = 25,
+  targetPerTab = 2,
 ) {
   return factoryTabOrder.flatMap((tab, tabIndex) =>
     Array.from({ length: targetPerTab }, (_, index) => {
@@ -136,6 +138,48 @@ export function getFactoryProcessTabs(title: string) {
     },
     {
       label: `Rejected ${title}`,
+      value: "rejected",
+    },
+  ] as const satisfies readonly { label: string; value: FactoryProcessTab }[];
+}
+
+export function getGroupingProcessTabs() {
+  return [
+    {
+      label: "Issued for Grouping",
+      value: "issued",
+    },
+    {
+      label: "Grouped Stock / Available",
+      value: "done",
+    },
+    {
+      label: "Issued for Sample Sheet",
+      value: "sample-issued",
+    },
+    {
+      label: "Grouping History",
+      value: "history",
+    },
+  ] as const satisfies readonly { label: string; value: GroupingListingTab }[];
+}
+
+export function getSampleSheetsProcessTabs() {
+  return [
+    {
+      label: "Issued for Sample Sheet",
+      value: "issued",
+    },
+    {
+      label: "Sample Sheet Done",
+      value: "done",
+    },
+    {
+      label: "Sample Sheet History",
+      value: "history",
+    },
+    {
+      label: "Rejected Sample Sheet",
       value: "rejected",
     },
   ] as const satisfies readonly { label: string; value: FactoryProcessTab }[];

@@ -9,159 +9,141 @@ import type { ReactNode } from "react";
 import {
   Box,
   Button,
-  InputAdornment,
+  Divider,
+  IconButton,
   Stack,
   TextField,
   Typography,
   useTheme,
 } from "@mui/material";
+import { Plus, Trash2 } from "lucide-react";
 
-import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
-import { gstMasterOptions } from "../../masters/shared/masterDefinitions";
-import {
-  ErpDatePickerField,
-  ErpSelectField,
-} from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
+import { getWarehouseAGstMode } from "../../masters/shared/masterDefinitions";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
+import {
+  formSectionCardSx,
+  FormSectionHeader,
+} from "../../shared/formSectionStyles";
+import { formatAmount as formatAmountShared } from "../../shared/numberFormat";
 import {
   WarehouseAAddStockLineItems,
   type WarehouseAAddStockLineItemsHandle,
   type WarehouseAAddStockSlug,
+  type WarehouseALineItemsTotals,
 } from "./WarehouseAAddStockLineItems";
 
-export type AddStockWorkspaceTab = "item-details" | "invoice-details";
-
-type InvoiceDetailValues = {
-  additionalCharges: string;
-  cgstPercentage: string;
-  gstPercentage: string;
-  gstValue: string;
-  invoiceDate: Date | null;
-  invoiceValue: string;
-  remark: string;
-  sgstPercentage: string;
-  totalItemAmount: string;
+type AdditionalChargeRow = {
+  amount: string;
+  id: string;
+  name: string;
 };
 
-const workspaceTabs = [
-  { label: "Item Details", value: "item-details" },
-  { label: "Invoice Details", value: "invoice-details" },
-] as const satisfies readonly { label: string; value: AddStockWorkspaceTab }[];
-
-const defaultInvoiceDetailValues: InvoiceDetailValues = {
-  additionalCharges: "",
-  cgstPercentage: "",
-  gstPercentage: "",
-  gstValue: "",
-  invoiceDate: new Date(),
-  invoiceValue: "",
-  remark: "",
-  sgstPercentage: "",
-  totalItemAmount: "",
+const emptyLineTotals: WarehouseALineItemsTotals = {
+  cgst: 0,
+  igst: 0,
+  itemAmount: 0,
+  sgst: 0,
+  totalAmount: 0,
 };
 
 export interface WarehouseAAddStockWorkspaceHandle {
+  getLineItems: () => Array<{ id: string; values: Record<string, string> }>;
   validate: () => boolean;
 }
+
+export type AddStockWorkspaceTab = "item-details" | "invoice-details";
 
 export const WarehouseAAddStockWorkspace = forwardRef<
   WarehouseAAddStockWorkspaceHandle,
   {
     activeTab?: AddStockWorkspaceTab;
+    invoiceDate?: Date | null;
     onTabChange?: (tab: AddStockWorkspaceTab) => void;
     slug: WarehouseAAddStockSlug;
+    supplierName?: string;
   }
 >(function WarehouseAAddStockWorkspace({
-  activeTab: controlledActiveTab,
-  onTabChange,
   slug,
+  supplierName = "",
 }, ref) {
   const theme = useTheme();
   const lineItemsRef = useRef<WarehouseAAddStockLineItemsHandle>(null);
-  const [internalActiveTab, setInternalActiveTab] =
-    useState<AddStockWorkspaceTab>("item-details");
-  const activeTab = controlledActiveTab ?? internalActiveTab;
-  const [lineItemsAmountTotal, setLineItemsAmountTotal] = useState(0);
-  const [invoiceDetailValues, setInvoiceDetailValues] =
-    useState<InvoiceDetailValues>(defaultInvoiceDetailValues);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const nextChargeId = useRef(1);
+  const [lineTotals, setLineTotals] =
+    useState<WarehouseALineItemsTotals>(emptyLineTotals);
+  const [additionalCharges, setAdditionalCharges] = useState<
+    AdditionalChargeRow[]
+  >([]);
 
-  const handleTabChange = (nextTab: AddStockWorkspaceTab) => {
-    setInternalActiveTab(nextTab);
-    onTabChange?.(nextTab);
-  };
-
-  const formattedLineItemsAmount = useMemo(
-    () => formatAmount(lineItemsAmountTotal),
-    [lineItemsAmountTotal],
+  const gstMode = useMemo(
+    () => getWarehouseAGstMode(supplierName),
+    [supplierName],
   );
-  const effectiveTotalItemAmount =
-    invoiceDetailValues.totalItemAmount.trim().length > 0
-      ? invoiceDetailValues.totalItemAmount
-      : formattedLineItemsAmount;
 
-  const handleInvoiceFieldChange = (
-    key: keyof InvoiceDetailValues,
-    value: Date | string | null,
+  const additionalChargesTotal = useMemo(
+    () =>
+      additionalCharges.reduce(
+        (total, row) => total + parseNumber(row.amount),
+        0,
+      ),
+    [additionalCharges],
+  );
+
+  const invoiceSummary = useMemo(() => {
+    const itemSubTotal = lineTotals.itemAmount;
+    const cgst = lineTotals.cgst;
+    const sgst = lineTotals.sgst;
+    const igst = lineTotals.igst;
+    const itemSubTotalWithTax = itemSubTotal + cgst + sgst + igst;
+    const grandTotal = itemSubTotalWithTax + additionalChargesTotal;
+
+    return {
+      additionalCharges: additionalChargesTotal,
+      cgst,
+      grandTotal,
+      itemSubTotal,
+      itemSubTotalWithTax,
+      sgst,
+    };
+  }, [additionalChargesTotal, lineTotals]);
+
+  const handleAddCharge = () => {
+    const id = `charge-${nextChargeId.current}`;
+    nextChargeId.current += 1;
+    setAdditionalCharges((current) => [
+      ...current,
+      { id, name: "", amount: "" },
+    ]);
+  };
+
+  const handleChargeChange = (
+    id: string,
+    key: keyof Omit<AdditionalChargeRow, "id">,
+    value: string,
   ) => {
-    setInvoiceDetailValues((current) => ({
-      ...current,
-      [key]: value,
-    }));
+    setAdditionalCharges((current) =>
+      current.map((row) =>
+        row.id === id
+          ? {
+              ...row,
+              [key]: value,
+            }
+          : row,
+      ),
+    );
   };
 
-  const handleGstPercentageChange = (value: string) => {
-    const gstPercentage = parseNumber(value);
-    const halfGstPercentage = gstPercentage / 2;
-
-    setInvoiceDetailValues((current) => ({
-      ...current,
-      cgstPercentage: value ? formatPercentage(halfGstPercentage) : "",
-      gstPercentage: value,
-      gstValue: "",
-      invoiceValue: "",
-      sgstPercentage: value ? formatPercentage(halfGstPercentage) : "",
-    }));
-  };
-
-  const handleCalculateInvoice = () => {
-    const additionalCharges = parseNumber(invoiceDetailValues.additionalCharges);
-    const totalItemAmount = parseNumber(effectiveTotalItemAmount);
-    const gstPercentage = parseNumber(invoiceDetailValues.gstPercentage);
-    const effectiveGstPercentage = gstPercentage > 0 ? gstPercentage : 0;
-    const gstValue = totalItemAmount * (effectiveGstPercentage / 100);
-    const invoiceValue = totalItemAmount + gstValue + additionalCharges;
-
-    setInvoiceDetailValues((current) => ({
-      ...current,
-      gstValue: formatAmount(gstValue),
-      invoiceValue: formatAmount(invoiceValue),
-    }));
+  const handleRemoveCharge = (id: string) => {
+    setAdditionalCharges((current) => current.filter((row) => row.id !== id));
   };
 
   useImperativeHandle(
     ref,
     () => ({
-      validate: () => {
-        setHasSubmitted(true);
-
-        const lineItemsValid = lineItemsRef.current?.validate() ?? true;
-        const invoiceValid = !hasInvoiceRequiredErrors(invoiceDetailValues);
-
-        if (!lineItemsValid) {
-          handleTabChange("item-details");
-          return false;
-        }
-
-        if (!invoiceValid) {
-          handleTabChange("invoice-details");
-          return false;
-        }
-
-        return true;
-      },
+      getLineItems: () => lineItemsRef.current?.getFilledLineItems() ?? [],
+      validate: () => lineItemsRef.current?.validate() ?? true,
     }),
-    [invoiceDetailValues],
+    [],
   );
 
   return (
@@ -170,246 +152,233 @@ export const WarehouseAAddStockWorkspace = forwardRef<
         gap: theme.spacing(2),
       }}
     >
-      <ModuleProcessTabs
-        onChange={handleTabChange}
-        tabs={workspaceTabs}
-        value={activeTab}
-      />
-
-      <Box
-        sx={{
-          display: activeTab === "item-details" ? "block" : "none",
-        }}
-      >
+      <SectionBlock title="Item Details">
         <WarehouseAAddStockLineItems
           ref={lineItemsRef}
+          gstMode={gstMode}
           slug={slug}
-          onAmountTotalChange={setLineItemsAmountTotal}
+          onTotalsChange={setLineTotals}
         />
+      </SectionBlock>
+
+      <Box>
+        <Typography
+          variant="subtitle2"
+          sx={{
+            mb: 1,
+            fontSize: "0.8125rem",
+            fontWeight: 600,
+          }}
+        >
+          Additional Charges
+        </Typography>
+
+        <Stack spacing={1}>
+          {additionalCharges.length > 0 ? (
+            <Box
+              sx={{
+                display: { xs: "none", md: "grid" },
+                gap: 1,
+                gridTemplateColumns:
+                  "minmax(200px, 1.4fr) minmax(120px, 0.7fr) 40px",
+                px: 0.25,
+              }}
+            >
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Charge Name
+              </Typography>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Amount
+              </Typography>
+              <span />
+            </Box>
+          ) : null}
+
+          {additionalCharges.map((row) => (
+            <Box
+              key={row.id}
+              sx={{
+                display: "grid",
+                gap: 1,
+                alignItems: "center",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "minmax(200px, 1.4fr) minmax(120px, 0.7fr) 40px",
+                },
+              }}
+            >
+              <TextField
+                fullWidth
+                placeholder="Enter charge name"
+                size="small"
+                value={row.name}
+                onChange={(event) =>
+                  handleChargeChange(row.id, "name", event.target.value)
+                }
+                sx={getCompactFieldSx(theme, "default", { dense: true })}
+              />
+              <TextField
+                fullWidth
+                placeholder="Amount"
+                size="small"
+                value={row.amount}
+                onChange={(event) =>
+                  handleChargeChange(row.id, "amount", event.target.value)
+                }
+                sx={getCompactFieldSx(theme, "default", { dense: true })}
+              />
+              <IconButton
+                aria-label="Remove charge"
+                onClick={() => handleRemoveCharge(row.id)}
+                size="small"
+                sx={{
+                  color: theme.customTokens.text.secondary,
+                  "&:hover": {
+                    color: theme.palette.error.main,
+                  },
+                }}
+              >
+                <Trash2 size={15} />
+              </IconButton>
+            </Box>
+          ))}
+
+          <Box>
+            <Button
+              disableElevation
+              onClick={handleAddCharge}
+              startIcon={<Plus size={14} />}
+              size="small"
+              sx={{
+                minHeight: 32,
+                textTransform: "none",
+                fontWeight: 600,
+                color: theme.customTokens.brand.primary,
+              }}
+              variant="text"
+            >
+              Add Charge
+            </Button>
+          </Box>
+        </Stack>
       </Box>
+
+      <Divider sx={{ borderColor: theme.customTokens.borders.divider }} />
 
       <Box
         sx={{
-          display: activeTab === "invoice-details" ? "block" : "none",
+          border: `1px solid ${theme.customTokens.borders.default}`,
+          borderRadius: `${theme.customTokens.radius.md}px`,
+          backgroundColor: theme.customTokens.surfaces.alt,
+          px: theme.spacing(2),
+          py: theme.spacing(1.5),
+          maxWidth: 420,
+          ml: "auto",
+          width: "100%",
         }}
       >
-        <Box
+        <Typography
+          variant="subtitle2"
           sx={{
-            display: "grid",
-            gap: theme.spacing(2),
-            gridTemplateColumns: {
-              xs: "repeat(1, minmax(0, 1fr))",
-              md: "repeat(2, minmax(0, 1fr))",
-              lg: "repeat(4, minmax(0, 1fr))",
-            },
+            mb: 1,
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            color: theme.customTokens.text.secondary,
           }}
         >
-          <InvoiceField
-            error={hasSubmitted && !invoiceDetailValues.invoiceDate}
-            label="Invoice Date"
-            required
-          >
-            <ErpDatePickerField
-              onChange={(value) => handleInvoiceFieldChange("invoiceDate", value)}
-              state={
-                hasSubmitted && !invoiceDetailValues.invoiceDate
-                  ? "error"
-                  : "default"
-              }
-              value={invoiceDetailValues.invoiceDate}
-            />
-          </InvoiceField>
+          Invoice Totals
+        </Typography>
 
-          <InvoiceField label="Total Item Amount">
-            <TextField
-              fullWidth
-              value={effectiveTotalItemAmount}
-              onChange={(event) =>
-                handleInvoiceFieldChange("totalItemAmount", event.target.value)
-              }
-              sx={getCompactFieldSx(theme)}
-            />
-          </InvoiceField>
-
-          <InvoiceField
-            error={hasSubmitted && isBlank(invoiceDetailValues.gstPercentage)}
-            label="GST Percentage"
-            required
-          >
-            <ErpSelectField
-              onChange={handleGstPercentageChange}
-              options={gstMasterOptions}
-              state={
-                hasSubmitted && isBlank(invoiceDetailValues.gstPercentage)
-                  ? "error"
-                  : "default"
-              }
-              value={invoiceDetailValues.gstPercentage}
-            />
-          </InvoiceField>
-
-          <InvoiceField
-            error={hasSubmitted && isBlank(invoiceDetailValues.sgstPercentage)}
-            label="SGST Percentage"
-            required
-          >
-            <TextField
-              fullWidth
-              value={invoiceDetailValues.sgstPercentage}
-              sx={getCompactFieldSx(
-                theme,
-                hasSubmitted && isBlank(invoiceDetailValues.sgstPercentage)
-                  ? "error"
-                  : "readOnly",
-              )}
-              slotProps={{
-                input: {
-                  readOnly: true,
-                },
-              }}
-            />
-          </InvoiceField>
-
-          <InvoiceField
-            error={hasSubmitted && isBlank(invoiceDetailValues.cgstPercentage)}
-            label="CGST Percentage"
-            required
-          >
-            <TextField
-              fullWidth
-              value={invoiceDetailValues.cgstPercentage}
-              sx={getCompactFieldSx(
-                theme,
-                hasSubmitted && isBlank(invoiceDetailValues.cgstPercentage)
-                  ? "error"
-                  : "readOnly",
-              )}
-              slotProps={{
-                input: {
-                  readOnly: true,
-                },
-              }}
-            />
-          </InvoiceField>
-
-          <InvoiceField label="GST Value">
-            <TextField
-              fullWidth
-              value={invoiceDetailValues.gstValue}
-              sx={getCompactFieldSx(theme, "readOnly")}
-              slotProps={{
-                input: {
-                  readOnly: true,
-                },
-              }}
-            />
-          </InvoiceField>
-
-          <InvoiceField label="Additional Charges">
-            <TextField
-              fullWidth
-              value={invoiceDetailValues.additionalCharges}
-              onChange={(event) =>
-                handleInvoiceFieldChange("additionalCharges", event.target.value)
-              }
-              sx={getCompactFieldSx(theme)}
-            />
-          </InvoiceField>
-
-          <InvoiceField label="Invoice Value">
-            <TextField
-              fullWidth
-              value={invoiceDetailValues.invoiceValue}
-              sx={getCompactFieldSx(theme, "readOnly")}
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <Button
-                        disableElevation
-                        onClick={handleCalculateInvoice}
-                        sx={{
-                          minWidth: theme.spacing(8),
-                          my: theme.spacing(0.375),
-                          px: theme.spacing(1),
-                          py: theme.spacing(0.375),
-                        }}
-                        variant="contained"
-                      >
-                        Calculate
-                      </Button>
-                    </InputAdornment>
-                  ),
-                  readOnly: true,
-                },
-              }}
-            />
-          </InvoiceField>
-
-          <InvoiceField label="Remark">
-            <TextField
-              fullWidth
-              value={invoiceDetailValues.remark}
-              onChange={(event) =>
-                handleInvoiceFieldChange("remark", event.target.value)
-              }
-              sx={getCompactFieldSx(theme)}
-            />
-          </InvoiceField>
-        </Box>
+        <Stack spacing={0.75}>
+          <SummaryLine
+            label="Item Sub Total"
+            value={invoiceSummary.itemSubTotal}
+          />
+          <SummaryLine label="CGST" value={invoiceSummary.cgst} />
+          <SummaryLine label="SGST" value={invoiceSummary.sgst} />
+          <SummaryLine
+            label="Item Sub Total"
+            value={invoiceSummary.itemSubTotalWithTax}
+          />
+          <SummaryLine
+            label="Additional Charges"
+            value={invoiceSummary.additionalCharges}
+          />
+          <Divider sx={{ borderColor: theme.customTokens.borders.default }} />
+          <SummaryLine
+            emphasize
+            label="Grand Total"
+            value={invoiceSummary.grandTotal}
+          />
+        </Stack>
       </Box>
     </Stack>
   );
 });
 
-function InvoiceField({
+function SectionBlock({
   children,
-  error = false,
-  label,
-  required = false,
+  title,
 }: {
   children: ReactNode;
-  error?: boolean;
-  label: string;
-  required?: boolean;
+  title: string;
 }) {
   return (
-    <Stack spacing={0.75}>
-      <Typography variant="subtitle2" color="text.primary">
-        {label}
-        {required ? (
-          <Typography
-            component="span"
-            sx={(theme) => ({
-              color: theme.palette.error.main,
-              ml: theme.spacing(0.25),
-            })}
-          >
-            *
-          </Typography>
-        ) : null}
-      </Typography>
-      {children}
-      {error ? (
-        <Typography variant="caption" color="error">
-          {label} is required.
-        </Typography>
-      ) : null}
-    </Stack>
+    <Box
+      sx={(theme) => ({
+        ...formSectionCardSx(theme),
+      })}
+    >
+      <Stack spacing={1.15}>
+        <FormSectionHeader title={title} />
+        {children}
+      </Stack>
+    </Box>
   );
 }
 
-function hasInvoiceRequiredErrors(values: InvoiceDetailValues) {
+function SummaryLine({
+  emphasize = false,
+  label,
+  value,
+}: {
+  emphasize?: boolean;
+  label: string;
+  value: number;
+}) {
   return (
-    !values.invoiceDate ||
-    isBlank(values.gstPercentage) ||
-    isBlank(values.sgstPercentage) ||
-    isBlank(values.cgstPercentage)
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 2,
+      }}
+    >
+      <Typography
+        sx={(theme) => ({
+          fontSize: emphasize ? "0.875rem" : "0.8125rem",
+          fontWeight: emphasize ? 700 : 500,
+          color: emphasize
+            ? theme.palette.text.primary
+            : theme.customTokens.text.secondary,
+        })}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: emphasize ? "0.875rem" : "0.8125rem",
+          fontWeight: emphasize ? 700 : 600,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {formatAmount(value)}
+      </Typography>
+    </Box>
   );
-}
-
-function isBlank(value: string) {
-  return value.trim().length === 0;
 }
 
 function parseNumber(value: string) {
@@ -418,16 +387,5 @@ function parseNumber(value: string) {
 }
 
 function formatAmount(value: number) {
-  return new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-function formatPercentage(value: number) {
-  if (!Number.isFinite(value) || value <= 0) {
-    return "";
-  }
-
-  return `${Number.isInteger(value) ? String(value) : value.toFixed(2)}%`;
+  return formatAmountShared(value);
 }

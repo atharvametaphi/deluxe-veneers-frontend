@@ -49,6 +49,12 @@ import {
   ViewSlicingPage,
 } from "./slicing";
 import {
+  AddSampleSheetsPage,
+  EditSampleSheetsPage,
+  SampleSheetsListPage,
+  ViewSampleSheetsPage,
+} from "./sample-sheets";
+import {
   AddSplicingPage,
   EditSplicingPage,
   SplicingListPage,
@@ -70,6 +76,11 @@ export const factoryRoutes: RouteObject[] = [
   { path: "factory/grouping/add", Component: AddGroupingPage },
   { path: "factory/grouping/edit/:id", Component: EditGroupingPage },
   { path: "factory/grouping/view/:id", Component: ViewGroupingPage },
+
+  { path: "factory/sample-sheets", Component: SampleSheetsListPage },
+  { path: "factory/sample-sheets/add", Component: AddSampleSheetsPage },
+  { path: "factory/sample-sheets/edit/:id", Component: EditSampleSheetsPage },
+  { path: "factory/sample-sheets/view/:id", Component: ViewSampleSheetsPage },
 
   { path: "factory/splicing", Component: SplicingListPage },
   { path: "factory/splicing/add", Component: AddSplicingPage },

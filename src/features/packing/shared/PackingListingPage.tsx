@@ -1,9 +1,6 @@
 import { useMemo, useState } from "react";
-import {
-  Button,
-  Stack,
-} from "@mui/material";
-import { Eye, PackageOpen, Pencil, RotateCcw, Truck } from "lucide-react";
+import { Button, Stack } from "@mui/material";
+import { CheckCircle2, Eye, PackageOpen, Truck } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import {
@@ -16,10 +13,11 @@ import { MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
 import { listingToolbarButtonSx } from "../../shared/buttonStyles";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
+import { PackingMarkDoneDialog } from "./PackingMarkDoneDialog";
 import {
   getPackingPaths,
-  packingListingColumns,
-  revertPackingRecord,
+  packingDoneListingColumns,
+  packingIssuedListingColumns,
   type PackingRecord,
   type PackingTabValue,
   usePackingRecords,
@@ -36,24 +34,29 @@ export function PackingListingPage() {
   const paths = getPackingPaths();
   const [activeTab, setActiveTab] = useState<PackingTabValue>("issued");
   const [searchValue, setSearchValue] = useState("");
+  const [markDoneRecord, setMarkDoneRecord] = useState<PackingRecord | null>(
+    null,
+  );
   const canCreatePacking = canAccessPermission("packing", "create");
   const canEditPacking = canAccessPermission("packing", "edit");
   const canViewPacking = canAccessPermission("packing", "view");
   const canCreateDispatch = canAccessPermission("dispatch", "create");
+  const canViewDispatch = canAccessPermission("dispatch", "view");
+
   const columns = useMemo(
     () =>
       activeTab === "issued"
-        ? packingListingColumns.filter((column) => column.key !== "packingId")
-        : packingListingColumns,
+        ? packingIssuedListingColumns
+        : packingDoneListingColumns,
     [activeTab],
   );
 
   const rows = useMemo(() => {
     const tabRows = records.filter((record) =>
-        activeTab === "issued"
-          ? record.packingState === "issued"
-          : record.packingState === "done",
-      );
+      activeTab === "issued"
+        ? record.packingState === "issued"
+        : record.packingState === "done",
+    );
     const normalizedSearch = searchValue.trim().toLowerCase();
 
     if (!normalizedSearch) {
@@ -82,16 +85,11 @@ export function PackingListingPage() {
       ...(canEditPacking
         ? [
             {
-              id: "edit",
-              label: "Edit",
-              icon: Pencil,
-              onSelect: (row: PackingRecord) => navigate(paths.edit(row.id)),
-            },
-            {
-              id: "revert",
-              label: "Revert",
-              icon: RotateCcw,
-              onSelect: (row: PackingRecord) => revertPackingRecord(row.id),
+              id: "mark-packing-done",
+              label: "Mark Packing Done",
+              icon: CheckCircle2,
+              tone: "primary" as const,
+              onSelect: (row: PackingRecord) => setMarkDoneRecord(row),
             },
           ]
         : []),
@@ -111,24 +109,32 @@ export function PackingListingPage() {
             },
           ]
         : []),
-      ...(canCreateDispatch
+      ...(canCreateDispatch || canViewDispatch
         ? [
             {
-              id: "dispatch",
-              label: "Create Dispatch",
+              id: "view-dispatch",
+              label: "Issue / View Dispatch",
               icon: Truck,
-              onSelect: (row: PackingRecord) => navigate(`/dispatch/add/${row.id}`),
+              tone: "primary" as const,
+              onSelect: (row: PackingRecord) =>
+                navigate(
+                  canCreateDispatch
+                    ? `/dispatch/add/${row.id}`
+                    : `/dispatch/view/${row.id}`,
+                ),
             },
           ]
         : []),
     ],
-    [canCreateDispatch, canViewPacking, navigate, paths],
+    [canCreateDispatch, canViewDispatch, canViewPacking, navigate, paths],
   );
 
   return (
     <MasterPageShell
       breadcrumbs={[{ label: "Packing" }]}
       title="Packing"
+      subtitle="Track items awaiting and completed packing."
+      contentGap={2}
     >
       <ModuleProcessTabs
         onChange={setActiveTab}
@@ -139,19 +145,25 @@ export function PackingListingPage() {
       <Stack
         sx={(currentTheme) => ({
           gap: currentTheme.spacing(2),
+          mt: currentTheme.spacing(2),
         })}
       >
         <Stack
-          direction={{ xs: "column", lg: "row" }}
-          alignItems={{ xs: "stretch", lg: "center" }}
+          direction={{ xs: "column", sm: "row" }}
+          alignItems={{ xs: "stretch", sm: "center" }}
           justifyContent="space-between"
-          spacing={2}
+          spacing={1.5}
         >
           <ClearableSearchField
             value={searchValue}
             onChange={setSearchValue}
+            placeholder={
+              activeTab === "issued"
+                ? "Search issued for packing..."
+                : "Search packing done..."
+            }
             sx={{
-              width: { xs: "100%", md: 320 },
+              width: { xs: "100%", sm: 300 },
               maxWidth: "100%",
             }}
           />
@@ -160,10 +172,10 @@ export function PackingListingPage() {
             <Button
               onClick={() => navigate(paths.add())}
               sx={listingToolbarButtonSx}
-              startIcon={<PackageOpen size={16} />}
+              startIcon={<PackageOpen size={14} />}
               variant="contained"
             >
-              Create Packing
+              Issue for Packing
             </Button>
           ) : null}
         </Stack>
@@ -172,11 +184,21 @@ export function PackingListingPage() {
           actions={activeTab === "issued" ? issuedActions : doneActions}
           columns={columns}
           defaultRowsPerPage={10}
-          emptyStateLabel={`No records are currently available in ${activeTab === "issued" ? "Issued for Packing" : "Packing Done"}.`}
+          emptyStateLabel={
+            activeTab === "issued"
+              ? "No packing-eligible items in the Issued for Packing queue."
+              : "No Packing Done records yet."
+          }
           initialSort={{ key: "updatedDate", direction: "desc" }}
           rows={canViewPacking ? rows : []}
         />
       </Stack>
+
+      <PackingMarkDoneDialog
+        open={Boolean(markDoneRecord)}
+        record={markDoneRecord}
+        onClose={() => setMarkDoneRecord(null)}
+      />
     </MasterPageShell>
   );
 }

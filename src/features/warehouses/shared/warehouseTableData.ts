@@ -6,6 +6,12 @@ import {
   rawVeneerDefinition,
   veneerBlocksDefinition,
 } from "../../inventory/shared/inventoryDefinitions";
+import {
+  formatAmount as formatAmountShared,
+  formatSqfFromSqm as formatSqfFromSqmShared,
+  parseNumericValue,
+  SQM_TO_SQF as SHARED_SQM_TO_SQF,
+} from "../../shared/numberFormat";
 
 export type WarehousePageId = "warehouse-a" | "warehouse-b" | "warehouse-c";
 export type WarehouseInventorySlug =
@@ -262,24 +268,17 @@ function pickCycledValue<const TValue extends string>(
 }
 
 function parseAmount(value: string) {
-  const numeric = Number(String(value).replace(/,/g, ""));
-  return Number.isFinite(numeric) ? numeric : 0;
+  return parseNumericValue(value) ?? 0;
 }
 
 function formatAmount(value: number) {
-  return new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+  return formatAmountShared(value);
 }
 
-const SQM_TO_SQF = 10.7639;
+const SQM_TO_SQF = SHARED_SQM_TO_SQF;
 
 function formatSqfFromSqm(value: string) {
-  const numericValue = Number.parseFloat(String(value).replace(/,/g, ""));
-  return Number.isFinite(numericValue)
-    ? (numericValue * SQM_TO_SQF).toFixed(3)
-    : "";
+  return formatSqfFromSqmShared(value);
 }
 
 function buildExpenseAmount(amount: string, multiplier: number) {
@@ -645,11 +644,13 @@ const warehouseBRawProductionRows = warehouseARawProductionRows.map((row, index)
   mapWarehouseBRawVeneerRow(row, index, "Production"),
 );
 
-const warehouseBRawAllRows = warehouseBRawPurchaseRows.flatMap((row, index) => {
-  const productionRow = warehouseBRawProductionRows[index];
+const warehouseBRawAllRows = warehouseBRawPurchaseRows
+  .flatMap((row, index) => {
+    const productionRow = warehouseBRawProductionRows[index];
 
-  return productionRow ? [row, productionRow] : [row];
-});
+    return productionRow ? [row, productionRow] : [row];
+  })
+  .slice(0, 2);
 
 const warehouseAPlywoodRows = plywoodDefinition.rows.map((row, index) =>
   mapWarehousePlywoodRow(row as Record<string, unknown>, index),
@@ -663,28 +664,18 @@ const warehouseAConsumablesRows = consumablesDefinition.rows.map((row, index) =>
 );
 
 const warehouseARows: readonly WarehouseInventoryRow[] = [
-  ...warehouseAVeneerBlockRows.slice(0, 4),
-  ...warehouseARawPurchaseRows.slice(0, 4),
-  ...warehouseAPlywoodRows.slice(0, 4),
-  ...warehouseAMdfRows.slice(0, 4),
-  ...warehouseAConsumablesRows.slice(0, 4),
+  ...warehouseAVeneerBlockRows.slice(0, 1),
+  ...warehouseARawPurchaseRows.slice(0, 1),
 ];
 
 const warehouseBRows: readonly WarehouseInventoryRow[] = [
-  ...rawRows
-    .filter((row) => row.status === "QC Done")
-    .slice(0, 4)
-    .map((row) => ({ ...row, status: "QC Done" })),
-  ...veneerBlockRows.slice(0, 3).map((row) => ({ ...row, status: "QC Done" })),
-  ...plywoodRows.slice(0, 3).map((row) => ({ ...row, status: "QC Done" })),
-  ...mdfRows.slice(0, 2).map((row) => ({ ...row, status: "QC Done" })),
+  ...rawRows.slice(0, 1).map((row) => ({ ...row, status: "QC Done" })),
+  ...veneerBlockRows.slice(0, 1).map((row) => ({ ...row, status: "QC Done" })),
 ];
 
 const warehouseCRows: readonly WarehouseInventoryRow[] = [
-  ...rawRows.filter((row) => row.status === "QC Done").slice(4, 6),
-  ...veneerBlockRows.slice(4, 7),
-  ...plywoodRows.slice(4, 8),
-  ...mdfRows.slice(4, 7),
+  ...rawRows.slice(0, 1),
+  ...plywoodRows.slice(0, 1),
 ];
 
 export const warehouseAInventoryConfigs: Record<
@@ -766,7 +757,7 @@ export const warehouseBInspectionConfigs: Record<
       takeWarehouseInspectionRows(
         warehouseAInventoryConfigs["veneer-blocks"].rows,
         0,
-        10,
+        2,
       ),
       "Inspection Pending",
     ),
@@ -777,8 +768,8 @@ export const warehouseBInspectionConfigs: Record<
     rows: cloneWarehouseInspectionRows(
       takeWarehouseInspectionRows(
         warehouseAInventoryConfigs["veneer-blocks"].rows,
-        10,
-        20,
+        0,
+        2,
       ),
       "Inspection Done",
     ),
@@ -818,7 +809,7 @@ function takeWarehouseInspectionRows(
 ) {
   const windowedRows = rows.slice(start, end);
 
-  return windowedRows.length > 0 ? windowedRows : rows.slice(0, 10);
+  return windowedRows.length > 0 ? windowedRows : rows.slice(0, 2);
 }
 
 function cloneWarehouseInspectionRows(
@@ -838,17 +829,17 @@ export const warehouseCInventoryConfigs: Record<
   "raw-veneer": {
     title: "Raw Veneer",
     columns: warehouseAVeneerColumns,
-    rows: rawRows.filter((row) => row.status === "QC Done").slice(4, 6),
+    rows: rawRows.slice(0, 2),
   },
   plywood: {
     title: "Plywood",
     columns: warehouseAPlywoodColumns,
-    rows: plywoodRows.slice(4, 8),
+    rows: plywoodRows.slice(0, 2),
   },
   mdf: {
     title: "MDF",
     columns: warehouseAMdfColumns,
-    rows: mdfRows.slice(4, 7),
+    rows: mdfRows.slice(0, 2),
   },
 };
 

@@ -35,6 +35,10 @@ import {
   recordViewActionButtonSx,
 } from "../../shared/buttonStyles";
 import {
+  formSectionCardSx,
+  FormSectionHeader,
+} from "../../shared/formSectionStyles";
+import {
   warehouseAInventoryConfigs,
   warehouseBInventoryConfigs,
   warehouseBRawVeneerTabConfigs,
@@ -50,9 +54,15 @@ import {
 } from "./WarehouseAAddStockLineItems";
 import {
   WarehouseAAddStockWorkspace,
-  type AddStockWorkspaceTab,
   type WarehouseAAddStockWorkspaceHandle,
 } from "./WarehouseAAddStockWorkspace";
+import {
+  buildWarehouseAAddStockInitialValues,
+  createWarehouseAAddStockHeaderFields,
+  getWarehouseASlugFromInwardType,
+  isInrCurrency,
+} from "./warehouseAAddStockConfig";
+import { saveWarehouseAInwardItems } from "../../warehouses/shared/warehouseAInwardStore";
 import {
   buildInventoryInitialValues,
   getInventoryPageTitle,
@@ -136,33 +146,38 @@ export function InventoryForm<Row extends InventoryRecord>({
       : mode === "edit"
         ? definition.editFields ?? definition.viewFields
         : definition.viewFields;
+  const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
+    warehouseAAddStockSlug
+      ? buildWarehouseAAddStockInitialValues(warehouseAAddStockSlug)
+      : buildInventoryInitialValues(baseFields, row),
+  );
   const fields = warehouseAAddStockSlug
-    ? getWarehouseAAddStockFormFields(baseFields)
+    ? createWarehouseAAddStockHeaderFields(
+        typeof values.currency === "string" ? values.currency : "INR",
+      )
     : baseFields;
   const shouldSplitInventoryDetails = mode === "view" || mode === "edit";
   const viewFieldGroups = shouldSplitInventoryDetails
-    ? getInventoryViewFieldGroups(fields)
+    ? getInventoryViewFieldGroups(
+        mode === "view" || mode === "edit" ? baseFields : fields,
+      )
     : null;
   const warehouseAInvoiceFields =
     shouldSplitInventoryDetails && activeWarehouse === "warehouse-a"
-      ? getWarehouseAInvoiceDetailFields(fields)
+      ? getWarehouseAInvoiceDetailFields(baseFields)
       : [];
 
-  const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildInventoryInitialValues(fields, row),
-  );
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const warehouseAWorkspaceRef = useRef<WarehouseAAddStockWorkspaceHandle>(null);
-  const [warehouseAAddStockTab, setWarehouseAAddStockTab] =
-    useState<AddStockWorkspaceTab>("item-details");
 
   useEffect(() => {
-    setValues(buildInventoryInitialValues(fields, row));
-  }, [fields, row]);
+    if (warehouseAAddStockSlug) {
+      setValues(buildWarehouseAAddStockInitialValues(warehouseAAddStockSlug));
+      return;
+    }
 
-  useEffect(() => {
-    setWarehouseAAddStockTab("item-details");
-  }, [warehouseAAddStockSlug]);
+    setValues(buildInventoryInitialValues(baseFields, row));
+  }, [baseFields, row, warehouseAAddStockSlug]);
 
   if ((mode === "edit" || mode === "view") && !row) {
     return (
@@ -204,31 +219,87 @@ export function InventoryForm<Row extends InventoryRecord>({
     );
   }
 
-  const primaryLabel = "Save";
-  const warehouseInventoryBreadcrumbs = getInventoryBreadcrumbs({
-    currentLabel: mode === "add" ? "Add Stock" : mode === "edit" ? "Edit" : "View",
-    definitionTitle: definition.title,
-    inventoryListPath,
-    warehouseLabel,
-    warehouseRootPath,
-  });
+  const primaryLabel = warehouseAAddStockSlug ? "Save Inward" : "Save";
+  const pageTitle = warehouseAAddStockSlug
+    ? "Add Stock"
+    : getInventoryPageTitle(definition, mode);
+  const pageSubtitle = warehouseAAddStockSlug
+    ? "Record supplier invoice and inward stock details."
+    : undefined;
+  const warehouseInventoryBreadcrumbs = warehouseAAddStockSlug
+    ? [
+        { label: "Warehouses" },
+        { label: warehouseLabel, to: warehouseRootPath },
+        { label: "Add Stock" },
+      ]
+    : getInventoryBreadcrumbs({
+        currentLabel:
+          mode === "add" ? "Add Stock" : mode === "edit" ? "Edit" : "View",
+        definitionTitle: definition.title,
+        inventoryListPath,
+        warehouseLabel,
+        warehouseRootPath,
+      });
+
+  const handleHeaderFieldChange = (key: string, value: MasterFieldValue) => {
+    if (
+      key === "inwardType" &&
+      warehouseAAddStockSlug &&
+      typeof value === "string"
+    ) {
+      const nextSlug = getWarehouseASlugFromInwardType(value);
+
+      if (nextSlug && nextSlug !== warehouseAAddStockSlug) {
+        const params = new URLSearchParams();
+        params.set("warehouse", "warehouse-a");
+        params.set(
+          "returnTo",
+          getWarehouseInventoryListPath("warehouse-a", nextSlug),
+        );
+
+        navigate(`/inventory/${nextSlug}/add?${params.toString()}`, {
+          replace: true,
+        });
+        return;
+      }
+    }
+
+    setValues((current) => {
+      const nextValues = {
+        ...current,
+        [key]: value,
+      };
+
+      if (key === "currency" && isInrCurrency(value)) {
+        nextValues.exchangeRate = "";
+      }
+
+      return nextValues;
+    });
+  };
+
   return (
     <InventoryPageShell
       breadcrumbs={warehouseInventoryBreadcrumbs}
-      title={getInventoryPageTitle(definition, mode)}
+      subtitle={pageSubtitle}
+      title={pageTitle}
     >
       <MasterSectionCard>
         <Box
           sx={(theme) => ({
             display: "flex",
             flexDirection: "column",
-            gap: theme.spacing(3),
+            gap: theme.spacing(warehouseAAddStockSlug ? 1.5 : 1.75),
+            maxWidth: warehouseAAddStockSlug ? 1200 : undefined,
+            mx: warehouseAAddStockSlug ? "auto" : undefined,
+            width: "100%",
           })}
         >
           {shouldSplitInventoryDetails && viewFieldGroups ? (
-            <Stack sx={(theme) => ({ gap: theme.spacing(3) })}>
+            <Stack sx={(theme) => ({ gap: theme.spacing(1.5) })}>
               <MasterFormFields
                 key={`${definition.slug}-${mode}-${row?.id ?? "new"}-common`}
+                compact={activeWarehouse !== "warehouse-a"}
                 definition={{
                   gridColumns: 4,
                   fields: viewFieldGroups.commonFields,
@@ -238,6 +309,11 @@ export function InventoryForm<Row extends InventoryRecord>({
                     ...current,
                     [key]: value,
                   }))
+                }
+                presentation={
+                  activeWarehouse !== "warehouse-a" && mode === "view"
+                    ? "details"
+                    : "form"
                 }
                 readOnly={mode === "view"}
                 values={values}
@@ -288,43 +364,71 @@ export function InventoryForm<Row extends InventoryRecord>({
                 />
               )}
             </Stack>
-          ) : !warehouseAAddStockSlug ||
-            warehouseAAddStockTab === "item-details" ? (
-            <MasterFormFields
-              key={`${definition.slug}-${mode}-${row?.id ?? "new"}`}
-              definition={{
-                gridColumns: 4,
-                fields,
-              }}
-              onChange={(key, value) =>
-                setValues((current) => ({
-                  ...current,
-                  [key]: value,
-                }))
-              }
-              readOnly={mode === "view"}
-              showRequiredErrors={
-                mode !== "view" && hasSubmitted
-              }
-              values={values}
-            />
-          ) : null}
+          ) : (
+            <>
+              {warehouseAAddStockSlug ? (
+                <Stack spacing={1.15}>
+                  <FormSectionHeader title="Inward Details" />
+                  <MasterFormFields
+                    key={`${definition.slug}-${mode}-${warehouseAAddStockSlug}`}
+                    compact
+                    definition={{
+                      gridColumns: 5,
+                      fields,
+                    }}
+                    onChange={handleHeaderFieldChange}
+                    showRequiredErrors={hasSubmitted}
+                    values={values}
+                  />
+                </Stack>
+              ) : (
+                <MasterFormFields
+                  key={`${definition.slug}-${mode}-${row?.id ?? "new"}`}
+                  compact
+                  definition={{
+                    gridColumns: 4,
+                    fields,
+                  }}
+                  onChange={(key, value) =>
+                    setValues((current) => ({
+                      ...current,
+                      [key]: value,
+                    }))
+                  }
+                  presentation={mode === "view" ? "details" : "form"}
+                  readOnly={mode === "view"}
+                  showRequiredErrors={mode !== "view" && hasSubmitted}
+                  values={values}
+                />
+              )}
+            </>
+          )}
 
           {warehouseAAddStockSlug ? (
             <WarehouseAAddStockWorkspace
-              activeTab={warehouseAAddStockTab}
-              onTabChange={setWarehouseAAddStockTab}
+              invoiceDate={
+                values.inwardDate instanceof Date ? values.inwardDate : null
+              }
               ref={warehouseAWorkspaceRef}
               slug={warehouseAAddStockSlug}
+              supplierName={
+                typeof values.supplierName === "string"
+                  ? values.supplierName
+                  : ""
+              }
             />
           ) : null}
 
           <Box
             sx={(theme) => ({
               display: "flex",
-              justifyContent: "center",
+              justifyContent: warehouseAAddStockSlug ? "flex-end" : "center",
               gap: theme.spacing(1.5),
               flexWrap: "wrap",
+              pt: theme.spacing(0.5),
+              borderTop: warehouseAAddStockSlug
+                ? `1px solid ${theme.customTokens.borders.divider}`
+                : undefined,
             })}
           >
             {mode === "view" ? (
@@ -368,22 +472,52 @@ export function InventoryForm<Row extends InventoryRecord>({
                   onClick={() => {
                     setHasSubmitted(true);
 
-                    const workspaceIsValid =
-                      warehouseAAddStockSlug
-                        ? warehouseAWorkspaceRef.current?.validate() ?? true
-                        : true;
+                    const workspaceIsValid = warehouseAAddStockSlug
+                      ? warehouseAWorkspaceRef.current?.validate() ?? true
+                      : true;
 
                     const hasBaseFieldErrors = hasFormFieldErrors(
                       fields,
                       values,
                     );
 
-                    if (warehouseAAddStockSlug && hasBaseFieldErrors) {
-                      setWarehouseAAddStockTab("item-details");
-                    }
-
                     if (hasBaseFieldErrors || !workspaceIsValid) {
                       return;
+                    }
+
+                    if (
+                      warehouseAAddStockSlug &&
+                      warehouseAAddStockSlug !== "consumables"
+                    ) {
+                      const lineItems =
+                        warehouseAWorkspaceRef.current?.getLineItems() ?? [];
+
+                      saveWarehouseAInwardItems({
+                        header: {
+                          currency:
+                            typeof values.currency === "string"
+                              ? values.currency
+                              : "INR",
+                          invoiceNo:
+                            typeof values.invoiceNo === "string"
+                              ? values.invoiceNo
+                              : "",
+                          inwardDate:
+                            values.inwardDate instanceof Date
+                              ? values.inwardDate
+                              : new Date(),
+                          inwardType:
+                            typeof values.inwardType === "string"
+                              ? values.inwardType
+                              : "",
+                          supplierName:
+                            typeof values.supplierName === "string"
+                              ? values.supplierName
+                              : "",
+                        },
+                        lineItems,
+                        slug: warehouseAAddStockSlug,
+                      });
                     }
 
                     closeInventoryForm();
@@ -399,33 +533,6 @@ export function InventoryForm<Row extends InventoryRecord>({
     </InventoryPageShell>
   );
 }
-
-function getWarehouseAAddStockFormFields(
-  fields: readonly MasterFieldDefinition[],
-) {
-  return fields
-    .filter((field) => !warehouseAAddStockRemovedFieldKeys.has(field.key))
-    .map<MasterFieldDefinition>((field) => {
-      if (field.key !== "inwardType") {
-        return field;
-      }
-
-      const { options: _options, ...fieldWithoutOptions } = field;
-
-      return {
-        ...fieldWithoutOptions,
-        placeholder: "Enter Inward Type",
-        type: "text",
-      };
-    });
-}
-
-const warehouseAAddStockRemovedFieldKeys = new Set([
-  "shift",
-  "workers",
-  "noOfWorkingHours",
-  "noOfTotalHours",
-]);
 
 const inventoryItemDetailFieldKeys = new Set([
   "amount",
@@ -609,26 +716,21 @@ function InventoryItemDetailsTable({
   }
 
   return (
-    <Box>
-      {showTitle ? (
-        <Typography
-          variant="subtitle1"
+    <Box
+      sx={(theme) => ({
+        ...formSectionCardSx(theme),
+      })}
+    >
+      <Stack spacing={1.15}>
+        {showTitle ? <FormSectionHeader title="Item Details" /> : null}
+
+        <Box
           sx={(theme) => ({
-            mb: theme.spacing(2),
-            fontWeight: 700,
+            border: `1px solid ${theme.customTokens.borders.default}`,
+            borderRadius: "8px",
+            overflow: "hidden",
           })}
         >
-          Item Details
-        </Typography>
-      ) : null}
-
-      <Box
-        sx={(theme) => ({
-          border: `1px solid ${theme.customTokens.borders.default}`,
-          borderRadius: `${theme.customTokens.radius.md}px`,
-          overflow: "hidden",
-        })}
-      >
         <Box
           sx={(theme) => ({
             overflowX: "auto",
@@ -715,6 +817,7 @@ function InventoryItemDetailsTable({
           </Table>
         </Box>
       </Box>
+      </Stack>
     </Box>
   );
 }

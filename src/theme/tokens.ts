@@ -1,5 +1,7 @@
 import type { Shadows } from "@mui/material/styles";
 
+import { portalFontFamily, portalTypography } from "./typography";
+
 const brandPalette = {
   brandPrimary: "#741616",
   brandSecondary: "#A83F3F",
@@ -153,55 +155,38 @@ const shadows: Shadows = [
 
 const typographyScale = {
   display: {
-    fontSize: "2.5rem",
-    fontWeight: 700,
-    lineHeight: 1.15,
-    letterSpacing: "-0.03em",
-  },
-  h1: {
     fontSize: "2rem",
-    fontWeight: 700,
+    fontWeight: 600,
     lineHeight: 1.2,
-    letterSpacing: "-0.03em",
-  },
-  h2: {
-    fontSize: "1.5rem",
-    fontWeight: 700,
-    lineHeight: 1.25,
     letterSpacing: "-0.02em",
   },
-  h3: {
-    fontSize: "1.25rem",
+  h1: {
+    ...portalTypography.pageTitle,
+  },
+  h2: {
+    fontSize: "18px",
     fontWeight: 600,
     lineHeight: 1.3,
   },
-  title: {
-    fontSize: "1rem",
-    fontWeight: 600,
-    lineHeight: 1.5,
-    letterSpacing: "0.01em",
-  },
-  bodyLarge: {
-    fontSize: "0.95rem",
-    fontWeight: 500,
-    lineHeight: 1.6,
-  },
-  body: {
-    fontSize: "0.875rem",
-    fontWeight: 500,
-    lineHeight: 1.55,
-  },
-  caption: {
-    fontSize: "0.75rem",
-    fontWeight: 500,
-    lineHeight: 1.45,
-    letterSpacing: "0.01em",
-  },
-  label: {
-    fontSize: "0.8125rem",
+  h3: {
+    fontSize: "16px",
     fontWeight: 600,
     lineHeight: 1.35,
-    letterSpacing: "0.02em",
+  },
+  title: {
+    ...portalTypography.emphasis,
+  },
+  bodyLarge: {
+    ...portalTypography.body,
+  },
+  body: {
+    ...portalTypography.body,
+  },
+  caption: {
+    ...portalTypography.helper,
+  },
+  label: {
+    ...portalTypography.formLabel,
   },
 } as const;
 
@@ -221,16 +206,16 @@ const spacingScale = [
 const themeNavigation = {
   breadcrumb: {
     default: {
-        currentColor: brandPalette.darkCharcoal,
-        currentFontWeight: 700,
-        itemColor: brandPalette.brandPrimary,
-        itemFontWeight: 600,
-        fontSize: "0.8rem",
-        mobileFontSize: "0.8rem",
-        lineHeight: 1.25,
-        letterSpacing: "-0.01em",
-        separatorColor: brandPalette.disabledTaupe,
-      separatorSize: 18,
+      currentColor: brandPalette.darkCharcoal,
+      currentFontWeight: 600,
+      itemColor: brandPalette.brandPrimary,
+      itemFontWeight: 500,
+      fontSize: portalTypography.breadcrumb.fontSize,
+      mobileFontSize: portalTypography.breadcrumb.fontSize,
+      lineHeight: portalTypography.breadcrumb.lineHeight,
+      letterSpacing: "0",
+      separatorColor: brandPalette.disabledTaupe,
+      separatorSize: 16,
       separatorStrokeWidth: 2,
       separatorSpacing: 0.5,
     },
@@ -248,23 +233,25 @@ export const deluxeTokens = {
   },
   spacingUnit: 8,
   radius: {
-    sm: 10,
-    md: 12,
-    lg: 18,
-    xl: 24,
+    sm: 8,
+    md: 8,
+    lg: 12,
+    xl: 16,
     pill: 999,
   },
   layout: {
-    sidebarExpandedWidth: 260,
-    sidebarCollapsedWidth: 92,
-    mobileHeaderHeight: 72,
+    sidebarExpandedWidth: 226,
+    sidebarCollapsedWidth: 72,
+    mobileHeaderHeight: 56,
   },
   iconSizes: {
-    sm: 18,
-    md: 20,
+    /** Form adornments, search, buttons */
+    sm: 16,
+    /** Page titles / sidebar parents */
+    md: 18,
   },
   typography: {
-    fontFamily: '"Inter", sans-serif',
+    fontFamily: portalFontFamily,
   },
   navigation: {
     surface: brandPalette.warmSurfaceAlt,

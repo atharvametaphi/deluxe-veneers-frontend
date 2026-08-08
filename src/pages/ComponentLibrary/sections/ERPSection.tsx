@@ -1,3 +1,1 @@
-export function ERPSection() {
-  return <></>;
-}
+export { ERPSection } from "./erp/ERPSection";

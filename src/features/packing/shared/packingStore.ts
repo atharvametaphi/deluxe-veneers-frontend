@@ -1,14 +1,22 @@
 import { useSyncExternalStore } from "react";
 
-import type { EnterpriseTableColumn, EnterpriseTableRow } from "../../../components/data-display/EnterpriseDataTable";
+import type {
+  EnterpriseTableColumn,
+  EnterpriseTableRow,
+} from "../../../components/data-display/EnterpriseDataTable";
+import {
+  getOrderRecordByOrderNo,
+  getOrderVariantFromType,
+  updateOrderRecord,
+  type OrderRecord,
+} from "../../orders/shared/ordersStore";
+import { formatAmount, formatSQM, formatSQF } from "../../shared/numberFormat";
 
 export type PackingTabValue = "done" | "issued";
+export type DispatchTabValue = "done" | "issued";
 export type PackingRecordState = "dispatched" | "done" | "issued" | "reverted";
 
-export const packingOrderTypeOptions = [
-  "Raw",
-  "Finished",
-] as const;
+export const packingOrderTypeOptions = ["Raw", "Finished"] as const;
 
 export interface PackingRecord extends EnterpriseTableRow {
   packingId: string;
@@ -31,6 +39,8 @@ export interface PackingRecord extends EnterpriseTableRow {
   grade: string;
   amount: string;
   remark: string;
+  sourceOrderId?: string;
+  sourceOrderItemId?: string;
   dispatchBuyerAddress?: string;
   dispatchSellerAddress?: string;
   dispatchTransactionType?: string;
@@ -48,30 +58,68 @@ export interface PackingRecord extends EnterpriseTableRow {
   packingState: PackingRecordState;
 }
 
-export const packingListingColumns: readonly EnterpriseTableColumn<PackingRecord>[] =
+export const packingIssuedListingColumns: readonly EnterpriseTableColumn<PackingRecord>[] =
   [
-    { key: "packingId", label: "Packing ID" },
     { key: "orderNo", label: "Order No" },
-    { key: "orderItemNo", label: "Order Item Number" },
-    { key: "customerName", label: "Customer Name" },
+    { key: "orderItemNo", label: "Order Item No" },
+    { key: "customerName", label: "Customer" },
     { key: "orderType", label: "Order Type" },
-    { key: "productCategory", label: "Product Type" },
+    { key: "itemName", label: "Product" },
+    { key: "noOfSheets", label: "Qty" },
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
     { key: "thickness", label: "Thickness" },
-    { key: "noOfSheets", label: "No of Sheets" },
-    { key: "sqm", label: "SQM" },
-    { key: "sqf", label: "SQF" },
-    { key: "amount", label: "Amount" },
+    { key: "issuedFrom", label: "Ready From", filterable: true },
+    { key: "remark", label: "Source Reference" },
+  ];
+
+export const packingDoneListingColumns: readonly EnterpriseTableColumn<PackingRecord>[] =
+  [
+    { key: "packingId", label: "Packing Ref" },
+    { key: "orderNo", label: "Order No" },
+    { key: "orderItemNo", label: "Order Item No" },
+    { key: "customerName", label: "Customer" },
+    { key: "orderType", label: "Order Type" },
+    { key: "itemName", label: "Product" },
+    { key: "noOfSheets", label: "Packed Qty" },
+    { key: "packingDate", label: "Packing Date" },
+    { key: "issuedFrom", label: "Ready From" },
+  ];
+
+/** @deprecated Prefer packingDoneListingColumns; kept for compatibility. */
+export const packingListingColumns = packingDoneListingColumns;
+
+export const dispatchIssuedListingColumns: readonly EnterpriseTableColumn<PackingRecord>[] =
+  [
+    { key: "packingId", label: "Packing Ref" },
+    { key: "orderNo", label: "Order No" },
+    { key: "orderItemNo", label: "Order Item No" },
+    { key: "customerName", label: "Customer" },
+    { key: "orderType", label: "Order Type" },
+    { key: "itemName", label: "Product" },
+    { key: "noOfSheets", label: "Packed Qty" },
+    { key: "length", label: "Length" },
+    { key: "width", label: "Width" },
+    { key: "thickness", label: "Thickness" },
+    { key: "packingDate", label: "Packing Date" },
+  ];
+
+export const dispatchDoneListingColumns: readonly EnterpriseTableColumn<PackingRecord>[] =
+  [
+    { key: "packingId", label: "Packing Ref" },
+    { key: "orderNo", label: "Order No" },
+    { key: "orderItemNo", label: "Order Item No" },
+    { key: "customerName", label: "Customer" },
+    { key: "dispatchTransporter", label: "Transporter" },
+    { key: "dispatchTransportMode", label: "Transport Mode" },
+    { key: "noOfSheets", label: "Qty" },
+    { key: "dispatchDate", label: "Dispatch Date" },
     { key: "remark", label: "Remark" },
-    { key: "createdBy", label: "Created By" },
-    { key: "updatedBy", label: "Updated By" },
-    { key: "createdDate", label: "Created Date" },
-    { key: "updatedDate", label: "Updated Date" },
   ];
 
 const packingListeners = new Set<() => void>();
 let packingRecords = createPackingRecords();
+let packingIdSequence = getInitialPackingIdSequence(packingRecords);
 
 export function usePackingRecords() {
   return useSyncExternalStore(
@@ -93,6 +141,14 @@ export function getPackingRecordsByTab(tab: PackingTabValue) {
   );
 }
 
+export function getDispatchRecordsByTab(tab: DispatchTabValue) {
+  return packingRecords.filter((record) =>
+    tab === "issued"
+      ? record.packingState === "done"
+      : record.packingState === "dispatched",
+  );
+}
+
 export function updatePackingRecord(
   recordId: string,
   updates: Partial<PackingRecord>,
@@ -109,64 +165,131 @@ export function updatePackingRecord(
   );
 }
 
-export function revertPackingRecord(recordId: string) {
+export function markPackingDone(
+  recordId: string,
+  payload: {
+    packingDate?: Date | null;
+    remark?: string;
+  } = {},
+) {
+  const record = getPackingRecord(recordId);
+  if (!record || record.packingState !== "issued") {
+    return;
+  }
+
+  const timestamp = new Date();
+  const packingDate =
+    payload.packingDate instanceof Date ? payload.packingDate : timestamp;
+  const packingId =
+    record.packingId.trim().length > 0
+      ? record.packingId
+      : allocatePackingId();
+
+  updatePackingRecords((records) =>
+    records.map((entry) =>
+      entry.id === recordId
+        ? {
+            ...entry,
+            packingId,
+            packingDate,
+            remark:
+              payload.remark !== undefined
+                ? normalizeString(payload.remark, entry.remark)
+                : entry.remark,
+            packingState: "done",
+            updatedBy: "Packing Supervisor",
+            updatedDate: timestamp,
+          }
+        : entry,
+    ),
+  );
+
+  syncOrderFulfillmentStatus(record.orderNo);
+}
+
+export function markDispatchDone(
+  recordId: string,
+  payload: {
+    dispatchDate?: Date | null;
+    dispatchTransporter?: string;
+    dispatchTransportMode?: string;
+    remark?: string;
+  } = {},
+) {
+  const record = getPackingRecord(recordId);
+  if (!record || record.packingState !== "done") {
+    return;
+  }
+
   const timestamp = new Date();
 
   updatePackingRecords((records) =>
-    records.map((record) =>
-      record.id === recordId
+    records.map((entry) =>
+      entry.id === recordId
+        ? applyDispatchDone(entry, payload, timestamp)
+        : entry,
+    ),
+  );
+
+  syncOrderFulfillmentStatus(record.orderNo);
+}
+
+export function revertPackingRecord(recordId: string) {
+  const record = getPackingRecord(recordId);
+  const timestamp = new Date();
+
+  updatePackingRecords((records) =>
+    records.map((entry) =>
+      entry.id === recordId
         ? {
-            ...record,
+            ...entry,
             packingState: "reverted",
             updatedBy: "Packing Supervisor",
             updatedDate: timestamp,
           }
-        : record,
+        : entry,
     ),
   );
-}
 
-export function dispatchPackingRecord(recordId: string) {
-  const timestamp = new Date();
-
-  updatePackingRecords((records) =>
-    records.map((record) =>
-      record.id === recordId
-        ? {
-            ...record,
-            packingState: "dispatched",
-            updatedBy: "Dispatch Coordinator",
-            updatedDate: timestamp,
-          }
-        : record,
-    ),
-  );
+  if (record) {
+    syncOrderFulfillmentStatus(record.orderNo);
+  }
 }
 
 export function revertDispatchEntry(recordId: string) {
+  const record = getPackingRecord(recordId);
   const timestamp = new Date();
 
   updatePackingRecords((records) =>
-    records.map((record) =>
-      record.id === recordId
+    records.map((entry) =>
+      entry.id === recordId
         ? {
-            ...record,
+            ...entry,
             dispatchDate: null,
             packingState: "done",
             updatedBy: "Dispatch Coordinator",
             updatedDate: timestamp,
           }
-        : record,
+        : entry,
     ),
   );
+
+  if (record) {
+    syncOrderFulfillmentStatus(record.orderNo);
+  }
+}
+
+export function dispatchPackingRecord(recordId: string) {
+  markDispatchDone(recordId);
 }
 
 export function createPackingEntry(
   recordId: string | undefined,
   payload: {
-    customerName?: string;
     amount?: string;
     checkedBy?: string;
+    completeImmediately?: boolean;
+    customerName?: string;
     issuedFrom?: string;
     itemName?: string;
     length?: string;
@@ -178,35 +301,37 @@ export function createPackingEntry(
     preparedBy?: string;
     productCategory?: string;
     remark?: string;
+    sourceOrderId?: string;
+    sourceOrderItemId?: string;
     sqf?: string;
     sqm?: string;
     thickness?: string;
     width?: string;
   },
 ) {
-  const timestamp = payload.packingDate instanceof Date
-    ? payload.packingDate
-    : new Date();
+  const timestamp = new Date();
+  const completeImmediately = payload.completeImmediately === true;
+  const packingDate =
+    payload.packingDate instanceof Date ? payload.packingDate : timestamp;
 
   if (!recordId) {
     const nextRecordNumber = packingRecords.length + 1;
+    const orderNo = normalizeString(
+      payload.orderNo,
+      `ORD-RAW-${String(1000 + nextRecordNumber).padStart(4, "0")}`,
+    );
+    const packingId = completeImmediately ? allocatePackingId() : "";
 
     updatePackingRecords((records) => [
       {
         id: `packing-${nextRecordNumber}`,
-        packingId: `PKG-${String(nextRecordNumber).padStart(4, "0")}`,
+        packingId,
         issuedFrom: normalizeString(payload.issuedFrom, "Manual Entry"),
-        orderNo: normalizeString(
-          payload.orderNo,
-          `ORD-PK-${String(1000 + nextRecordNumber).padStart(4, "0")}`,
-        ),
-        orderItemNo: normalizeString(payload.orderItemNo, "1"),
+        orderNo,
+        orderItemNo: normalizeString(payload.orderItemNo, "OI-001"),
         customerName: normalizeString(payload.customerName, "New Customer"),
-        orderType: normalizeString(payload.orderType, "Raw Order"),
-        productCategory: normalizeString(
-          payload.productCategory,
-          "Raw",
-        ),
+        orderType: normalizeString(payload.orderType, "Raw"),
+        productCategory: normalizeString(payload.productCategory, "Raw"),
         preparedBy: normalizeString(payload.preparedBy, "Packing Supervisor"),
         checkedBy: normalizeString(payload.checkedBy, "Quality Coordinator"),
         itemName: normalizeString(payload.itemName, "Packing Item"),
@@ -220,46 +345,86 @@ export function createPackingEntry(
         grade: "A",
         amount: normalizeString(payload.amount, "18,500.00"),
         remark: normalizeString(payload.remark, ""),
-        packingDate: payload.packingDate instanceof Date ? payload.packingDate : timestamp,
+        ...(payload.sourceOrderId
+          ? { sourceOrderId: payload.sourceOrderId }
+          : {}),
+        ...(payload.sourceOrderItemId
+          ? { sourceOrderItemId: payload.sourceOrderItemId }
+          : {}),
+        packingDate: completeImmediately ? packingDate : null,
         dispatchDate: null,
         createdBy: "Packing Supervisor",
         updatedBy: "Packing Supervisor",
         createdDate: timestamp,
         updatedDate: timestamp,
-        packingState: "done",
+        packingState: completeImmediately ? "done" : "issued",
       },
       ...records,
     ]);
 
+    syncOrderFulfillmentStatus(orderNo);
+    return;
+  }
+
+  const existing = getPackingRecord(recordId);
+  if (!existing) {
     return;
   }
 
   updatePackingRecords((records) =>
-    records.map((record) =>
-      record.id === recordId
-        ? {
-            ...record,
-            customerName: normalizeString(payload.customerName, record.customerName),
-            orderNo: normalizeString(payload.orderNo, record.orderNo),
-            orderItemNo: normalizeString(payload.orderItemNo, record.orderItemNo),
-            orderType: normalizeString(payload.orderType, record.orderType),
-            productCategory: normalizeString(
-              payload.productCategory,
-              record.productCategory,
-            ),
-            preparedBy: normalizeString(payload.preparedBy, record.preparedBy),
-            checkedBy: normalizeString(payload.checkedBy, record.checkedBy),
-            noOfSheets: normalizeString(payload.noOfSheets, record.noOfSheets),
-            sqm: normalizeString(payload.sqm, record.sqm),
-            sqf: normalizeString(payload.sqf, record.sqf),
-            remark: normalizeString(payload.remark, record.remark),
-            packingDate: payload.packingDate instanceof Date ? payload.packingDate : timestamp,
-            packingState: "done",
-            updatedBy: "Packing Supervisor",
-            updatedDate: timestamp,
-          }
-        : record,
-    ),
+    records.map((record) => {
+      if (record.id !== recordId) {
+        return record;
+      }
+
+      const nextPackingId =
+        completeImmediately && record.packingId.trim().length === 0
+          ? allocatePackingId()
+          : record.packingId;
+
+      return {
+        ...record,
+        customerName: normalizeString(payload.customerName, record.customerName),
+        orderNo: normalizeString(payload.orderNo, record.orderNo),
+        orderItemNo: normalizeString(payload.orderItemNo, record.orderItemNo),
+        orderType: normalizeString(payload.orderType, record.orderType),
+        productCategory: normalizeString(
+          payload.productCategory,
+          record.productCategory,
+        ),
+        preparedBy: normalizeString(payload.preparedBy, record.preparedBy),
+        checkedBy: normalizeString(payload.checkedBy, record.checkedBy),
+        issuedFrom: normalizeString(payload.issuedFrom, record.issuedFrom),
+        itemName: normalizeString(payload.itemName, record.itemName),
+        length: normalizeString(payload.length, record.length),
+        width: normalizeString(payload.width, record.width),
+        thickness: normalizeString(payload.thickness, record.thickness),
+        noOfSheets: normalizeString(payload.noOfSheets, record.noOfSheets),
+        sqm: normalizeString(payload.sqm, record.sqm),
+        sqf: normalizeString(payload.sqf, record.sqf),
+        amount: normalizeString(payload.amount, record.amount),
+        remark: normalizeString(payload.remark, record.remark),
+        ...(payload.sourceOrderId
+          ? { sourceOrderId: payload.sourceOrderId }
+          : {}),
+        ...(payload.sourceOrderItemId
+          ? { sourceOrderItemId: payload.sourceOrderItemId }
+          : {}),
+        packingId: nextPackingId,
+        packingDate: completeImmediately
+          ? packingDate
+          : payload.packingDate instanceof Date
+            ? payload.packingDate
+            : record.packingDate,
+        packingState: completeImmediately ? "done" : record.packingState,
+        updatedBy: "Packing Supervisor",
+        updatedDate: timestamp,
+      };
+    }),
+  );
+
+  syncOrderFulfillmentStatus(
+    normalizeString(payload.orderNo, existing.orderNo),
   );
 }
 
@@ -281,63 +446,149 @@ export function createDispatchEntry(
     remark?: string;
   },
 ) {
-  const timestamp = payload.dispatchDate instanceof Date
-    ? payload.dispatchDate
-    : new Date();
+  const record = getPackingRecord(recordId);
+  if (!record || record.packingState !== "done") {
+    return;
+  }
+
+  const timestamp = new Date();
 
   updatePackingRecords((records) =>
-    records.map((record) =>
-      record.id === recordId
-        ? {
-            ...record,
-            customerName: normalizeString(payload.customerName, record.customerName),
-            orderType: normalizeString(payload.orderType, record.orderType),
-            productCategory: normalizeString(
-              payload.productCategory,
-              record.productCategory,
-            ),
-            dispatchBuyerAddress: normalizeString(
-              payload.dispatchBuyerAddress,
-              record.dispatchBuyerAddress ?? "",
-            ),
-            dispatchSellerAddress: normalizeString(
-              payload.dispatchSellerAddress,
-              record.dispatchSellerAddress ?? "",
-            ),
-            dispatchTransactionType: normalizeString(
-              payload.dispatchTransactionType,
-              record.dispatchTransactionType ?? "",
-            ),
-            dispatchTransporter: normalizeString(
-              payload.dispatchTransporter,
-              record.dispatchTransporter ?? "",
-            ),
-            dispatchTransportMode: normalizeString(
-              payload.dispatchTransportMode,
-              record.dispatchTransportMode ?? "",
-            ),
-            dispatchTotalQuantity: normalizeString(
-              payload.dispatchTotalQuantity,
-              record.dispatchTotalQuantity ?? record.noOfSheets,
-            ),
-            dispatchTotalSqf: normalizeString(
-              payload.dispatchTotalSqf,
-              record.dispatchTotalSqf ?? record.sqf,
-            ),
-            dispatchGrandTotal: normalizeString(
-              payload.dispatchGrandTotal,
-              record.dispatchGrandTotal ?? record.amount,
-            ),
-            remark: normalizeString(payload.remark, record.remark),
-            dispatchDate:
-              payload.dispatchDate instanceof Date ? payload.dispatchDate : timestamp,
-            packingState: "dispatched",
-            updatedBy: "Dispatch Coordinator",
-            updatedDate: timestamp,
-          }
-        : record,
-    ),
+    records.map((entry) => {
+      if (entry.id !== recordId) {
+        return entry;
+      }
+
+      const dispatched = applyDispatchDone(
+        entry,
+        {
+          dispatchDate: payload.dispatchDate,
+          dispatchTransporter: payload.dispatchTransporter,
+          dispatchTransportMode: payload.dispatchTransportMode,
+          remark: payload.remark,
+        },
+        timestamp,
+      );
+
+      return {
+        ...dispatched,
+        customerName: normalizeString(payload.customerName, dispatched.customerName),
+        orderType: normalizeString(payload.orderType, dispatched.orderType),
+        productCategory: normalizeString(
+          payload.productCategory,
+          dispatched.productCategory,
+        ),
+        dispatchBuyerAddress: normalizeString(
+          payload.dispatchBuyerAddress,
+          dispatched.dispatchBuyerAddress ?? "",
+        ),
+        dispatchSellerAddress: normalizeString(
+          payload.dispatchSellerAddress,
+          dispatched.dispatchSellerAddress ?? "",
+        ),
+        dispatchTransactionType: normalizeString(
+          payload.dispatchTransactionType,
+          dispatched.dispatchTransactionType ?? "",
+        ),
+        dispatchTotalQuantity: normalizeString(
+          payload.dispatchTotalQuantity,
+          dispatched.dispatchTotalQuantity ?? dispatched.noOfSheets,
+        ),
+        dispatchTotalSqf: normalizeString(
+          payload.dispatchTotalSqf,
+          dispatched.dispatchTotalSqf ?? dispatched.sqf,
+        ),
+        dispatchGrandTotal: normalizeString(
+          payload.dispatchGrandTotal,
+          dispatched.dispatchGrandTotal ?? dispatched.amount,
+        ),
+      };
+    }),
   );
+
+  syncOrderFulfillmentStatus(record.orderNo);
+}
+
+export function syncOrderFulfillmentStatus(orderNo: string) {
+  const order = getOrderRecordByOrderNo(orderNo);
+  if (!order) {
+    return;
+  }
+
+  const currentStatus = normalizeStatus(order.status);
+  if (currentStatus === "cancelled") {
+    return;
+  }
+
+  const related = packingRecords.filter(
+    (record) =>
+      record.orderNo.trim().toLowerCase() === orderNo.trim().toLowerCase() &&
+      record.packingState !== "reverted",
+  );
+
+  if (related.length === 0) {
+    return;
+  }
+
+  const hasIssued = related.some((record) => record.packingState === "issued");
+  const hasDone = related.some((record) => record.packingState === "done");
+  const allDispatched = related.every(
+    (record) => record.packingState === "dispatched",
+  );
+
+  let nextStatus: string | null = null;
+  if (hasIssued) {
+    nextStatus = "Packing Scheduled";
+  } else if (hasDone || allDispatched) {
+    nextStatus = "Ready for Dispatch";
+  }
+
+  if (!nextStatus || normalizeStatus(order.status) === normalizeStatus(nextStatus)) {
+    return;
+  }
+
+  updateOrderRecord(order.id, { status: nextStatus });
+}
+
+export function isRawOrderPackingEligible(order: OrderRecord) {
+  const status = normalizeStatus(order.status);
+  if (status === "draft" || status === "cancelled") {
+    return false;
+  }
+
+  if (getOrderVariantFromType(order.orderType) !== "raw") {
+    return false;
+  }
+
+  return (
+    status === "confirmed" ||
+    status === "in production" ||
+    status === "packing scheduled" ||
+    status === "ready for dispatch"
+  );
+}
+
+export function isFinishedOrderPackingEligible(order: OrderRecord) {
+  const variant = getOrderVariantFromType(order.orderType);
+  if (variant === null || variant === "raw") {
+    return false;
+  }
+
+  const status = normalizeStatus(order.status);
+  return status === "packing scheduled" || status === "ready for dispatch";
+}
+
+export function isOrderItemPackingEligible(order: OrderRecord) {
+  const variant = getOrderVariantFromType(order.orderType);
+  if (variant === "raw") {
+    return isRawOrderPackingEligible(order);
+  }
+
+  if (variant === null) {
+    return false;
+  }
+
+  return isFinishedOrderPackingEligible(order);
 }
 
 export function getPackingPaths() {
@@ -347,6 +598,61 @@ export function getPackingPaths() {
     edit: (id: string) => `/packing/edit/${id}`,
     view: (id: string) => `/packing/view/${id}`,
   };
+}
+
+function applyDispatchDone(
+  record: PackingRecord,
+  payload: {
+    dispatchDate?: Date | null;
+    dispatchTransporter?: string;
+    dispatchTransportMode?: string;
+    remark?: string;
+  },
+  timestamp: Date,
+): PackingRecord {
+  return {
+    ...record,
+    dispatchDate:
+      payload.dispatchDate instanceof Date ? payload.dispatchDate : timestamp,
+    dispatchTransporter: normalizeString(
+      payload.dispatchTransporter,
+      record.dispatchTransporter ?? "",
+    ),
+    dispatchTransportMode: normalizeString(
+      payload.dispatchTransportMode,
+      record.dispatchTransportMode ?? "",
+    ),
+    remark:
+      payload.remark !== undefined
+        ? normalizeString(payload.remark, record.remark)
+        : record.remark,
+    packingState: "dispatched",
+    updatedBy: "Dispatch Coordinator",
+    updatedDate: timestamp,
+  };
+}
+
+function allocatePackingId() {
+  packingIdSequence += 1;
+  return `PKG-2026-${String(packingIdSequence).padStart(4, "0")}`;
+}
+
+function getInitialPackingIdSequence(records: PackingRecord[]) {
+  let max = 0;
+
+  for (const record of records) {
+    const match = /^PKG-2026-(\d+)$/.exec(record.packingId.trim());
+    if (!match) {
+      continue;
+    }
+
+    const value = Number(match[1]);
+    if (Number.isFinite(value) && value > max) {
+      max = value;
+    }
+  }
+
+  return max;
 }
 
 function subscribeToPackingStore(listener: () => void) {
@@ -372,19 +678,18 @@ function normalizeString(value: string | undefined, fallback: string) {
   return value && value.trim().length > 0 ? value.trim() : fallback;
 }
 
+function normalizeStatus(status: string) {
+  return status.trim().toLowerCase();
+}
+
 function createPackingRecords(): PackingRecord[] {
-  const issuedFromValues = [
-    "Pressing",
+  const finishedIssuedFromValues = [
     "Finishing",
-    "Finish",
-    "Warehouse C",
+    "Pressing",
+    "CNC",
   ] as const;
   const orderTypes = [...packingOrderTypeOptions];
-  const rawProductCategories = [
-    "Veneer",
-    "Plywood",
-    "MDF",
-  ] as const;
+  const rawProductCategories = ["Veneer", "Plywood", "MDF"] as const;
   const finishedProductCategories = [
     "Marquetry",
     "Fluted",
@@ -442,7 +747,7 @@ function createPackingRecords(): PackingRecord[] {
   const pickValue = <Value,>(values: readonly Value[], index: number) =>
     values[index % values.length]!;
 
-  return Array.from({ length: 75 }, (_, index) => {
+  return Array.from({ length: 6 }, (_, index) => {
     const rowNumber = index + 1;
     const createdDate = new Date(2026, 5, 1 + (index % 25));
     const updatedDate = new Date(2026, 5, 3 + (index % 25));
@@ -452,9 +757,16 @@ function createPackingRecords(): PackingRecord[] {
     const sqm = (lengthMm / 1000) * (widthMm / 1000) * noOfSheets;
     const sqf = sqm * 10.7639;
     const packingState: PackingRecordState =
-      index < 25 ? "issued" : index < 50 ? "done" : "dispatched";
+      index < 2 ? "issued" : index < 4 ? "done" : "dispatched";
     const orderType = pickValue(orderTypes, index);
     const isRawOrder = orderType === "Raw";
+    const orderPrefix = isRawOrder ? "ORD-RAW" : "ORD-FIN";
+    const issuedFrom = isRawOrder
+      ? "Warehouse C"
+      : pickValue(finishedIssuedFromValues, index);
+    const sourceReference = isRawOrder
+      ? `WH-C-REF-${String(rowNumber).padStart(4, "0")}`
+      : `${issuedFrom.slice(0, 3).toUpperCase()}-JOB-${String(rowNumber).padStart(4, "0")}`;
     const updatedBy =
       packingState === "issued"
         ? "Packing Supervisor"
@@ -468,9 +780,9 @@ function createPackingRecords(): PackingRecord[] {
         packingState === "issued"
           ? ""
           : `PKG-2026-${String(rowNumber).padStart(4, "0")}`,
-      issuedFrom: pickValue(issuedFromValues, index),
-      orderNo: `ORD-PK-${String(1000 + rowNumber).padStart(4, "0")}`,
-      orderItemNo: String((index % 5) + 1),
+      issuedFrom,
+      orderNo: `${orderPrefix}-${String(1000 + rowNumber).padStart(4, "0")}`,
+      orderItemNo: `OI-${String((index % 5) + 1).padStart(3, "0")}`,
       customerName: pickValue(customerNames, index),
       orderType,
       productCategory: isRawOrder
@@ -483,12 +795,17 @@ function createPackingRecords(): PackingRecord[] {
       width: `${widthMm} mm`,
       thickness: `${(0.5 + (index % 5) * 0.1).toFixed(2)} mm`,
       noOfSheets: String(noOfSheets),
-      sqm: sqm.toFixed(3),
-      sqf: sqf.toFixed(3),
+      sqm: formatSQM(sqm),
+      sqf: formatSQF(sqf),
       series: pickValue(seriesValues, index),
       grade: pickValue(gradeValues, index),
-      amount: `${(18500 + index * 875).toLocaleString("en-IN")}.00`,
-      remark: "",
+      amount: formatAmount(18500 + index * 875),
+      remark:
+        packingState === "issued"
+          ? sourceReference
+          : packingState === "dispatched"
+            ? `Dispatched via ${pickValue(dispatchTransporters, index)}`
+            : "",
       ...(packingState === "dispatched"
         ? {
             dispatchBuyerAddress: pickValue(dispatchBuyerAddresses, index),
@@ -496,11 +813,14 @@ function createPackingRecords(): PackingRecord[] {
             dispatchTransactionType: pickValue(dispatchTransactionTypes, index),
             dispatchTransporter: pickValue(dispatchTransporters, index),
             dispatchTransportMode: pickValue(dispatchTransportModes, index),
+            dispatchTotalQuantity: String(noOfSheets),
+            dispatchTotalSqf: formatSQF(sqf),
+            dispatchGrandTotal: formatAmount(18500 + index * 875),
           }
         : {}),
-      packingDate: createdDate,
+      packingDate: packingState === "issued" ? null : createdDate,
       dispatchDate: packingState === "dispatched" ? updatedDate : null,
-      createdBy: index < 25 ? "Packing Planner" : "Packing Operator",
+      createdBy: index < 2 ? "Packing Planner" : "Packing Operator",
       updatedBy,
       createdDate,
       updatedDate,

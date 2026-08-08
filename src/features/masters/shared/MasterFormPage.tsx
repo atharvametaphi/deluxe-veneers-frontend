@@ -8,13 +8,14 @@ import {
   canAccessPermission,
   getMasterPermissionKey,
 } from "../../permissions";
-import {
-  recordFormActionButtonSx,
-  recordViewActionButtonSx,
-} from "../../shared/buttonStyles";
 import { MasterFormFields, hasFormFieldErrors } from "./MasterFormFields";
 import { MasterPageShell } from "./MasterPageShell";
 import { MasterSectionCard } from "./MasterSectionCard";
+import {
+  mastersFormOutlinedButtonSx,
+  mastersFormPrimaryButtonSx,
+  mastersFormSectionCardSx,
+} from "./mastersFormStyles";
 import {
   buildLocalMasterDefinition,
   createLocalMasterRecord,
@@ -244,18 +245,25 @@ export function MasterFormPage({
       ]}
       title={getMasterPageTitle(localDefinition, mode)}
     >
-      <MasterSectionCard>
+      <Box
+        sx={(theme) => ({
+          ...mastersFormSectionCardSx(theme),
+        })}
+      >
         <Stack
           sx={(theme) => ({
-            gap: theme.spacing(3),
+            gap: theme.spacing(1.5),
           })}
         >
           <MasterFormFields
+            compact
             definition={formDefinition}
             onChange={handleFieldChange}
+            presentation={mode === "view" ? "details" : "form"}
             readOnly={mode === "view"}
             showRequiredErrors={mode !== "view" && hasSubmitted}
             values={values}
+            variant="masters"
           />
 
           {afterFields}
@@ -263,9 +271,11 @@ export function MasterFormPage({
           <Box
             sx={(theme) => ({
               display: "flex",
-              justifyContent: "center",
-              gap: theme.spacing(1.5),
+              justifyContent: "flex-end",
+              gap: theme.spacing(1),
               flexWrap: "wrap",
+              pt: theme.spacing(1),
+              borderTop: `1px solid ${theme.customTokens.borders.divider}`,
             })}
           >
             {mode === "view" ? (
@@ -274,7 +284,7 @@ export function MasterFormPage({
                   variant="outlined"
                   startIcon={<ChevronLeft size={16} />}
                   onClick={() => navigate(paths.list)}
-                  sx={recordViewActionButtonSx}
+                  sx={(theme) => mastersFormOutlinedButtonSx(theme)}
                 >
                   Back
                 </Button>
@@ -283,7 +293,7 @@ export function MasterFormPage({
                   <Button
                     variant="contained"
                     startIcon={<Pencil size={16} />}
-                    sx={recordViewActionButtonSx}
+                    sx={(theme) => mastersFormPrimaryButtonSx(theme)}
                     onClick={() => {
                       if (row) {
                         navigate(paths.edit(row.id));
@@ -300,7 +310,7 @@ export function MasterFormPage({
                   type="button"
                   variant="outlined"
                   onClick={handleCancel}
-                  sx={recordFormActionButtonSx}
+                  sx={(theme) => mastersFormOutlinedButtonSx(theme)}
                 >
                   Cancel
                 </Button>
@@ -310,7 +320,7 @@ export function MasterFormPage({
                   variant="contained"
                   startIcon={<Save size={16} />}
                   onClick={handleSave}
-                  sx={recordFormActionButtonSx}
+                  sx={(theme) => mastersFormPrimaryButtonSx(theme)}
                 >
                   Save
                 </Button>
@@ -318,7 +328,7 @@ export function MasterFormPage({
             )}
           </Box>
         </Stack>
-      </MasterSectionCard>
+      </Box>
     </MasterPageShell>
   );
 }
