@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -40,12 +40,68 @@ import {
   getFactoryPageTitle,
   getFactoryPaths,
 } from "./factoryUtils";
+import { getFactoryIssuedWorkById, factoryIssuedWorkToRow } from "./factoryIssuedWorkStore";
+import { getExistingGroupNo } from "./groupNoStore";
+import { getCommonFactoryItemFieldDefinitions, commonFactoryItemFieldAliases } from "./factoryCommonItemFields";
 import type {
   FactoryDefinition,
   FactoryFormSection,
   FactoryPageMode,
   FactoryRecord,
 } from "./types";
+
+const groupingExcludedFieldKeys = new Set([
+  "orderDate",
+  "orderNo",
+  "orderItemNo",
+  "customerName",
+  "productName",
+  "issuedFor",
+]);
+
+function sanitizeGroupingFormSections(
+  sections: readonly FactoryFormSection[],
+): FactoryFormSection[] {
+  return sections.map((section) => ({
+    ...section,
+    fields: section.fields.filter(
+      (field) => !groupingExcludedFieldKeys.has(field.key),
+    ),
+  }));
+}
+
+function withGroupNoField(
+  sections: readonly FactoryFormSection[],
+  row: FactoryRecord | undefined,
+): FactoryFormSection[] {
+  const groupNo = getExistingGroupNo(row as Record<string, unknown> | undefined);
+  if (!groupNo) {
+    return [...sections];
+  }
+
+  return sections.map((section, index) => {
+    if (index !== 0) {
+      return section;
+    }
+
+    if (section.fields.some((field) => field.key === "groupNo")) {
+      return section;
+    }
+
+    return {
+      ...section,
+      fields: [
+        {
+          key: "groupNo",
+          label: "Group No.",
+          type: "text",
+          readOnly: true,
+        },
+        ...section.fields,
+      ],
+    };
+  });
+}
 
 interface FactoryFormProps<Row extends FactoryRecord> {
   definition: FactoryDefinition<Row>;
@@ -71,23 +127,40 @@ export function FactoryForm<Row extends FactoryRecord>({
   const row =
     mode === "add"
       ? undefined
-      : definition.rows.find((record) => record.id === params.id);
+      : definition.rows.find((record) => record.id === params.id) ??
+        (() => {
+          const workItem = params.id
+            ? getFactoryIssuedWorkById(params.id)
+            : null;
+          return workItem
+            ? (factoryIssuedWorkToRow(workItem) as Row)
+            : undefined;
+        })();
+
+  const formSections = useMemo(() => {
+    let sections = [...definition.formSections];
+    if (definition.slug === "grouping") {
+      sections = sanitizeGroupingFormSections(sections);
+    }
+    return withGroupNoField(sections, row);
+  }, [definition.formSections, definition.slug, row]);
 
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
-    buildFactoryInitialValues(definition.formSections, row),
+    buildFactoryInitialValues(formSections, row),
   );
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
-    setValues(buildFactoryInitialValues(definition.formSections, row));
-  }, [definition.formSections, row]);
+    setValues(buildFactoryInitialValues(formSections, row));
+  }, [formSections, row]);
 
-  const shouldShowItemTable = mode === "view" || mode === "edit";
+  const shouldShowItemTable =
+    (mode === "view" || mode === "edit") && definition.slug !== "slicing";
   const itemTableFields = shouldShowItemTable ? factoryItemTableFields : [];
   const visibleFormSections =
     shouldShowItemTable
-      ? definition.formSections.filter((section) => !isFactoryItemSection(section))
-      : definition.formSections;
+      ? formSections.filter((section) => !isFactoryItemSection(section))
+      : formSections;
 
   if ((mode === "edit" || mode === "view") && !row) {
     return (
@@ -248,7 +321,7 @@ export function FactoryForm<Row extends FactoryRecord>({
                     setHasSubmitted(true);
                     if (
                       mode === "add" &&
-                      definition.formSections.some((section) =>
+                      formSections.some((section) =>
                         hasRequiredFieldErrors(section.fields, values),
                       )
                     ) {
@@ -268,17 +341,8 @@ export function FactoryForm<Row extends FactoryRecord>({
   );
 }
 
-const factoryItemTableFields: readonly MasterFieldDefinition[] = [
-  { key: "itemSubCategory", label: "Item Sub Category", type: "text" },
-  { key: "itemName", label: "Item Name", type: "text" },
-  { key: "color", label: "Color", type: "text" },
-  { key: "length", label: "Length", type: "text" },
-  { key: "width", label: "Width", type: "text" },
-  { key: "thickness", label: "Thickness", type: "text" },
-  { key: "cmt", label: "CMT", type: "text" },
-  { key: "amount", label: "Amount", type: "text" },
-  { key: "remark", label: "Remark", type: "text" },
-];
+const factoryItemTableFields: readonly MasterFieldDefinition[] =
+  getCommonFactoryItemFieldDefinitions();
 
 function isFactoryItemSection(section: FactoryFormSection) {
   return section.title.toLowerCase().includes("item");
@@ -380,7 +444,9 @@ function FactoryItemTable({
                     })}
                   >
                     <Typography variant="body2" color="text.primary">
-                      {formatFactoryItemValue(row[field.key])}
+                      {formatFactoryItemValue(
+                        resolveFactoryItemFieldValue(row, field.key),
+                      )}
                     </Typography>
                   </TableCell>
                 ))}
@@ -396,6 +462,25 @@ function FactoryItemTable({
 
 function getFactoryItemColumnWidth(label: string) {
   return Math.max(120, Math.min(220, label.length * 10 + 56));
+}
+
+function resolveFactoryItemFieldValue(row: FactoryRecord, key: string) {
+  const aliases = commonFactoryItemFieldAliases[key] ?? [key];
+
+  for (const alias of aliases) {
+    const value = row[alias];
+    if (value instanceof Date) {
+      return value;
+    }
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return row[key];
 }
 
 function formatFactoryItemValue(value: FactoryRecord[string]) {

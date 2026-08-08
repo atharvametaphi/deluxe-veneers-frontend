@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, Stack } from "@mui/material";
-import { CheckCircle2, Eye, PackageOpen, Truck } from "lucide-react";
+import { CheckCircle2, Eye, PackageOpen, Plus } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import {
@@ -114,7 +114,7 @@ export function PackingListingPage() {
             {
               id: "view-dispatch",
               label: "Issue / View Dispatch",
-              icon: Truck,
+              icon: Plus,
               tone: "primary" as const,
               onSelect: (row: PackingRecord) =>
                 navigate(

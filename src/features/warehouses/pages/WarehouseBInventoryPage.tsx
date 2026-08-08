@@ -4,6 +4,7 @@ import {
   Eye,
   FileOutput,
   Pencil,
+  Plus,
   Truck,
 } from "lucide-react";
 import {
@@ -382,6 +383,8 @@ export function WarehouseBInventoryModulePage({
       baseActions.push({
         id: "issue-for-slicing",
         label: "Issue for Slicing",
+        icon: Plus,
+        tone: "primary",
         onSelect: (row) =>
           navigate("/factory/slicing/add", {
             state: {

@@ -15,6 +15,10 @@ import {
   expandFactoryRowsForTabs,
   uniqueFactoryOptions,
 } from "./factoryUtils";
+import {
+  commonFactoryItemFieldSpecs,
+  withCommonFactoryListingColumns,
+} from "./factoryCommonItemFields";
 import type { FactoryDefinition, FactoryRecord } from "./types";
 
 type FactoryRowSeed = Record<string, EnterpriseTableCellValue>;
@@ -68,6 +72,7 @@ const field = (
 
   const selectKeys = new Set([
     "baseType",
+    "character",
     "color",
     "consumedFrom",
     "cut",
@@ -75,12 +80,18 @@ const field = (
     "issuedFor",
     "itemName",
     "itemSubCategory",
+    "pattern",
     "productType",
+    "series",
     "shift",
   ]);
 
   if (selectKeys.has(key)) {
     return selectField(key, label, rows);
+  }
+
+  if (key === "groupNo") {
+    return textField(key, label, { readOnly: true });
   }
 
   return textField(key, label);
@@ -89,6 +100,10 @@ const field = (
 const columns = (
   specs: readonly (readonly [key: string, label: string])[],
 ) => specs.map(([key, label]) => column(key, label));
+
+const listingColumns = (
+  specs: readonly (readonly [key: string, label: string])[],
+) => columns(withCommonFactoryListingColumns(specs));
 
 const fields = (
   specs: readonly (readonly [key: string, label: string])[],
@@ -140,16 +155,15 @@ const customers = [
   "Urban Form Interiors",
 ] as const;
 
-const productNames = [
-  "Wall Panel",
-  "Wardrobe Shutter",
-  "Conference Table Top",
-  "Decorative Sheet",
-  "Fluted Panel",
-  "Embossed Panel",
-] as const;
-
 const grades = ["A", "B", "Premium", "Select", "Commercial", "Export"] as const;
+const characters = ["Olive", "Curly", "Flaky", "Pomelle"] as const;
+const patterns = [
+  "Multi Colour",
+  "Natural",
+  "Quarter Cut",
+  "Crown Cut",
+] as const;
+const seriesValues = ["ACCO", "Reganto", "Marvel", "Canvas"] as const;
 const cuts = ["Quarter Cut", "Crown Cut", "Rift Cut", "Natural", "Rotary", "Plain"] as const;
 const shifts = ["Day", "Morning", "General", "Evening", "Night", "Second"] as const;
 
@@ -172,12 +186,15 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
   const consumeSqm = formatSQM(42.1 + index * 3.3);
   const issuedSqm = formatSQM(72.4 + index * 6.2);
   const outputSqm = formatSQM(64.8 + index * 5.8);
+  const itemName = itemNames[index % itemNames.length];
 
   return {
     issuedFrom: warehouseName,
     issuedDate: day(2 + index),
     orderDate: day(1 + index),
-    itemName: itemNames[index % itemNames.length],
+    itemName,
+    // Same value as itemName — portal shows Item Name only; productName kept for source aliases.
+    productName: itemName,
     itemSubCategory: itemSubCategories[index % itemSubCategories.length],
     color: colors[index % colors.length],
     length: `${2440 + index * 20} mm`,
@@ -204,19 +221,21 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
       "Drying",
       "Pressing",
       "Splicing",
-      "CNC / Fluting",
+      "Fluting",
       "Finishing",
     ][index],
     customerName: customers[index % customers.length],
     orderNo: `ORD-2026-${String(1200 + sequence)}`,
     orderItemNo: `ITEM-${String(sequence).padStart(3, "0")}`,
-    productName: productNames[index % productNames.length],
     logNo: `LOG-${String(3000 + sequence)}`,
     cmt: formatMeasurement(1.18 + index * 0.16),
     noOfSheets: String(18 + index * 2),
     noOfLeaves: String(42 + index * 3),
     cut: cuts[index % cuts.length],
     cutColor: `${cuts[index % cuts.length]} / ${colors[index % colors.length]}`,
+    character: characters[index % characters.length],
+    pattern: patterns[index % patterns.length],
+    series: seriesValues[index % seriesValues.length],
     grade: grades[index % grades.length],
     shift: shifts[index % shifts.length],
     workers: String(8 + index),
@@ -255,7 +274,7 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
     outputSqm,
     outputSqf: toSqf(outputSqm),
     outputSqmSqf: outputSqm,
-    orderDetails: `Order item ${sequence} for ${productNames[index % productNames.length]}`,
+    orderDetails: `Order item ${sequence} for ${itemName}`,
   };
 }
 
@@ -273,9 +292,13 @@ function factoryRows(
   );
 }
 
-const slicingRows = factoryRows("slicing", "Warehouse B", (row) => ({
+const slicingRows = factoryRows("slicing", "Warehouse B", (row, index) => ({
   ...row,
   issuedFor: "Drying",
+  // Slicing dimensions are stored/displayed in metres for SQM calculation.
+  length: `${(2.44 + index * 0.02).toFixed(2)} m`,
+  width: `${(1.22 + index * 0.01).toFixed(2)} m`,
+  height: `${(0.004 + index * 0.001).toFixed(3)} m`,
 }));
 
 const dryingRows = factoryRows("drying", "Warehouse B", (row) => ({
@@ -283,9 +306,10 @@ const dryingRows = factoryRows("drying", "Warehouse B", (row) => ({
   issuedFor: "Inspection",
 }));
 
-const groupingRows = factoryRows("grouping", "Warehouse C", (row) => ({
+const groupingRows = factoryRows("grouping", "Warehouse C", (row, index) => ({
   ...row,
   issuedFor: "Splicing",
+  groupNo: `GRP-2026-${String(index + 1).padStart(4, "0")}`,
 }));
 
 const sampleSheetProcessTypes = [
@@ -305,43 +329,49 @@ const sampleSheetRows = factoryRows("sample-sheets", "Warehouse C", (row, index)
     ...row,
     issuedFrom: "Grouping",
     issuedFor: "",
+    groupNo: `GRP-2026-${String(index + 1).padStart(4, "0")}`,
     sampleProcessType,
     finishType: sampleProcessType,
     purpose: `${sampleProcessType} Sample Sheet`,
   };
 });
 
-const splicingRows = factoryRows("splicing", "Warehouse C", (row) => ({
+const withCarriedGroupNo = (row: FactoryRowSeed, index: number) => ({
   ...row,
+  groupNo: `GRP-2026-${String(index + 1).padStart(4, "0")}`,
+});
+
+const splicingRows = factoryRows("splicing", "Warehouse C", (row, index) => ({
+  ...withCarriedGroupNo(row, index),
   issuedFor: ["Marquetry", "Decorative", "Fluted", "Embossed"][
     Number(row.orderItemNo?.toString().replace(/\D/g, "") || "1") % 4
   ],
 }));
 
-const pressingRows = factoryRows("pressing", "Warehouse C", (row) => ({
-  ...row,
+const pressingRows = factoryRows("pressing", "Warehouse C", (row, index) => ({
+  ...withCarriedGroupNo(row, index),
   issuedFor: ["Marquetry", "Decorative", "Fluted", "Embossed"][
     Number(row.orderItemNo?.toString().replace(/\D/g, "") || "1") % 4
   ],
 }));
 
-const cncFlutingRows = factoryRows("cnc-fluting", "Warehouse C", (row) => ({
-  ...row,
+const cncFlutingRows = factoryRows("cnc-fluting", "Warehouse C", (row, index) => ({
+  ...withCarriedGroupNo(row, index),
   issuedFor: "Finishing",
 }));
 
-const embossingRows = factoryRows("embossing", "Warehouse C", (row) => ({
-  ...row,
+const embossingRows = factoryRows("embossing", "Warehouse C", (row, index) => ({
+  ...withCarriedGroupNo(row, index),
   issuedFor: "Finishing",
 }));
 
-const finishingRows = factoryRows("finishing", "Warehouse C", (row) => ({
-  ...row,
+const finishingRows = factoryRows("finishing", "Warehouse C", (row, index) => ({
+  ...withCarriedGroupNo(row, index),
   issuedFor: "Packing",
 }));
 
-const marquetryRows = factoryRows("marquetry", "Warehouse C", (row) => ({
-  ...row,
+const marquetryRows = factoryRows("marquetry", "Warehouse C", (row, index) => ({
+  ...withCarriedGroupNo(row, index),
   issuedFor: "Pressing",
 }));
 
@@ -350,7 +380,8 @@ const exportOemRows = factoryRows("export-oem", "Warehouse C", (row) => ({
   issuedFor: "Dispatch",
 }));
 
-const slicingListingColumns = columns([
+/** Drying keeps the prior shared column set (not the Slicing field standard). */
+const dryingListingColumns = listingColumns([
   ["issuedFrom", "Issued From"],
   ["issuedDate", "Issued Date"],
   ["itemName", "Item Name"],
@@ -369,14 +400,31 @@ const slicingListingColumns = columns([
   ["updatedAt", "Updated At"],
 ] as const);
 
-const splicingListingColumns = columns([
+const slicingListingColumns = listingColumns([
+  ["issuedFrom", "Issued From"],
+  ["issuedDate", "Issued Date"],
+  ["itemName", "Item Name"],
+  ["itemSubCategory", "Sub Category"],
+  ["color", "Color"],
+  ["logNo", "Log No."],
+  ["length", "Length (m)"],
+  ["width", "Width (m)"],
+  ["height", "Height (m)"],
+  ["noOfLeaves", "No. of Leaves"],
+  ["sqm", "SQM"],
+  ["sqf", "SQF"],
+  ["amount", "Amount"],
+  ["remark", "Remark"],
+] as const);
+
+const splicingListingColumns = listingColumns([
   ["issuedFor", "Issued For"],
+  ["groupNo", "Group No."],
   ["orderDate", "Order Date"],
   ["issuedDate", "Issued Date"],
   ["customerName", "Customer Name"],
   ["orderNo", "Order No"],
   ["orderItemNo", "Order Item No"],
-  ["productName", "Product Name"],
   ["itemName", "Item Name"],
   ["itemSubCategory", "Item Sub Category"],
   ["length", "Length"],
@@ -395,15 +443,15 @@ const splicingListingColumns = columns([
   ["updatedAt", "Updated At"],
 ] as const);
 
-const productionListingColumns = columns([
+const productionListingColumns = listingColumns([
   ["issuedFrom", "Issued From"],
   ["issuedFor", "Issued For"],
+  ["groupNo", "Group No."],
   ["orderDate", "Order Date"],
   ["issuedDate", "Issued Date"],
   ["customerName", "Customer Name"],
   ["orderNo", "Order No"],
   ["orderItemNo", "Order Item No"],
-  ["productName", "Product Name"],
   ["itemName", "Item Name"],
   ["itemSubCategory", "Item Sub Category"],
   ["length", "Length"],
@@ -422,15 +470,43 @@ const productionListingColumns = columns([
   ["updatedAt", "Updated At"],
 ] as const);
 
-const cncListingColumns = columns([
+/** Grouping is stock/process focused — no order or customer columns. */
+const groupingListingColumns = listingColumns([
+  ["issuedFrom", "Issued From"],
+  ["issuedDate", "Issued Date"],
+  ["groupNo", "Group No."],
+  ["groupingDate", "Grouping Date"],
+  ["itemName", "Item Name"],
+  ["itemSubCategory", "Sub Category"],
+  ["color", "Color"],
+  ["logNo", "Log No."],
+  ["character", "Character"],
+  ["pattern", "Pattern"],
+  ["series", "Series"],
+  ["grade", "Grade"],
+  ["length", "Length"],
+  ["width", "Width"],
+  ["height", "Height"],
+  ["noOfLeaves", "No. of Leaves"],
+  ["sqm", "SQM"],
+  ["sqf", "SQF"],
+  ["amount", "Amount"],
+  ["remark", "Remark"],
+  ["createdBy", "Created By"],
+  ["createdAt", "Created At"],
+  ["updatedBy", "Updated By"],
+  ["updatedAt", "Updated At"],
+] as const);
+
+const cncListingColumns = listingColumns([
   ["issuedFrom", "Issued From"],
   ["issuedFor", "Issued For"],
+  ["groupNo", "Group No."],
   ["orderDate", "Order Date"],
   ["issuedDate", "Issued Date"],
   ["customerName", "Customer Name"],
   ["orderNo", "Order No"],
   ["orderItemNo", "Order Item No"],
-  ["productName", "Product Name"],
   ["itemName", "Item Name"],
   ["itemSubCategory", "Item Sub Category"],
   ["length", "Length"],
@@ -447,15 +523,15 @@ const cncListingColumns = columns([
   ["updatedAt", "Updated At"],
 ] as const);
 
-const finishingListingColumns = columns([
+const finishingListingColumns = listingColumns([
   ["issuedFrom", "Issued From"],
   ["issuedFor", "Issued For"],
+  ["groupNo", "Group No."],
   ["orderDate", "Order Date"],
   ["issuedDate", "Issued Date"],
   ["customerName", "Customer Name"],
   ["orderNo", "Order No"],
   ["orderItemNo", "Order Item No"],
-  ["productName", "Product Name"],
   ["itemName", "Item Name"],
   ["itemSubCategory", "Item Sub Category"],
   ["length", "Length"],
@@ -472,7 +548,8 @@ const finishingListingColumns = columns([
   ["updatedAt", "Updated At"],
 ] as const);
 
-const slicingCreateFields = [
+/** Drying keeps the prior shared create/add-item fields. */
+const dryingCreateFields = [
   ["itemName", "Item Name"],
   ["itemSubCategory", "Item Sub Category"],
   ["color", "Color"],
@@ -485,7 +562,7 @@ const slicingCreateFields = [
   ["remark", "Remarks"],
 ] as const;
 
-const slicingAddItemFields = [
+const dryingAddItemFields = [
   ["itemName", "Item Name"],
   ["itemSubCategory", "Item Sub Category"],
   ["color", "Color"],
@@ -495,25 +572,46 @@ const slicingAddItemFields = [
   ["remark", "Remark"],
 ] as const;
 
-const groupingCreateFields = [
-  ["itemSubCategory", "Item Sub Category"],
+const slicingProcessDetailFields = [
   ["itemName", "Item Name"],
-  ["sqm", "SQM"],
-  ["sqf", "SQF"],
-  ["amount", "Amount"],
+  ["itemSubCategory", "Sub Category"],
+  ["color", "Color"],
+  ["logNo", "Log No."],
+  ...commonFactoryItemFieldSpecs.map(([key, label]) =>
+    key === "length"
+      ? (["length", "Length (m)"] as const)
+      : key === "width"
+        ? (["width", "Width (m)"] as const)
+        : key === "height"
+          ? (["height", "Height (m)"] as const)
+          : ([key, label] as const),
+  ),
+  ["remark", "Remark"],
+] as const;
+
+
+const slicingDerivedAreaKeys = new Set(["sqm", "sqf"]);
+
+function buildSlicingFormSections(rows: readonly FactoryRecord[]) {
+  return [
+    createSection(
+      "Process Details",
+      fields(slicingProcessDetailFields, rows).map((fieldDefinition) =>
+        slicingDerivedAreaKeys.has(fieldDefinition.key)
+          ? { ...fieldDefinition, readOnly: true }
+          : fieldDefinition,
+      ),
+    ),
+  ] as const;
+}
+
+const groupingCreateFields = [
+  ["groupNo", "Group No."],
   ["groupingDate", "Grouping Date"],
 ] as const;
 
 const groupingAddItemFields = [
-  ["length", "Length"],
-  ["width", "Width"],
-  ["thickness", "Thickness"],
-  ["noOfSheets", "No of Sheets"],
-  ["sqm", "SQM"],
-  ["sqf", "SQF"],
-  ["grade", "Grade"],
-  ["cut", "Cut"],
-  ["remark", "Remark"],
+  ...commonFactoryItemFieldSpecs,
 ] as const;
 
 const splicingCreateFields = [
@@ -586,7 +684,7 @@ const cncCreateFields = [
   ["issuedSqm", "SQM"],
   ["issuedSqf", "SQF"],
   ["issueRemark", "Remark"],
-  ["cncDate", "CNC / Fluting Date"],
+  ["cncDate", "Fluting Date"],
   ["outputNoOfSheets", "No of Sheets"],
   ["outputSqm", "SQM"],
   ["outputSqf", "SQF"],
@@ -630,7 +728,7 @@ export const slicingDefinition: FactoryDefinition = {
   slug: "slicing",
   title: "Slicing",
   listColumns: slicingListingColumns,
-  formSections: sectionSet(slicingRows, slicingCreateFields, slicingAddItemFields),
+  formSections: buildSlicingFormSections(slicingRows),
   rows: expandFactoryRowsForTabs("slicing", slicingRows),
   initialSort: { key: "issuedDate", direction: "desc" },
 };
@@ -638,16 +736,33 @@ export const slicingDefinition: FactoryDefinition = {
 export const dryingDefinition: FactoryDefinition = {
   slug: "drying",
   title: "Drying",
-  listColumns: slicingListingColumns,
-  formSections: sectionSet(dryingRows, slicingCreateFields, slicingAddItemFields),
+  listColumns: dryingListingColumns,
+  formSections: sectionSet(dryingRows, dryingCreateFields, dryingAddItemFields),
   rows: expandFactoryRowsForTabs("drying", dryingRows),
   initialSort: { key: "issuedDate", direction: "desc" },
 };
 
+/** Confirmed Slicing item field keys (listing + process details). */
+export const slicingItemTableFieldKeys = [
+  "itemName",
+  "itemSubCategory",
+  "color",
+  "logNo",
+  "length",
+  "width",
+  "height",
+  "noOfLeaves",
+  "sqm",
+  "sqf",
+  "amount",
+  "remark",
+] as const;
+
+
 export const groupingDefinition: FactoryDefinition = {
   slug: "grouping",
   title: "Grouping",
-  listColumns: productionListingColumns,
+  listColumns: groupingListingColumns,
   formSections: sectionSet(groupingRows, groupingCreateFields, groupingAddItemFields),
   rows: expandFactoryRowsForTabs("grouping", groupingRows),
   initialSort: { key: "issuedDate", direction: "desc" },
@@ -686,7 +801,7 @@ export const pressingDefinition: FactoryDefinition = {
 
 export const cncFlutingDefinition: FactoryDefinition = {
   slug: "cnc-fluting",
-  title: "CNC / Fluting",
+  title: "Fluting",
   listColumns: cncListingColumns,
   formSections: sectionSet(cncFlutingRows, cncCreateFields),
   rows: expandFactoryRowsForTabs("cnc-fluting", cncFlutingRows),

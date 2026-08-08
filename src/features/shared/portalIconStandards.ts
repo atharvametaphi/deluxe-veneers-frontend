@@ -26,7 +26,7 @@ export const portalIconSize = {
 
 export const portalIconGap = {
   /** Icon → label in action menus */
-  menu: 1.25, // 10px
+  menu: 1, // 8px
   /** Icon → label in buttons */
   button: 1, // 8px
   /** Icon → label in page title */

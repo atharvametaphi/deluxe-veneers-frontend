@@ -1,4 +1,5 @@
 import { Box, Stack, Typography } from "@mui/material";
+import { Plus } from "lucide-react";
 
 import {
   EnterpriseDataTable,
@@ -403,6 +404,8 @@ const rowActions: ReadonlyArray<EnterpriseTableAction<TableRowRecord>> = [
   {
     id: "issue-next-process",
     label: "Issue for Next Process",
+    icon: Plus,
+    tone: "primary",
     onSelect: () => undefined,
   },
 ];
