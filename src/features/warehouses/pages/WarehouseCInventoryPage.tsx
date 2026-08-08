@@ -1,6 +1,6 @@
-import { useMemo } from "react";
-import { Eye, Pencil } from "lucide-react";
-import { Stack } from "@mui/material";
+import { useMemo, useState } from "react";
+import { Eye, FileOutput, Pencil } from "lucide-react";
+import { Button, Stack } from "@mui/material";
 import { useNavigate, useSearchParams } from "react-router";
 
 import {
@@ -11,6 +11,9 @@ import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessT
 import { getInventoryPaths } from "../../inventory/shared";
 import { MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
+import { getListingToolbarOutlinedButtonSx } from "../../shared/buttonStyles";
+import { ClearableSearchField } from "../../shared/ClearableSearchField";
+import { exportRowsToCsv } from "../../shared/exportToCsv";
 import {
   warehouseCInventoryConfigs,
   type WarehouseCInventorySlug,
@@ -39,6 +42,7 @@ export function WarehouseCInventoryModulePage({
 }: WarehouseCInventoryModulePageProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [searchValue, setSearchValue] = useState("");
   const activeInventory = getActiveWarehouseCInventory(
     searchParams.get("inventory"),
   );
@@ -46,10 +50,24 @@ export function WarehouseCInventoryModulePage({
   const canEditWarehouseC = canAccessPermission("warehouseC", "edit");
   const canViewWarehouseC = canAccessPermission("warehouseC", "view");
 
+  const filteredRows = useMemo(() => {
+    const normalizedSearch = searchValue.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return activeInventoryConfig.rows;
+    }
+
+    return activeInventoryConfig.rows.filter((row) =>
+      Object.values(row).some((value) =>
+        String(value ?? "").toLowerCase().includes(normalizedSearch),
+      ),
+    );
+  }, [activeInventoryConfig.rows, searchValue]);
+
   const inventoryRowActions = useMemo<
     ReadonlyArray<EnterpriseTableAction<WarehouseInventoryRow>>
-  >(
-    () => [
+  >(() => {
+    const actions: EnterpriseTableAction<WarehouseInventoryRow>[] = [
       ...(canViewWarehouseC
         ? [
             {
@@ -80,9 +98,10 @@ export function WarehouseCInventoryModulePage({
             },
           ]
         : []),
-    ],
-    [canEditWarehouseC, canViewWarehouseC, navigate],
-  );
+    ];
+
+    return actions;
+  }, [canEditWarehouseC, canViewWarehouseC, navigate]);
 
   return (
     <MasterPageShell
@@ -91,6 +110,7 @@ export function WarehouseCInventoryModulePage({
         { label: "Inventory" },
         { label: activeInventoryConfig.title },
       ]}
+      subtitle="Processed stock ready for Factory and fulfilment."
       title={warehouseName}
     >
       <Stack
@@ -112,13 +132,49 @@ export function WarehouseCInventoryModulePage({
           value={activeInventory}
         />
 
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          alignItems={{ xs: "stretch", lg: "center" }}
+          justifyContent="space-between"
+          spacing={2}
+        >
+          <ClearableSearchField
+            value={searchValue}
+            onChange={setSearchValue}
+            placeholder="Search inventory..."
+            sx={{
+              width: { xs: "100%", sm: 300 },
+              maxWidth: "100%",
+            }}
+          />
+
+          <Button
+            variant="outlined"
+            startIcon={<FileOutput size={15} />}
+            disabled={filteredRows.length === 0}
+            onClick={() =>
+              exportRowsToCsv(
+                filteredRows,
+                activeInventoryConfig.columns,
+                `warehouse-c-${activeInventory}`,
+              )
+            }
+            sx={(theme) => ({
+              ...getListingToolbarOutlinedButtonSx(theme),
+              alignSelf: "center",
+            })}
+          >
+            Export
+          </Button>
+        </Stack>
+
         <EnterpriseDataTable
           key={activeInventory}
           actions={inventoryRowActions}
           columns={activeInventoryConfig.columns}
           defaultRowsPerPage={10}
           initialSort={{ key: "inwardDate", direction: "desc" }}
-          rows={canViewWarehouseC ? activeInventoryConfig.rows : []}
+          rows={canViewWarehouseC ? filteredRows : []}
         />
       </Stack>
     </MasterPageShell>

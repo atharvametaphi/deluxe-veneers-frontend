@@ -16,7 +16,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { ChevronDown, ChevronLeft, LogOut, User } from "lucide-react";
+import { ChevronDown, ChevronLeft, Circle, LogOut, User } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router";
 
@@ -40,6 +40,18 @@ import {
   getDynamicSidebarWarehouses,
   LOCAL_WAREHOUSES_UPDATED_EVENT,
 } from "../features/warehouses/shared/localWarehouseStore";
+import {
+  portalIconSize,
+  portalIconStroke,
+  portalSidebarMetrics,
+} from "../features/shared/portalIconStandards";
+import {
+  MASTERS_SIDEBAR_ENTRY_ID,
+  mastersSidebarChildListSx,
+  mastersSidebarChildSx,
+  mastersSidebarChildTextProps,
+  mastersSidebarParentSx,
+} from "../features/masters/shared/mastersSidebarStyles";
 import {
   getSidebarNavigation,
   type SidebarNavigationEntry,
@@ -177,7 +189,7 @@ export function Sidebar({
     },
   } as const;
 
-  const collapsedNavButtonSize = theme.spacing(6);
+  const collapsedNavButtonSize = 40;
 
   const renderTopLevelIcon = (entry: SidebarNavigationEntry) => {
     const EntryIcon = entry.icon;
@@ -185,8 +197,10 @@ export function Sidebar({
     return (
       <EntryIcon
         fill={entry.filledIcon ? "currentColor" : "none"}
-        size={theme.customTokens.iconSizes.md}
-        strokeWidth={entry.filledIcon ? 1.8 : 2}
+        size={portalIconSize.lg}
+        strokeWidth={
+          entry.filledIcon ? portalIconStroke.filled : portalIconStroke.default
+        }
       />
     );
   };
@@ -224,9 +238,9 @@ export function Sidebar({
       <Stack
         sx={{
           height: "100%",
-          px: collapsed ? 1 : 2,
-          py: 2,
-          gap: 1,
+          px: collapsed ? 0.75 : 1.25,
+          py: 0,
+          gap: 0,
           overflow: "hidden",
         }}
       >
@@ -235,10 +249,11 @@ export function Sidebar({
           alignItems="center"
           justifyContent="center"
           sx={{
-            minHeight: 52,
-            px: 0,
-            borderRadius: `${theme.customTokens.radius.lg}px`,
+            minHeight: 60,
+            height: 60,
+            px: collapsed ? 0 : 0.25,
             width: "100%",
+            flexShrink: 0,
           }}
         >
           {!collapsed ? (
@@ -323,13 +338,20 @@ export function Sidebar({
           ) : null}
         </Stack>
 
-        <Divider sx={{ borderColor: "divider" }} />
+        <Divider
+          sx={{
+            borderColor: theme.customTokens.borders.divider,
+            flexShrink: 0,
+          }}
+        />
 
         <Stack
           sx={{
             flexGrow: 1,
             minHeight: 0,
             overflow: "hidden",
+            pt: 1,
+            pb: 0.75,
           }}
         >
           <List
@@ -338,77 +360,87 @@ export function Sidebar({
               display: "flex",
               flexDirection: "column",
               flexGrow: 1,
-              gap: 1,
+              gap: 0.25,
               alignItems: collapsed ? "center" : "stretch",
               minHeight: 0,
               overflowY: "auto",
               overflowX: "hidden",
-              pb: 1,
+              px: collapsed ? 0 : 0.15,
+              pb: 0.75,
               scrollbarWidth: "thin",
-              scrollbarColor: `${theme.customTokens.brand.primary} transparent`,
+              scrollbarColor: `${theme.customTokens.neutrals[300]} transparent`,
               "&::-webkit-scrollbar": {
-                width: 6,
+                width: 4,
               },
               "&::-webkit-scrollbar-track": {
                 backgroundColor: "transparent",
               },
               "&::-webkit-scrollbar-thumb": {
-                backgroundColor: theme.customTokens.brand.primary,
+                backgroundColor: theme.customTokens.neutrals[300],
                 borderRadius: `${theme.customTokens.radius.pill}px`,
               },
               "&::-webkit-scrollbar-thumb:hover": {
-                backgroundColor: theme.customTokens.brand.primaryScale[800],
+                backgroundColor: theme.customTokens.neutrals[400],
               },
             }}
           >
             {navigationEntries.map((entry) => {
               const hasChildren = isExpandableGroup(entry);
+              const isMastersNav = entry.id === MASTERS_SIDEBAR_ENTRY_ID;
               const isActive = hasChildren
                 ? entry.items.some((item) => item.match(sidebarLocation))
                 : entry.match(sidebarLocation);
               const isOpen = !collapsed && openGroupId === entry.id;
 
-              const parentButtonSx = {
-                position: "relative",
-                overflow: "hidden",
-                minHeight: 40,
-                width: collapsed ? collapsedNavButtonSize : "100%",
-                minWidth: collapsed ? collapsedNavButtonSize : undefined,
-                mx: collapsed ? "auto" : 0,
-                px: collapsed ? 0 : 1.5,
-                py: 0.5,
-                justifyContent: collapsed ? "center" : "flex-start",
-                color: isActive
-                  ? theme.customTokens.navigation.activeText
-                  : theme.customTokens.navigation.inactiveText,
-                bgcolor: isActive
-                  ? theme.customTokens.navigation.activeBackground
-                  : "transparent",
-                borderRadius: `${theme.customTokens.radius.md}px`,
-                "&::before": isActive
-                  ? {
-                      content: '""',
-                      position: "absolute",
-                      left: collapsed ? 4 : 0,
-                      top: 6,
-                      bottom: 6,
-                      width: theme.customTokens.navigation.indicatorWidth,
-                      borderRadius: `${theme.customTokens.radius.pill}px`,
-                      bgcolor: theme.customTokens.navigation.activeIndicator,
-                    }
-                  : {},
-                "&:hover": {
-                  bgcolor: isActive
-                    ? theme.customTokens.navigation.activeBackground
-                    : theme.customTokens.navigation.hoverBackground,
-                },
-                "&.Mui-selected": {
-                  bgcolor: theme.customTokens.navigation.activeBackground,
-                },
-                "&.Mui-selected:hover": {
-                  bgcolor: theme.customTokens.navigation.activeBackground,
-                },
-              } as const;
+              const parentButtonSx = isMastersNav
+                ? mastersSidebarParentSx(theme, {
+                    collapsed,
+                    isActive,
+                    collapsedButtonSize: collapsedNavButtonSize,
+                  })
+                : {
+                    position: "relative",
+                    overflow: "hidden",
+                    minHeight: portalSidebarMetrics.parentHeight,
+                    height: portalSidebarMetrics.parentHeight,
+                    width: collapsed ? collapsedNavButtonSize : "100%",
+                    minWidth: collapsed ? collapsedNavButtonSize : undefined,
+                    mx: collapsed ? "auto" : 0,
+                    px: collapsed ? 0 : portalSidebarMetrics.parentPx,
+                    py: 0,
+                    gap: collapsed ? 0 : 1.25,
+                    justifyContent: collapsed ? "center" : "flex-start",
+                    color: isActive
+                      ? theme.customTokens.navigation.activeText
+                      : theme.customTokens.navigation.inactiveText,
+                    bgcolor: isActive
+                      ? theme.customTokens.navigation.activeBackground
+                      : "transparent",
+                    borderRadius: "8px",
+                    "&::before": isActive
+                      ? {
+                          content: '""',
+                          position: "absolute",
+                          left: collapsed ? 3 : 0,
+                          top: 8,
+                          bottom: 8,
+                          width: 2.5,
+                          borderRadius: `${theme.customTokens.radius.pill}px`,
+                          bgcolor: theme.customTokens.navigation.activeIndicator,
+                        }
+                      : {},
+                    "&:hover": {
+                      bgcolor: isActive
+                        ? theme.customTokens.navigation.activeBackground
+                        : theme.customTokens.navigation.hoverBackground,
+                    },
+                    "&.Mui-selected": {
+                      bgcolor: theme.customTokens.navigation.activeBackground,
+                    },
+                    "&.Mui-selected:hover": {
+                      bgcolor: theme.customTokens.navigation.activeBackground,
+                    },
+                  };
 
               const parentButton = hasChildren ? (
                 <ListItemButton
@@ -431,7 +463,9 @@ export function Sidebar({
                 >
                   <ListItemIcon
                     sx={{
-                      minWidth: collapsed ? 0 : 32,
+                      minWidth: collapsed ? 0 : 28,
+                      width: collapsed ? "auto" : 28,
+                      mr: 0,
                       justifyContent: "center",
                       color: isActive
                         ? theme.customTokens.navigation.activeText
@@ -446,15 +480,17 @@ export function Sidebar({
                       <ListItemText
                         primary={entry.label}
                         primaryTypographyProps={{
-                          variant: "subtitle2",
+                          fontSize: portalSidebarMetrics.parentFontSize,
                           fontWeight: 600,
+                          lineHeight: 1.35,
                           color: isActive
                             ? theme.customTokens.navigation.activeText
                             : theme.customTokens.navigation.inactiveText,
                         }}
                       />
                       <ChevronDown
-                        size={theme.customTokens.iconSizes.sm}
+                        size={portalSidebarMetrics.chevronSize}
+                        strokeWidth={portalIconStroke.default}
                         style={{
                           color: isActive
                             ? theme.customTokens.navigation.activeText
@@ -463,6 +499,8 @@ export function Sidebar({
                             ? "rotate(0deg)"
                             : "rotate(-90deg)",
                           transition: "transform 180ms ease",
+                          flexShrink: 0,
+                          marginLeft: "auto",
                         }}
                       />
                     </>
@@ -479,7 +517,9 @@ export function Sidebar({
                 >
                   <ListItemIcon
                     sx={{
-                      minWidth: collapsed ? 0 : 32,
+                      minWidth: collapsed ? 0 : 28,
+                      width: collapsed ? "auto" : 28,
+                      mr: 0,
                       justifyContent: "center",
                       color: isActive
                         ? theme.customTokens.navigation.activeText
@@ -493,8 +533,9 @@ export function Sidebar({
                     <ListItemText
                       primary={entry.label}
                       primaryTypographyProps={{
-                        variant: "subtitle2",
+                        fontSize: portalSidebarMetrics.parentFontSize,
                         fontWeight: 600,
+                        lineHeight: 1.35,
                         color: isActive
                           ? theme.customTokens.navigation.activeText
                           : theme.customTokens.navigation.inactiveText,
@@ -518,16 +559,45 @@ export function Sidebar({
                     <Collapse in={isOpen} orientation="vertical" timeout="auto">
                       <List
                         disablePadding
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 0.5,
-                          pt: 0.5,
-                          pl: 4,
-                        }}
+                        sx={
+                          isMastersNav
+                            ? mastersSidebarChildListSx()
+                            : {
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 0.2,
+                                pt: 0.35,
+                                pb: 0.35,
+                              }
+                        }
                       >
                         {entry.items.map((item) => {
                           const isItemActive = item.match(sidebarLocation);
+
+                          if (isMastersNav) {
+                            return (
+                              <ListItemButton
+                                key={item.id}
+                                disableRipple
+                                component={RouterLink}
+                                onClick={!isDesktop ? onClose : undefined}
+                                selected={isItemActive}
+                                to={item.to}
+                                sx={mastersSidebarChildSx(theme, isItemActive)}
+                              >
+                                <ListItemText
+                                  primary={item.label}
+                                  primaryTypographyProps={{
+                                    ...mastersSidebarChildTextProps(isItemActive),
+                                    color: isItemActive
+                                      ? theme.customTokens.brand.primary
+                                      : theme.customTokens.navigation
+                                          .inactiveText,
+                                  }}
+                                />
+                              </ListItemButton>
+                            );
+                          }
 
                           return (
                             <ListItemButton
@@ -540,9 +610,11 @@ export function Sidebar({
                               sx={{
                                 position: "relative",
                                 overflow: "hidden",
-                                minHeight: 38,
-                                px: 1.5,
-                                py: 0.5,
+                                minHeight: portalSidebarMetrics.childHeight,
+                                height: portalSidebarMetrics.childHeight,
+                                pl: portalSidebarMetrics.childPl,
+                                pr: 1.5,
+                                py: 0,
                                 gap: 1,
                                 justifyContent: "flex-start",
                                 color: isItemActive
@@ -551,15 +623,15 @@ export function Sidebar({
                                 bgcolor: isItemActive
                                   ? theme.customTokens.navigation.activeBackground
                                   : "transparent",
-                                borderRadius: `${theme.customTokens.radius.md}px`,
+                                borderRadius: "8px",
                                 "&::before": isItemActive
                                   ? {
                                       content: '""',
                                       position: "absolute",
-                                      left: 0,
-                                      top: 6,
-                                      bottom: 6,
-                                      width: theme.customTokens.navigation.indicatorWidth,
+                                      left: "16px",
+                                      top: 8,
+                                      bottom: 8,
+                                      width: 2,
                                       borderRadius: `${theme.customTokens.radius.pill}px`,
                                       bgcolor:
                                         theme.customTokens.navigation.activeIndicator,
@@ -580,26 +652,31 @@ export function Sidebar({
                                 },
                               }}
                             >
-                              <Box
-                                component="span"
+                              <ListItemIcon
                                 sx={{
-                                  minWidth: 16,
-                                  textAlign: "center",
+                                  minWidth: 14,
+                                  width: 14,
+                                  mr: 0,
+                                  justifyContent: "center",
                                   color: isItemActive
                                     ? theme.customTokens.navigation.activeText
-                                    : theme.customTokens.text.secondary,
-                                  fontSize: "1rem",
-                                  lineHeight: 1,
+                                    : theme.customTokens.neutrals[500],
                                 }}
                               >
-                                {"\u2022"}
-                              </Box>
-
+                                <Circle
+                                  size={12}
+                                  strokeWidth={portalIconStroke.default}
+                                  fill={
+                                    isItemActive ? "currentColor" : "none"
+                                  }
+                                />
+                              </ListItemIcon>
                               <ListItemText
                                 primary={item.label}
                                 primaryTypographyProps={{
-                                  variant: "body2",
+                                  fontSize: portalSidebarMetrics.childFontSize,
                                   fontWeight: isItemActive ? 600 : 500,
+                                  lineHeight: 1.3,
                                   color: isItemActive
                                     ? theme.customTokens.navigation.activeText
                                     : theme.customTokens.navigation.inactiveText,
@@ -626,7 +703,8 @@ export function Sidebar({
 
         <Box
           sx={{
-            pt: 1,
+            py: 1,
+            px: collapsed ? 0 : 0.15,
             flexShrink: 0,
           }}
         >
@@ -642,12 +720,12 @@ export function Sidebar({
                 appearance: "none",
                 width: "100%",
                 border: 0,
-                p: collapsed ? 0 : 1,
+                p: collapsed ? 0.35 : 0.75,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: collapsed ? "center" : "flex-start",
-                gap: collapsed ? 0 : 1.25,
-                borderRadius: `${theme.customTokens.radius.lg}px`,
+                gap: collapsed ? 0 : 1,
+                borderRadius: "8px",
                 backgroundColor: isProfileRoute
                   ? theme.customTokens.navigation.activeBackground
                   : "transparent",
@@ -664,12 +742,12 @@ export function Sidebar({
             >
               <Avatar
                 sx={{
-                  width: collapsed ? 40 : 42,
-                  height: collapsed ? 40 : 42,
+                  width: 32,
+                  height: 32,
                   bgcolor: theme.customTokens.brand.primary,
                   color: theme.customTokens.text.inverse,
-                  fontSize: theme.typography.body2.fontSize,
-                  fontWeight: 700,
+                  fontSize: "12px",
+                  fontWeight: 600,
                 }}
               >
                 {userInitials}
@@ -680,22 +758,31 @@ export function Sidebar({
                   sx={{
                     minWidth: 0,
                     alignItems: "flex-start",
-                    gap: 0.125,
+                    gap: 0.1,
                   }}
                 >
                   <Typography
-                    variant="subtitle2"
                     color="text.primary"
                     sx={{
                       maxWidth: "100%",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      lineHeight: 1.3,
                     }}
                   >
                     {userDisplayName}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    color="text.secondary"
+                    sx={{
+                      fontSize: "12px",
+                      fontWeight: 400,
+                      lineHeight: 1.35,
+                    }}
+                  >
                     {currentUser.accountRole}
                   </Typography>
                 </Stack>
@@ -738,8 +825,8 @@ export function Sidebar({
                 height: 40,
                 bgcolor: theme.customTokens.brand.primary,
                 color: theme.customTokens.text.inverse,
-                fontSize: theme.typography.body2.fontSize,
-                fontWeight: 700,
+                fontSize: "14px",
+                fontWeight: 600,
               }}
               >
                 {userInitials}
@@ -769,8 +856,8 @@ export function Sidebar({
         <MenuItem
           onClick={handleOpenProfile}
           sx={{
-            minHeight: 42,
-            gap: 1.25,
+            minHeight: 36,
+            gap: 1,
           }}
         >
           <ListItemIcon
@@ -789,8 +876,8 @@ export function Sidebar({
         <MenuItem
           onClick={handleLogout}
           sx={{
-            minHeight: 42,
-            gap: 1.25,
+            minHeight: 36,
+            gap: 1,
           }}
         >
           <ListItemIcon

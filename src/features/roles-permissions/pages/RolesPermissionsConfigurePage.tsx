@@ -247,12 +247,13 @@ export function RolesPermissionsConfigurePage() {
       <MasterSectionCard>
         <Stack
           sx={(theme) => ({
-            gap: theme.spacing(3),
+            gap: theme.spacing(1.5),
           })}
         >
           {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
 
           <MasterFormFields
+            compact
             definition={{
               fields: activeFields,
               gridColumns: 4,

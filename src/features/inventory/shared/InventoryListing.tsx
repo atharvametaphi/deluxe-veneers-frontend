@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Eye } from "lucide-react";
+import { Eye, Pencil } from "lucide-react";
 import { Stack } from "@mui/material";
 import { useNavigate } from "react-router";
 
@@ -13,6 +13,7 @@ import {
   getWarehousePermissionKey,
 } from "../../permissions";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
+import { exportRowsToCsv } from "../../shared/exportToCsv";
 import { InventoryPageShell } from "./InventoryPageShell";
 import { InventoryToolbar } from "./InventoryToolbar";
 import {
@@ -37,6 +38,7 @@ export function InventoryListing<Row extends InventoryRecord>({
   const navigate = useNavigate();
   const permissionKey = getWarehousePermissionKey("warehouse-b");
   const canCreate = canAccessPermission(permissionKey, "create");
+  const canEdit = canAccessPermission(permissionKey, "edit");
   const canView = canAccessPermission(permissionKey, "view");
   const [activeTab, setActiveTab] = useState<InventoryProcessTab>(
     getInventoryProcessTab(null),
@@ -65,20 +67,37 @@ export function InventoryListing<Row extends InventoryRecord>({
     );
   }, [searchValue, tabRows]);
 
-  const rowActions = useMemo<ReadonlyArray<EnterpriseTableAction<Row>>>(
-    () =>
-      canView
-        ? [
-            {
-              id: "view",
-              label: "View",
-              icon: Eye,
-              onSelect: (row: Row) => navigate(paths.view(row.id)),
-            },
-          ]
-        : [],
-    [canView, navigate, paths],
-  );
+  const rowActions = useMemo<ReadonlyArray<EnterpriseTableAction<Row>>>(() => {
+    const actions: EnterpriseTableAction<Row>[] = [];
+
+    if (canView) {
+      actions.push({
+        id: "view",
+        label: "View",
+        icon: Eye,
+        onSelect: (row: Row) => navigate(paths.view(row.id)),
+      });
+    }
+
+    if (canEdit) {
+      actions.push({
+        id: "edit",
+        label: "Edit",
+        icon: Pencil,
+        onSelect: (row: Row) => navigate(paths.edit(row.id)),
+      });
+    }
+
+    return actions;
+  }, [canEdit, canView, navigate, paths]);
+
+  const handleExport = () => {
+    exportRowsToCsv(
+      filteredRows,
+      definition.listColumns,
+      `${definition.slug}-${activeTab}`,
+    );
+  };
 
   return (
     <InventoryPageShell
@@ -87,6 +106,7 @@ export function InventoryListing<Row extends InventoryRecord>({
           addLabel="Add Stock"
           addPath={paths.add}
           canAdd={canCreate}
+          onExport={filteredRows.length > 0 ? handleExport : undefined}
         />
       }
       breadcrumbs={[

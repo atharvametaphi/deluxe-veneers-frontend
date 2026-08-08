@@ -9,6 +9,11 @@ import type { InventoryDefinition, InventoryRecord } from "./types";
 
 const asDate = (value: string) => new Date(value);
 
+/** UI demo listings keep 2 seed rows only. */
+function limitDemoListingRows<T>(rows: ReadonlyArray<T>) {
+  return rows.slice(0, 2);
+}
+
 type RawVeneerRecord = InventoryRecord & {
   amount: string;
   approvalStatus: string;
@@ -1587,7 +1592,7 @@ export const rawVeneerDefinition: InventoryDefinition<RawVeneerRecord> = {
   editFields: createInventoryEditFields(rawVeneerColumns, rawVeneerRows),
   formFields: createInventoryFormFields(rawVeneerRows),
   viewFields: createInventoryViewFields(rawVeneerColumns),
-  rows: rawVeneerRows,
+  rows: limitDemoListingRows(rawVeneerRows),
   initialSort: { key: "inwardDate", direction: "desc" },
 };
 
@@ -1598,7 +1603,7 @@ export const veneerBlocksDefinition: InventoryDefinition<StockRecord> = {
   editFields: createInventoryEditFields(stockColumns, veneerBlocksRows),
   formFields: createInventoryFormFields(veneerBlocksRows),
   viewFields: createInventoryViewFields(stockColumns),
-  rows: veneerBlocksRows,
+  rows: limitDemoListingRows(veneerBlocksRows),
   initialSort: { key: "inwardDate", direction: "desc" },
 };
 
@@ -1609,7 +1614,7 @@ export const plywoodDefinition: InventoryDefinition<StockRecord> = {
   editFields: createInventoryEditFields(stockColumns, plywoodRows),
   formFields: createInventoryFormFields(plywoodRows),
   viewFields: createInventoryViewFields(stockColumns),
-  rows: plywoodRows,
+  rows: limitDemoListingRows(plywoodRows),
   initialSort: { key: "inwardDate", direction: "desc" },
 };
 
@@ -1620,7 +1625,7 @@ export const mdfDefinition: InventoryDefinition<StockRecord> = {
   editFields: createInventoryEditFields(stockColumns, mdfRows),
   formFields: createInventoryFormFields(mdfRows),
   viewFields: createInventoryViewFields(stockColumns),
-  rows: mdfRows,
+  rows: limitDemoListingRows(mdfRows),
   initialSort: { key: "inwardDate", direction: "desc" },
 };
 
@@ -1631,6 +1636,6 @@ export const consumablesDefinition: InventoryDefinition<ConsumableRecord> = {
   editFields: createInventoryEditFields(consumableColumns, consumablesRows),
   formFields: createInventoryFormFields(consumablesRows),
   viewFields: createInventoryViewFields(consumableColumns),
-  rows: consumablesRows,
+  rows: limitDemoListingRows(consumablesRows),
   initialSort: { key: "inwardDate", direction: "desc" },
 };

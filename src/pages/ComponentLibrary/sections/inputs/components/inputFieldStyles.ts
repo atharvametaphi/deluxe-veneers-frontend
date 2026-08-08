@@ -1,5 +1,11 @@
 import type { Theme } from "@mui/material/styles";
 
+import {
+  portalControlHeights,
+  portalFontFamily,
+  portalTypography,
+} from "../../../../../theme/typography";
+
 export type FieldVisualState =
   | "default"
   | "hover"
@@ -12,6 +18,7 @@ export type FieldVisualState =
 
 type FieldStyleOptions = {
   compact?: boolean;
+  dense?: boolean;
   large?: boolean;
 };
 
@@ -21,15 +28,18 @@ export function getFieldSx(
   options?: FieldStyleOptions,
 ) {
   const isCompact = options?.compact ?? false;
+  const isDense = options?.dense ?? false;
   const isDisabled = state === "disabled";
   const isError = state === "error";
   const isSuccess = state === "success";
   const isReadOnly = state === "readOnly";
   const isFocus = state === "focus";
   const isHover = state === "hover";
-  const compactControlHeight = options?.large ? theme.spacing(5) : theme.spacing(4.5);
-  const compactFontSize = theme.typography.body2.fontSize ?? "0.875rem";
-  const compactLineHeight = theme.typography.body2.lineHeight ?? 1.43;
+  const compactControlHeight = isDense
+    ? portalControlHeights.dense
+    : portalControlHeights.standard;
+  const compactFontSize = portalTypography.control.fontSize;
+  const compactLineHeight = portalTypography.control.lineHeight;
 
   const baseBorderColor = isError
     ? theme.palette.error.main
@@ -58,14 +68,17 @@ export function getFieldSx(
       : theme.palette.text.secondary;
 
   return {
+    fontFamily: portalFontFamily,
     "& .MuiInputLabel-root": {
       color: labelColor,
+      fontFamily: portalFontFamily,
+      fontSize: portalTypography.formLabel.fontSize,
+      fontWeight: portalTypography.formLabel.fontWeight,
       ...(isCompact
         ? {
-            fontSize: theme.typography.caption.fontSize,
-            transform: "translate(14px, 9px) scale(1)",
+            transform: "translate(14px, 8px) scale(1)",
             "&.MuiInputLabel-shrink": {
-              transform: "translate(14px, -7px) scale(0.88)",
+              transform: "translate(14px, -7px) scale(0.85)",
             },
           }
         : {}),
@@ -78,6 +91,7 @@ export function getFieldSx(
     },
     "& .MuiOutlinedInput-root": {
       borderRadius: `${theme.customTokens.radius.md}px`,
+      fontFamily: portalFontFamily,
       ...(isCompact
         ? {
             alignItems: "center",
@@ -125,11 +139,18 @@ export function getFieldSx(
         ? {
             "& .MuiInputBase-input": {
               boxSizing: "border-box",
+              fontFamily: portalFontFamily,
               fontSize: compactFontSize,
+              fontWeight: portalTypography.control.fontWeight,
               height: "100%",
               lineHeight: compactLineHeight,
               paddingTop: 0,
               paddingBottom: 0,
+              "&::placeholder": {
+                fontSize: portalTypography.placeholder.fontSize,
+                fontWeight: portalTypography.placeholder.fontWeight,
+                opacity: 1,
+              },
             },
             "&.MuiInputBase-multiline": {
               alignItems: "flex-start",
@@ -137,13 +158,18 @@ export function getFieldSx(
               minHeight: "auto",
             },
             "& textarea": {
+              fontFamily: portalFontFamily,
               fontSize: compactFontSize,
+              fontWeight: portalTypography.control.fontWeight,
               paddingTop: theme.spacing(1),
               paddingBottom: theme.spacing(1),
             },
           }
         : {}),
       "& input, & textarea": {
+        fontFamily: portalFontFamily,
+        fontSize: portalTypography.control.fontSize,
+        fontWeight: portalTypography.control.fontWeight,
         color: isDisabled
           ? theme.palette.text.disabled
           : theme.palette.text.primary,
@@ -183,7 +209,9 @@ export function getFieldSx(
     },
     "& .MuiFormHelperText-root": {
       marginLeft: 0,
-      fontSize: theme.typography.caption.fontSize,
+      fontFamily: portalFontFamily,
+      fontSize: portalTypography.helper.fontSize,
+      fontWeight: portalTypography.helper.fontWeight,
       color: helperColor,
     },
   };

@@ -1,16 +1,14 @@
 import { Box, Tab, Tabs } from "@mui/material";
-
+import { portalTypography } from "../../theme/typography";
 type ModuleProcessTab<TValue extends string> = {
   label: string;
   value: TValue;
 };
-
 interface ModuleProcessTabsProps<TValue extends string> {
   onChange: (value: TValue) => void;
   tabs: readonly ModuleProcessTab<TValue>[];
   value: TValue;
 }
-
 export function ModuleProcessTabs<TValue extends string>({
   onChange,
   tabs,
@@ -20,6 +18,8 @@ export function ModuleProcessTabs<TValue extends string>({
     <Box
       sx={(theme) => ({
         borderBottom: `1px solid ${theme.customTokens.borders.divider}`,
+        mx: 0,
+        width: "100%",
       })}
     >
       <Tabs
@@ -29,11 +29,14 @@ export function ModuleProcessTabs<TValue extends string>({
         value={value}
         variant="scrollable"
         sx={(theme) => ({
-          minHeight: theme.spacing(6),
+          minHeight: 35,
           "& .MuiTabs-indicator": {
-            height: 3,
-            borderRadius: `${theme.customTokens.radius.pill}px ${theme.customTokens.radius.pill}px 0 0`,
+            height: 2,
+            borderRadius: 0,
             backgroundColor: theme.customTokens.navigation.activeIndicator,
+          },
+          "& .MuiTabs-flexContainer": {
+            gap: 0,
           },
         })}
       >
@@ -44,26 +47,24 @@ export function ModuleProcessTabs<TValue extends string>({
             label={tab.label}
             value={tab.value}
             sx={(theme) => ({
-              minHeight: theme.spacing(6),
+              minHeight: 35,
               minWidth: "auto",
-              px: theme.spacing(1.5),
-              py: theme.spacing(1.25),
-              mr: theme.spacing(2),
-              borderRadius: `${theme.customTokens.radius.md}px ${theme.customTokens.radius.md}px 0 0`,
+              px: theme.spacing(0.5),
+              py: theme.spacing(0.75),
+              mr: theme.spacing(3.5),
+              borderRadius: 0,
               color: theme.customTokens.navigation.inactiveText,
               fontFamily: theme.typography.fontFamily,
-              fontSize: theme.typography.subtitle2.fontSize,
-              fontWeight: 600,
-              lineHeight: theme.typography.subtitle2.lineHeight,
+              fontSize: portalTypography.tabs.fontSize,
+              fontWeight: portalTypography.tabs.fontWeight,
+              lineHeight: portalTypography.tabs.lineHeight,
               textTransform: "none",
-              transition: theme.transitions.create(
-                ["background-color", "color"],
-                {
-                  duration: theme.transitions.duration.shorter,
-                },
-              ),
+              whiteSpace: "nowrap",
+              transition: theme.transitions.create(["color"], {
+                duration: theme.transitions.duration.shorter,
+              }),
               "&:hover": {
-                backgroundColor: theme.customTokens.navigation.hoverBackground,
+                backgroundColor: "transparent",
                 color: theme.customTokens.navigation.activeText,
               },
               "&.Mui-selected": {

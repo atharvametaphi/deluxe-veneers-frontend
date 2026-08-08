@@ -9,16 +9,22 @@ import {
 import { Search, X } from "lucide-react";
 
 import { getCompactFieldSx } from "../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
+import {
+  portalIconSize,
+  portalIconStroke,
+} from "./portalIconStandards";
 
 interface ClearableSearchFieldProps {
   value: string;
   onChange: (value: string) => void;
+  placeholder?: string;
   sx?: SxProps<Theme>;
 }
 
 export function ClearableSearchField({
   value,
   onChange,
+  placeholder,
   sx,
 }: ClearableSearchFieldProps) {
   const theme = useTheme();
@@ -27,8 +33,10 @@ export function ClearableSearchField({
     <TextField
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
       sx={[
         getCompactFieldSx(theme),
+        { maxWidth: 320, width: { xs: "100%", sm: 300 } },
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
       slotProps={{
@@ -44,7 +52,7 @@ export function ClearableSearchField({
                   sx={{
                     color: theme.customTokens.text.secondary,
                     mr: theme.spacing(-0.5),
-                    p: theme.spacing(0.25),
+                    p: theme.spacing(0.5),
                     "&:hover": {
                       backgroundColor:
                         theme.customTokens.navigation.hoverBackground,
@@ -52,10 +60,17 @@ export function ClearableSearchField({
                     },
                   }}
                 >
-                  <X size={14} />
+                  <X
+                    size={portalIconSize.md}
+                    strokeWidth={portalIconStroke.default}
+                  />
                 </IconButton>
               ) : (
-                <Search color={theme.customTokens.text.secondary} size={16} />
+                <Search
+                  color={theme.customTokens.text.secondary}
+                  size={portalIconSize.md}
+                  strokeWidth={portalIconStroke.default}
+                />
               )}
             </InputAdornment>
           ),

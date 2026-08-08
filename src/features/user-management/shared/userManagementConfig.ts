@@ -544,13 +544,12 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
   },
 ];
 
-export const userManagementDetails: UserManagementDetail[] = userManagementSeedRows.map(
-  (row, index) => ({
+export const userManagementDetails: UserManagementDetail[] =
+  userManagementSeedRows.slice(0, 2).map((row, index) => ({
     id: `user-${index + 1}`,
     ...row,
     statusLabel: row.isActive ? "Active" : "Inactive",
-  }),
-);
+  }));
 
 export const approverOptions = userManagementDetails.map((row) => row.userName);
 
@@ -703,6 +702,10 @@ export function getUserManagementSearchValues(row: UserManagementRecord) {
     ...userManagementColumns.map(
       (column) => row[column.key as keyof UserManagementRecord],
     ),
+    row.role,
+    row.department,
+    row.userName,
+    `${row.firstName} ${row.lastName}`.trim(),
     row.statusLabel,
     row.createdBy,
     row.createdDate,

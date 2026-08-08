@@ -10,8 +10,15 @@ import {
   itemSubCategoryMasterOptions,
 } from "../../masters/shared/masterDefinitions";
 import type { MasterFieldDefinition, MasterRecord } from "../../masters/shared";
+import {
+  formatAmount,
+  formatSQM,
+  formatSqfFromSqm as formatSqfFromSqmShared,
+  parseNumericValue,
+  SQM_TO_SQF,
+} from "../../shared/numberFormat";
 
-const sqmToSqf = 10.7639;
+const sqmToSqf = SQM_TO_SQF;
 
 export interface OrderLineItem {
   id: string;
@@ -113,23 +120,23 @@ export type OrderModuleConfig = {
 
 export const ordersCreateOptions: readonly OrderCreateOption[] = [
   { label: "Raw Order", value: "raw" },
+  { label: "Finished Order", value: "finished" },
+];
+
+export const orderModuleCreateOptions: readonly OrderCreateOption[] =
+  ordersCreateOptions;
+
+/** @deprecated Specialty process styles belong on Finished Order line items (Finished Type). */
+export const specialtyOrderCreateOptions: readonly OrderCreateOption[] = [
   { label: "Marquetry Order", value: "marquetry" },
   { label: "Decorative Order", value: "decorative" },
   { label: "Fluted Order", value: "fluted" },
   { label: "Embossed Order", value: "embossed" },
 ];
 
-export const orderModuleCreateOptions: readonly OrderCreateOption[] = [
-  { label: "Raw Order", value: "raw" },
-  { label: "Finished Order", value: "finished" },
-];
-
 const allOrderCreateOptions = [
   ...ordersCreateOptions,
-  ...orderModuleCreateOptions.filter(
-    (option) =>
-      !ordersCreateOptions.some((existing) => existing.value === option.value),
-  ),
+  ...specialtyOrderCreateOptions,
 ];
 
 export const orderCreateOptions = ordersCreateOptions;
@@ -152,8 +159,11 @@ export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] 
   [
     { key: "orderNo", label: "Order No" },
     { key: "orderDate", label: "Order Date" },
-    { key: "customerName", label: "Customer Name" },
-    { key: "itemName", label: "Item Name" },
+    { key: "customerName", label: "Customer Name", filterable: true },
+    { key: "itemName", label: "Item Name", filterable: true },
+    { key: "subCategory", label: "Sub Category", filterable: true },
+    { key: "status", label: "Status", filterable: true },
+    { key: "priority", label: "Priority", filterable: true },
     { key: "quantitySheets", label: "No of Sheets" },
     { key: "length", label: "Length" },
     { key: "width", label: "Width" },
@@ -369,6 +379,17 @@ export function getOrderRecord(recordId: string) {
   return orderRecords.find((record) => record.id === recordId);
 }
 
+export function getOrderRecordByOrderNo(orderNo: string) {
+  const normalized = orderNo.trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+
+  return orderRecords.find(
+    (record) => record.orderNo.trim().toLowerCase() === normalized,
+  );
+}
+
 export function getOrderLineItems(recordId: string) {
   return [...(orderLineItemsById.get(recordId) ?? [])];
 }
@@ -504,11 +525,13 @@ function emitOrdersChange() {
 }
 
 function sanitizeOrderDraft(updates: Partial<OrderDraft>): Partial<OrderRecord> {
-  const { lineItems: _lineItems, ...recordUpdates } = updates;
+  const { lineItems: _lineItems, amount, ...recordUpdates } = updates;
 
   return {
     ...recordUpdates,
-    amount: normalizeOrderCurrency(updates.amount),
+    ...(typeof amount !== "undefined"
+      ? { amount: normalizeOrderCurrency(amount) }
+      : {}),
   };
 }
 
@@ -618,10 +641,7 @@ function normalizeString(value: string | undefined, fallback: string) {
 }
 
 function formatCurrencyAmount(value: number) {
-  return value.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  return formatAmount(value);
 }
 
 function normalizeOrderCurrency(value: string | undefined, fallback = 185000) {
@@ -629,9 +649,9 @@ function normalizeOrderCurrency(value: string | undefined, fallback = 185000) {
     return formatCurrencyAmount(fallback);
   }
 
-  const numericCandidate = Number(value.replace(/[^0-9.]/g, ""));
+  const numericCandidate = parseNumericValue(value);
 
-  if (Number.isNaN(numericCandidate)) {
+  if (numericCandidate === null) {
     return formatCurrencyAmount(fallback);
   }
 
@@ -643,30 +663,15 @@ function normalizeCurrency(value: string | undefined, fallback = 185000) {
 }
 
 function parseNumberValue(value: string | undefined) {
-  if (!value) {
-    return 0;
-  }
-
-  const numericValue = Number(value.replace(/[^0-9.]/g, ""));
-
-  return Number.isNaN(numericValue) ? 0 : numericValue;
+  return parseNumericValue(value) ?? 0;
 }
 
 function formatAreaValue(value: number) {
-  return value.toLocaleString("en-US", {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  });
+  return formatSQM(value);
 }
 
 function formatSqfFromSqm(sqm: string, fallbackSqf?: string) {
-  const sqmValue = parseNumberValue(sqm);
-
-  if (sqmValue > 0) {
-    return formatAreaValue(sqmValue * sqmToSqf);
-  }
-
-  return normalizeString(fallbackSqf, "");
+  return formatSqfFromSqmShared(sqm, fallbackSqf);
 }
 
 function calculateAmountFromSqf(
@@ -828,8 +833,8 @@ function createInitialOrderState() {
     lineItemsById.set(record.id, lineItems);
   };
 
-  Array.from({ length: 30 }, (_, index) => createSeedOrder("raw", index));
-  Array.from({ length: 30 }, (_, index) => createSeedOrder("finished", index));
+  Array.from({ length: 2 }, (_, index) => createSeedOrder("raw", index));
+  Array.from({ length: 2 }, (_, index) => createSeedOrder("finished", index));
 
   return { records, lineItemsById };
 }

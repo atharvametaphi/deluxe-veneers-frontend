@@ -6,6 +6,7 @@ import { ComponentLibraryHeader } from "./components/ComponentLibraryHeader";
 import { ContentContainer } from "./components/ContentContainer";
 import { SectionTabs } from "./components/SectionTabs";
 import { DataDisplaySection } from "./sections/DataDisplaySection";
+import { ERPSection } from "./sections/ERPSection";
 import { FormsSection } from "./sections/FormsSection";
 import { InputsSection } from "./sections/InputsSection";
 import { NavigationSection } from "./sections/NavigationSection";
@@ -16,6 +17,7 @@ type ComponentLibraryTab =
   | "forms"
   | "data-display"
   | "navigation"
+  | "erp-patterns"
   | "colors";
 
 const sectionRegistry = [
@@ -38,6 +40,11 @@ const sectionRegistry = [
     value: "navigation" as const,
     label: "Navigation",
     Component: NavigationSection,
+  },
+  {
+    value: "erp-patterns" as const,
+    label: "ERP Patterns",
+    Component: ERPSection,
   },
   {
     value: "colors" as const,

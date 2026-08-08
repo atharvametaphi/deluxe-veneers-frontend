@@ -2,69 +2,64 @@ import { Button, Stack } from "@mui/material";
 import { FileOutput, Plus } from "lucide-react";
 import { Link as RouterLink } from "react-router";
 
+import {
+  getListingToolbarButtonSx,
+  getListingToolbarOutlinedButtonSx,
+  portalButtonGroupGap,
+} from "../../shared/buttonStyles";
+
 interface InventoryToolbarProps {
   addLabel: string;
   addPath: string;
   canAdd?: boolean;
+  canExport?: boolean;
+  onExport?: (() => void) | undefined;
 }
 
 export function InventoryToolbar({
   addLabel,
   addPath,
   canAdd = true,
+  canExport = true,
+  onExport,
 }: InventoryToolbarProps) {
   return (
     <Stack
-      direction={{ xs: "column", sm: "row" }}
-      spacing={1.25}
+      direction="row"
+      spacing={portalButtonGroupGap}
       useFlexGap
-      sx={{ alignItems: { xs: "stretch", md: "center" } }}
+      sx={{
+        alignItems: "center",
+        justifyContent: "flex-end",
+        flexWrap: "wrap",
+      }}
     >
       {canAdd ? (
         <Button
           component={RouterLink}
           to={addPath}
           variant="contained"
-          startIcon={<Plus size={16} />}
-          sx={inventoryToolbarButtonSx}
+          startIcon={<Plus size={15} />}
+          sx={(theme) => getListingToolbarButtonSx(theme)}
         >
           {addLabel}
         </Button>
       ) : null}
 
-      <Button
-        variant="outlined"
-        startIcon={<FileOutput size={16} />}
-        sx={inventoryToolbarButtonSx}
-      >
-        Export
-      </Button>
-
+      {canExport ? (
+        <Button
+          variant="outlined"
+          startIcon={<FileOutput size={15} />}
+          onClick={onExport}
+          disabled={!onExport}
+          sx={(theme) => getListingToolbarOutlinedButtonSx(theme)}
+        >
+          Export
+        </Button>
+      ) : null}
     </Stack>
   );
 }
 
-export const inventoryToolbarButtonSx = {
-  alignItems: "center",
-  appearance: "none",
-  boxSizing: "border-box",
-  cursor: "pointer",
-  display: "inline-flex",
-  fontFamily: "Inter, sans-serif",
-  fontSize: "0.9rem",
-  fontWeight: 600,
-  justifyContent: "center",
-  letterSpacing: "0.01em",
-  lineHeight: 1.75,
-  margin: 0,
-  minWidth: 64,
-  outline: 0,
-  padding: "6px 16px",
-  position: "relative",
-  textTransform: "none",
-  transition:
-    "background-color 250ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1), border-color 250ms cubic-bezier(0.4, 0, 0.2, 1)",
-  userSelect: "none",
-  verticalAlign: "middle",
-  WebkitTapHighlightColor: "transparent",
-} as const;
+/** @deprecated Prefer getListingToolbarButtonSx — kept for existing imports. */
+export const inventoryToolbarButtonSx = getListingToolbarButtonSx;

@@ -1,70 +1,96 @@
 import type { SxProps, Theme } from "@mui/material/styles";
 
-export const recordActionButtonSx: SxProps<Theme> = {
+import {
+  portalControlHeights,
+  portalFontFamily,
+  portalTypography,
+} from "../../theme/typography";
+import {
+  portalIconGap,
+  portalIconSize,
+  portalIconStroke,
+} from "./portalIconStandards";
+
+/** Shared compact button chrome — fit label, never stretch. */
+const portalButtonBase = {
   alignItems: "center",
   appearance: "none",
   boxSizing: "border-box",
   cursor: "pointer",
   display: "inline-flex",
-  fontFamily: "Inter, sans-serif",
-  fontSize: "0.9rem",
-  fontWeight: 600,
+  flex: "0 0 auto",
+  fontFamily: portalFontFamily,
+  fontSize: portalTypography.button.fontSize,
+  fontWeight: portalTypography.button.fontWeight,
   justifyContent: "center",
   letterSpacing: "0.01em",
-  lineHeight: 1.75,
+  lineHeight: portalTypography.button.lineHeight,
   margin: 0,
-  minWidth: 64,
+  maxWidth: "100%",
+  minWidth: 0,
   outline: 0,
-  padding: "6px 16px",
   position: "relative",
-  textTransform: "none",
-  transition:
-    "background-color 250ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1), border-color 250ms cubic-bezier(0.4, 0, 0.2, 1)",
+  textTransform: "none" as const,
   userSelect: "none",
   verticalAlign: "middle",
   WebkitTapHighlightColor: "transparent",
-  "&.MuiButton-contained": {
-    boxShadow: "0 8px 18px rgba(143, 19, 22, 0.16)",
+  whiteSpace: "nowrap" as const,
+  width: "fit-content",
+  boxShadow: "none",
+  "&:hover": {
+    boxShadow: "none",
   },
-  "&.MuiButton-contained:hover": {
-    boxShadow: "0 10px 20px rgba(143, 19, 22, 0.2)",
-  },
+} as const;
+
+const portalButtonIconSx = {
   "& .MuiButton-endIcon, & .MuiButton-startIcon": {
     alignItems: "center",
     display: "inline-flex",
     lineHeight: 0,
+    gap: 0,
     "& svg": {
-      height: 16,
-      width: 16,
+      height: portalIconSize.md,
+      width: portalIconSize.md,
+      strokeWidth: portalIconStroke.default,
     },
   },
+  "& .MuiButton-startIcon": {
+    marginRight: "8px",
+    marginLeft: 0,
+  },
+  "& .MuiButton-endIcon": {
+    marginLeft: "8px",
+    marginRight: 0,
+  },
+} as const;
+
+/** Primary / secondary actions on forms, dialogs, and footers. */
+export const recordActionButtonSx: SxProps<Theme> = {
+  ...portalButtonBase,
+  ...portalButtonIconSx,
+  minHeight: portalControlHeights.button,
+  height: portalControlHeights.button,
+  padding: "0 14px",
+  borderRadius: "8px",
 };
 
 export const recordViewActionButtonSx = recordActionButtonSx;
 
 export const recordFormActionButtonSx = recordActionButtonSx;
 
+/** Page-level toolbar actions (Add User, Create Order, Export, …). */
 export function getListingToolbarButtonSx(theme: Theme) {
   return {
-    minHeight: 34,
-    px: theme.spacing(2),
-    borderRadius: `${theme.customTokens.radius.md}px`,
+    ...portalButtonBase,
+    ...portalButtonIconSx,
+    alignSelf: "center",
+    minHeight: portalControlHeights.button,
+    height: portalControlHeights.button,
+    px: "14px",
+    py: 0,
+    borderRadius: "8px",
     backgroundColor: theme.customTokens.brand.primary,
     color: theme.customTokens.text.inverse,
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: 700,
-    lineHeight: 1,
-    textTransform: "none",
-    boxShadow: "none",
-    "& .MuiButton-endIcon, & .MuiButton-startIcon": {
-      alignItems: "center",
-      display: "inline-flex",
-      lineHeight: 0,
-      "& svg": {
-        height: 14,
-        width: 14,
-      },
-    },
     "&:hover": {
       backgroundColor: theme.customTokens.brand.primaryScale[800],
       boxShadow: "none",
@@ -77,3 +103,51 @@ export function getListingToolbarButtonSx(theme: Theme) {
 }
 
 export const listingToolbarButtonSx: SxProps<Theme> = getListingToolbarButtonSx;
+
+/** Outlined secondary toolbar twin (Export, Cancel-style). */
+export function getListingToolbarOutlinedButtonSx(theme: Theme) {
+  return {
+    ...getListingToolbarButtonSx(theme),
+    backgroundColor: theme.customTokens.surfaces.surface,
+    color: theme.customTokens.brand.primary,
+    border: `1px solid ${theme.customTokens.brand.primary}`,
+    "&:hover": {
+      borderColor: theme.customTokens.brand.primaryScale[800],
+      backgroundColor: theme.customTokens.navigation.hoverBackground,
+      boxShadow: "none",
+    },
+  };
+}
+
+/** Compact actions inside tables / dense toolbars. */
+export function getTableActionButtonSx(theme: Theme) {
+  return {
+    ...portalButtonBase,
+    ...portalButtonIconSx,
+    minHeight: portalControlHeights.dense,
+    height: portalControlHeights.dense,
+    px: "12px",
+    py: 0,
+    borderRadius: "8px",
+    fontSize: "12.5px",
+    fontWeight: 600,
+    backgroundColor: theme.customTokens.brand.primary,
+    color: theme.customTokens.text.inverse,
+    "& .MuiButton-startIcon": {
+      marginRight: "8px",
+      marginLeft: 0,
+      "& svg": {
+        height: portalIconSize.sm,
+        width: portalIconSize.sm,
+        strokeWidth: portalIconStroke.default,
+      },
+    },
+    "&:hover": {
+      backgroundColor: theme.customTokens.brand.primaryScale[800],
+      boxShadow: "none",
+    },
+  };
+}
+
+/** Gap between adjacent action buttons (8px). */
+export const portalButtonGroupGap = portalIconGap.button;

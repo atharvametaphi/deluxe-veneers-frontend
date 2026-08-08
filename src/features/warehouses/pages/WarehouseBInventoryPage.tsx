@@ -25,7 +25,6 @@ import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessT
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import {
   InventoryPageShell,
-  inventoryToolbarButtonSx,
   mdfDefinition,
   plywoodDefinition,
   rawVeneerDefinition,
@@ -46,7 +45,12 @@ import {
   canAccessPermission,
   getFactoryPermissionKey,
 } from "../../permissions";
+import {
+  getListingToolbarOutlinedButtonSx,
+  portalButtonGroupGap,
+} from "../../shared/buttonStyles";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
+import { exportRowsToCsv } from "../../shared/exportToCsv";
 import {
   warehouseAInventoryConfigs,
   warehouseBInspectionConfigs,
@@ -57,7 +61,11 @@ import {
 } from "../shared/warehouseTableData";
 import type { WarehouseInventoryRow } from "../shared/warehouseTableData";
 import {
-  getWarehouseQcDoneRows,
+  getWarehouseAInwardRows,
+  subscribeWarehouseAInwardUpdates,
+} from "../shared/warehouseAInwardStore";
+import {
+  getWarehouseQcPassedRows,
   subscribeWarehouseQcStatusUpdates,
 } from "../shared/warehouseQcStore";
 
@@ -174,6 +182,7 @@ export function WarehouseBInventoryModulePage({
   const [selectedRows, setSelectedRows] = useState<InventoryRecord[]>([]);
   const [selectionResetKey, setSelectionResetKey] = useState(0);
   const [qcStatusRevision, setQcStatusRevision] = useState(0);
+  const [inwardRevision, setInwardRevision] = useState(0);
 
   const activeSection = getActiveWarehouseBSection(searchParams.get("section"));
   const activeInventory = getActiveInventoryTab(searchParams.get("inventory"));
@@ -192,9 +201,10 @@ export function WarehouseBInventoryModulePage({
   const activeWarehouseBStockRows = useMemo(
     () => {
       void qcStatusRevision;
+      void inwardRevision;
       return getWarehouseBStockRows(activeInventory, activeRawVeneerTab);
     },
-    [activeInventory, activeRawVeneerTab, qcStatusRevision],
+    [activeInventory, activeRawVeneerTab, inwardRevision, qcStatusRevision],
   );
   const activeRows = (
     activeProcessTab === "issued"
@@ -224,6 +234,14 @@ export function WarehouseBInventoryModulePage({
     () =>
       subscribeWarehouseQcStatusUpdates(() =>
         setQcStatusRevision((current) => current + 1),
+      ),
+    [],
+  );
+
+  useEffect(
+    () =>
+      subscribeWarehouseAInwardUpdates(() =>
+        setInwardRevision((current) => current + 1),
       ),
     [],
   );
@@ -485,6 +503,7 @@ export function WarehouseBInventoryModulePage({
         activeSection,
         setSearchParams,
       })}
+      subtitle="Main inventory storage and inspection."
       title={warehouseName}
     >
       <Stack
@@ -509,8 +528,9 @@ export function WarehouseBInventoryModulePage({
             <ClearableSearchField
               value={searchValue}
               onChange={setSearchValue}
+              placeholder="Search inventory..."
               sx={{
-                width: { xs: "100%", md: 320 },
+                width: { xs: "100%", sm: 300 },
                 maxWidth: "100%",
               }}
             />
@@ -548,15 +568,27 @@ export function WarehouseBInventoryModulePage({
 
           {activeSection === "inventory" ? (
             <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1.25}
+              direction="row"
+              spacing={portalButtonGroupGap}
               useFlexGap
-              sx={{ alignItems: { xs: "stretch", lg: "center" } }}
+              sx={{
+                alignItems: "center",
+                justifyContent: "flex-end",
+                flexWrap: "wrap",
+              }}
             >
               <Button
                 variant="outlined"
-                startIcon={<FileOutput size={16} />}
-                sx={inventoryToolbarButtonSx}
+                startIcon={<FileOutput size={15} />}
+                disabled={filteredInventoryRows.length === 0}
+                onClick={() =>
+                  exportRowsToCsv(
+                    filteredInventoryRows,
+                    activeColumns,
+                    `warehouse-b-${activeInventory}`,
+                  )
+                }
+                sx={(theme) => getListingToolbarOutlinedButtonSx(theme)}
               >
                 Export
               </Button>
@@ -868,23 +900,49 @@ function getWarehouseBStockRows(
   const sourceRows =
     activeInventory === "raw-veneer"
       ? getWarehouseARawVeneerRows(activeRawVeneerTab)
-      : warehouseAInventoryConfigs[activeInventory].rows;
+      : mergeWarehouseSourceRows(
+          warehouseAInventoryConfigs[activeInventory].rows,
+          getWarehouseAInwardRows(activeInventory),
+        );
 
-  return getWarehouseQcDoneRows(sourceRows).map((row) => ({
+  return getWarehouseQcPassedRows(sourceRows).map((row) => ({
     ...row,
-    status: "QC Done",
+    status: "QC Pass",
   }));
 }
 
-function getWarehouseARawVeneerRows(activeRawVeneerTab: WarehouseBRawVeneerTab) {
-  if (activeRawVeneerTab === "all") {
-    return [
-      ...warehouseRawVeneerTabConfigs.purchase.rows,
-      ...warehouseRawVeneerTabConfigs.production.rows,
-    ];
-  }
+function mergeWarehouseSourceRows(
+  configRows: readonly WarehouseInventoryRow[],
+  inwardRows: readonly WarehouseInventoryRow[],
+) {
+  const seenIds = new Set<string>();
+  const merged: WarehouseInventoryRow[] = [];
 
-  return warehouseRawVeneerTabConfigs[activeRawVeneerTab].rows;
+  [...inwardRows, ...configRows].forEach((row) => {
+    if (seenIds.has(row.id)) {
+      return;
+    }
+
+    seenIds.add(row.id);
+    merged.push(row);
+  });
+
+  return merged;
+}
+
+function getWarehouseARawVeneerRows(activeRawVeneerTab: WarehouseBRawVeneerTab) {
+  const configRows =
+    activeRawVeneerTab === "all"
+      ? [
+          ...warehouseRawVeneerTabConfigs.purchase.rows,
+          ...warehouseRawVeneerTabConfigs.production.rows,
+        ]
+      : warehouseRawVeneerTabConfigs[activeRawVeneerTab].rows;
+
+  return mergeWarehouseSourceRows(
+    configRows,
+    getWarehouseAInwardRows("raw-veneer"),
+  );
 }
 
 function getWarehouseBRecordId(row: InventoryRecord) {

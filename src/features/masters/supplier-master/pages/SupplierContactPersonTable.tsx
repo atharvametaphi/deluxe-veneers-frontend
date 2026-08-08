@@ -64,12 +64,6 @@ const emptyContact: SupplierContactPerson = {
 function getContactValidationErrors(contact: SupplierContactPerson) {
   const errors = {} as Partial<Record<keyof SupplierContactPerson, string>>;
 
-  contactColumns.forEach((column) => {
-    if (!contact[column.key].trim()) {
-      errors[column.key] = `${column.label} is required.`;
-    }
-  });
-
   if (
     contact.email.trim() &&
     !/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(contact.email.trim())
@@ -119,15 +113,10 @@ export const SupplierContactPersonTable = forwardRef<
 
   useImperativeHandle(ref, () => ({
     validate: () => {
-      if (contacts.length > 0) {
-        setTableError("");
-        return true;
-      }
-
-      setTableError("Add at least one contact person.");
-      return false;
+      setTableError("");
+      return true;
     },
-  }), [contacts.length]);
+  }), []);
 
   return (
     <Stack
@@ -171,12 +160,14 @@ export const SupplierContactPersonTable = forwardRef<
             minWidth: 860,
             tableLayout: "fixed",
             "& th": {
-              backgroundColor: theme.customTokens.brand.primary,
-              borderColor: theme.customTokens.brand.primary,
-              color: theme.customTokens.text.inverse,
-              fontSize: theme.typography.caption.fontSize,
-              fontWeight: 700,
-              py: 1,
+              backgroundColor: theme.customTokens.neutrals[100],
+              borderBottom: `1px solid ${theme.customTokens.borders.default}`,
+              color: theme.customTokens.neutrals[700],
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+              py: 0.85,
             },
             "& td": {
               borderColor: theme.customTokens.borders.divider,
@@ -284,7 +275,6 @@ function ColumnLabel({
   return (
     <Stack component="span" direction="row" spacing={0.25}>
       <span>{label}</span>
-      {required ? <span>*</span> : null}
     </Stack>
   );
 }

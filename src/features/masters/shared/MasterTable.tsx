@@ -6,17 +6,16 @@ import {
   ArrowUpWideNarrow,
   ChevronLeft,
   ChevronRight,
+  Eye,
   ListFilter,
   MoreHorizontal,
-  X,
+  Pencil,
 } from "lucide-react";
 import {
   Avatar,
   Box,
   Button,
   IconButton,
-  InputAdornment,
-  Menu,
   MenuItem,
   Select,
   Stack,
@@ -26,7 +25,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
   useTheme,
 } from "@mui/material";
@@ -34,6 +32,35 @@ import type { Theme } from "@mui/material/styles";
 import { useNavigate } from "react-router";
 
 import { ErpToggleSwitch } from "../../../components/inputs/ErpToggleSwitch";
+import { actionMenuTriggerSx } from "../../shared/actionMenuStyles";
+import {
+  ActiveColumnFiltersBar,
+  buildActiveFilterChips,
+  buildDistinctColumnFilterOptions,
+  ColumnFilterPopoverRouter,
+  getColumnFilterBadgeCount,
+  isActiveColumnFilter,
+  matchColumnFilter,
+  type ColumnFilterType,
+  type ColumnFilterValue,
+} from "../../shared/columnFilters";
+import {
+  isFilterableListingColumn,
+  resolveListingColumnFilterType,
+} from "../../shared/listingColumnFilters";
+import {
+  listingPageNumberButtonSx,
+  listingPaginationIconButtonSx,
+  listingTableBodyCellSx,
+  listingTableContainerSx,
+  listingTableHeaderCellSx,
+  listingTableHeaderIconButtonSx,
+} from "../../shared/listingTableStyles";
+import {
+  portalIconSize,
+  portalIconStroke,
+} from "../../shared/portalIconStandards";
+import { RowActionsMenu } from "../../shared/RowActionsMenu";
 import type { MasterColumn, MasterRecord } from "./types";
 import {
   formatMasterValue,
@@ -69,7 +96,7 @@ interface MasterTableProps {
   onStatusChange?: (row: MasterRecord, checked: boolean) => Promise<void> | void;
 }
 
-const actionColumnWidth = 88;
+const actionColumnWidth = 64;
 
 export function MasterTable({
   canChangeStatus = true,
@@ -86,65 +113,85 @@ export function MasterTable({
   const [sortConfig, setSortConfig] = useState<SortConfig>(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [goToPage, setGoToPage] = useState("1");
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
-  const [filterMenuAnchor, setFilterMenuAnchor] = useState<HTMLElement | null>(null);
-  const [filterMenuWidth, setFilterMenuWidth] = useState(240);
-  const [filterSearch, setFilterSearch] = useState("");
+  const [columnFilters, setColumnFilters] = useState<
+    Partial<Record<string, ColumnFilterValue>>
+  >({});
+  const [filterMenuAnchor, setFilterMenuAnchor] = useState<HTMLElement | null>(
+    null,
+  );
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(
     null,
   );
-  const [actionMenuAnchor, setActionMenuAnchor] = useState<HTMLElement | null>(null);
-  const [activeActionRowId, setActiveActionRowId] = useState<string | null>(null);
-  const [statusOverrides, setStatusOverrides] = useState<Record<string, boolean>>(
-    {},
+  const [actionMenuAnchor, setActionMenuAnchor] = useState<HTMLElement | null>(
+    null,
   );
+  const [activeActionRowId, setActiveActionRowId] = useState<string | null>(
+    null,
+  );
+  const [statusOverrides, setStatusOverrides] = useState<
+    Record<string, boolean>
+  >({});
   const hasRowActions = canView || canEdit;
   const displayColumns = useMemo(
     () => getMasterDisplayColumns(columns),
     [columns],
   );
-  const filterValueOptions = useMemo(() => {
-    if (!activeFilterColumn) {
-      return [];
-    }
 
-    const normalizedSearch = filterSearch.trim().toLowerCase();
+  const columnFilterMeta = useMemo(() => {
+    const meta: Record<
+      string,
+      {
+        filterType: ColumnFilterType;
+        options: Array<{ value: string; label: string }>;
+        uniqueCount: number;
+      }
+    > = {};
 
-    return Array.from(
-      new Set(
-        rows
-          .map((row) => formatMasterValue(row[activeFilterColumn]).trim())
-          .filter(Boolean),
-      ),
-    )
-      .filter(
-        (value) =>
-          !normalizedSearch ||
-          value.toLowerCase().includes(normalizedSearch),
-      )
-      .sort((first, second) =>
-        first.localeCompare(second, undefined, {
-          numeric: true,
-          sensitivity: "base",
-        }),
-      )
-      .slice(0, 100);
-  }, [activeFilterColumn, filterSearch, rows]);
+    displayColumns.forEach((column) => {
+      const sampleValues = rows.map((row) => row[column.key]);
+      const filterType = resolveListingColumnFilterType({
+        key: column.key,
+        label: column.label,
+        sampleValues,
+      });
+      const formattedValues = rows.map((row) =>
+        formatMasterValue(row[column.key], column.key, column.label),
+      );
+      const options = buildDistinctColumnFilterOptions(formattedValues);
+
+      meta[column.key] = {
+        filterType,
+        options,
+        uniqueCount: options.length,
+      };
+    });
+
+    return meta;
+  }, [displayColumns, rows]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) =>
-      Object.entries(columnFilters).every(([key, value]) => {
-        if (!value) {
+      Object.entries(columnFilters).every(([key, filterValue]) => {
+        if (!isActiveColumnFilter(filterValue)) {
           return true;
         }
 
-        return formatMasterValue(row[key])
-          .toLowerCase()
-          .includes(value.trim().toLowerCase());
+        const rawValue = row[key];
+        const cellValue = formatMasterValue(
+          rawValue,
+          key,
+          displayColumns.find((column) => column.key === key)?.label,
+        ).trim();
+        return matchColumnFilter(rawValue, cellValue, filterValue);
       }),
     );
   }, [columnFilters, rows]);
+
+  const activeFilterChips = useMemo(
+    () => buildActiveFilterChips(columnFilters, displayColumns),
+    [columnFilters, displayColumns],
+  );
+  const hasActiveFilters = activeFilterChips.length > 0;
 
   const sortedRows = useMemo(() => {
     if (!sortConfig) {
@@ -175,16 +222,22 @@ export function MasterTable({
     pageStartIndex + rowsPerPage,
   );
   const visiblePaginationPages = getVisiblePaginationPages(totalPages);
+  const totalRecords = sortedRows.length;
+  const rangeStart = totalRecords === 0 ? 0 : pageStartIndex + 1;
+  const rangeEnd = Math.min(pageStartIndex + rowsPerPage, totalRecords);
+
+  const activeFilterColumnDef = activeFilterColumn
+    ? displayColumns.find((item) => item.key === activeFilterColumn)
+    : undefined;
+  const activeFilterMeta = activeFilterColumn
+    ? columnFilterMeta[activeFilterColumn]
+    : undefined;
 
   useEffect(() => {
     if (page !== safePage) {
       setPage(safePage);
     }
   }, [page, safePage]);
-
-  useEffect(() => {
-    setGoToPage(String(safePage));
-  }, [safePage]);
 
   const handleSort = (columnKey: string) => {
     setPage(1);
@@ -204,50 +257,64 @@ export function MasterTable({
     columnKey: string,
     event: MouseEvent<HTMLButtonElement>,
   ) => {
-    const anchorElement =
-      event.currentTarget.closest("th") ?? event.currentTarget;
-
+    event.stopPropagation();
     setActiveFilterColumn(columnKey);
-    setFilterSearch(columnFilters[columnKey] ?? "");
-    setFilterMenuWidth(anchorElement.getBoundingClientRect().width);
-    setFilterMenuAnchor(anchorElement as HTMLElement);
+    setFilterMenuAnchor(event.currentTarget);
   };
 
-  const handleFilterSearchChange = (value: string) => {
+  const handleCloseFilter = () => {
+    setFilterMenuAnchor(null);
+    setActiveFilterColumn(null);
+  };
+
+  const handleApplyColumnFilter = (nextFilter: ColumnFilterValue | null) => {
     if (!activeFilterColumn) {
       return;
     }
 
-    setFilterSearch(value);
     setColumnFilters((current) => {
       const next = { ...current };
-      const normalizedValue = value.trim();
 
-      if (!normalizedValue) {
+      if (!nextFilter || !isActiveColumnFilter(nextFilter)) {
         delete next[activeFilterColumn];
       } else {
-        next[activeFilterColumn] = normalizedValue;
+        next[activeFilterColumn] = nextFilter;
       }
 
       return next;
     });
-
     setPage(1);
   };
 
-  const handleFilterValueSelect = (value: string) => {
-    if (!activeFilterColumn) {
+  const handleApplyMultiSelectFilter = (values: string[]) => {
+    handleApplyColumnFilter(
+      values.length === 0
+        ? null
+        : {
+            type: "multiSelect",
+            values,
+          },
+    );
+  };
+
+  const handleClearColumnFilter = (columnKey?: string) => {
+    const targetKey = columnKey ?? activeFilterColumn;
+
+    if (!targetKey) {
       return;
     }
 
-    setFilterSearch(value);
-    setColumnFilters((current) => ({
-      ...current,
-      [activeFilterColumn]: value,
-    }));
+    setColumnFilters((current) => {
+      const next = { ...current };
+      delete next[targetKey];
+      return next;
+    });
     setPage(1);
-    setFilterMenuAnchor(null);
-    setActiveFilterColumn(null);
+  };
+
+  const handleClearAllFilters = () => {
+    setColumnFilters({});
+    setPage(1);
   };
 
   const handleOpenActionMenu = (
@@ -265,37 +332,38 @@ export function MasterTable({
   };
 
   return (
-    <>
-      <Box
-        sx={(theme) => ({
-          border: `1px solid ${theme.customTokens.borders.default}`,
-          borderRadius: `${theme.customTokens.radius.md}px`,
-          overflow: "hidden",
-          backgroundColor: theme.customTokens.surfaces.surface,
-        })}
-      >
+    <Stack spacing={1.25}>
+      {hasActiveFilters ? (
+        <ActiveColumnFiltersBar
+          filters={activeFilterChips}
+          onClearAll={handleClearAllFilters}
+          onRemove={handleClearColumnFilter}
+        />
+      ) : null}
+
+      <Box sx={(currentTheme) => listingTableContainerSx(currentTheme)}>
         <TableContainer
-          sx={(theme) => ({
+          sx={(currentTheme) => ({
             maxHeight: rowsPerPage === 10 ? "none" : 520,
             overflowX: "auto",
             overflowY: rowsPerPage === 10 ? "hidden" : "auto",
             scrollbarWidth: "thin",
-            scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
+            scrollbarColor: `${currentTheme.customTokens.brand.primary} ${currentTheme.customTokens.surfaces.alt}`,
             WebkitOverflowScrolling: "touch",
             "&::-webkit-scrollbar": {
               width: 8,
               height: 8,
             },
             "&::-webkit-scrollbar-track": {
-              backgroundColor: theme.customTokens.surfaces.alt,
+              backgroundColor: currentTheme.customTokens.surfaces.alt,
             },
             "&::-webkit-scrollbar-thumb": {
-              backgroundColor: theme.customTokens.brand.primary,
-              borderRadius: theme.customTokens.radius.pill,
-              border: `1px solid ${theme.customTokens.surfaces.alt}`,
+              backgroundColor: currentTheme.customTokens.brand.primary,
+              borderRadius: currentTheme.customTokens.radius.pill,
+              border: `1px solid ${currentTheme.customTokens.surfaces.alt}`,
             },
             "&::-webkit-scrollbar-thumb:hover": {
-              backgroundColor: theme.customTokens.brand.secondary,
+              backgroundColor: currentTheme.customTokens.brand.secondary,
             },
           })}
         >
@@ -314,20 +382,44 @@ export function MasterTable({
               <TableRow>
                 {displayColumns.map((column) => {
                   const isSorted = sortConfig?.key === column.key;
-                  const isFiltered = Boolean(columnFilters[column.key]);
+                  const columnFilter = columnFilters[column.key];
+                  const isFiltered = isActiveColumnFilter(columnFilter);
+                  const filterBadgeCount =
+                    getColumnFilterBadgeCount(columnFilter);
+                  const columnMeta = columnFilterMeta[column.key];
+                  const uniqueCount = columnMeta?.uniqueCount ?? 0;
+                  const showFilter = isFilterableListingColumn(
+                    column.key,
+                    column.label,
+                    uniqueCount,
+                    undefined,
+                    columnMeta?.filterType,
+                  );
 
                   return (
-                    <TableCell key={column.key} sx={headerCellSx}>
+                    <TableCell
+                      key={column.key}
+                      sx={(currentTheme) =>
+                        listingTableHeaderCellSx(currentTheme)
+                      }
+                    >
                       <Box
-                        sx={(theme) => ({
+                        sx={(currentTheme) => ({
                           display: "flex",
                           alignItems: "center",
-                          gap: theme.spacing(0.5),
+                          gap: currentTheme.spacing(0.75),
                         })}
                       >
                         <Typography
-                          variant="subtitle2"
-                          color={theme.customTokens.text.inverse}
+                          component="span"
+                          sx={{
+                            fontSize: "inherit",
+                            fontWeight: "inherit",
+                            letterSpacing: "inherit",
+                            textTransform: "inherit",
+                            color: theme.customTokens.neutrals[700],
+                            lineHeight: 1.2,
+                          }}
                         >
                           {column.label}
                         </Typography>
@@ -335,7 +427,9 @@ export function MasterTable({
                         <IconButton
                           size="small"
                           onClick={() => handleSort(column.key)}
-                          sx={headerIconButtonSx}
+                          sx={(currentTheme) =>
+                            listingTableHeaderIconButtonSx(currentTheme)
+                          }
                         >
                           <SortIndicator
                             active={isSorted}
@@ -343,22 +437,49 @@ export function MasterTable({
                           />
                         </IconButton>
 
-                        <IconButton
-                          size="small"
-                          onClick={(event) =>
-                            handleOpenFilter(column.key, event)
-                          }
-                          sx={headerIconButtonSx}
-                        >
-                          <ListFilter
-                            color={
-                              isFiltered
-                                ? theme.customTokens.brand.primaryScale[100]
-                                : theme.customTokens.text.inverse
+                        {showFilter ? (
+                          <IconButton
+                            size="small"
+                            aria-label={`Filter by ${column.label}`}
+                            onClick={(event) =>
+                              handleOpenFilter(column.key, event)
                             }
-                            size={14}
-                          />
-                        </IconButton>
+                            sx={(currentTheme) => ({
+                              ...listingTableHeaderIconButtonSx(currentTheme),
+                              position: "relative",
+                              color: isFiltered
+                                ? currentTheme.customTokens.brand.primary
+                                : currentTheme.customTokens.text.secondary,
+                            })}
+                          >
+                            <ListFilter
+                              size={portalIconSize.tableHeader}
+                              strokeWidth={portalIconStroke.default}
+                            />
+                            {isFiltered && filterBadgeCount > 0 ? (
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  top: -3,
+                                  right: -4,
+                                  minWidth: 14,
+                                  height: 14,
+                                  px: 0.35,
+                                  borderRadius: "999px",
+                                  backgroundColor:
+                                    theme.customTokens.brand.primary,
+                                  color: "#FFFFFF",
+                                  fontSize: "0.625rem",
+                                  fontWeight: 700,
+                                  lineHeight: "14px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {filterBadgeCount > 9 ? "9+" : filterBadgeCount}
+                              </Box>
+                            ) : null}
+                          </IconButton>
+                        ) : null}
                       </Box>
                     </TableCell>
                   );
@@ -366,19 +487,26 @@ export function MasterTable({
 
                 <TableCell
                   sx={[
-                    headerCellSx,
+                    (currentTheme) => listingTableHeaderCellSx(currentTheme),
                     {
                       position: "sticky",
                       right: 0,
                       zIndex: 5,
                       minWidth: actionColumnWidth,
-                      boxShadow: `-1px 0 0 ${theme.customTokens.brand.primaryScale[800]}`,
+                      boxShadow: `-1px 0 0 ${theme.customTokens.borders.default}`,
                     },
                   ]}
                 >
                   <Typography
-                    variant="subtitle2"
-                    color={theme.customTokens.text.inverse}
+                    component="span"
+                    sx={{
+                      fontSize: "inherit",
+                      fontWeight: "inherit",
+                      letterSpacing: "inherit",
+                      textTransform: "inherit",
+                      color: theme.customTokens.neutrals[700],
+                      lineHeight: 1.2,
+                    }}
                   >
                     Actions
                   </Typography>
@@ -387,25 +515,28 @@ export function MasterTable({
             </TableHead>
 
             <TableBody>
-              {currentPageRows.map((row, rowIndex) => (
+              {currentPageRows.map((row) => (
                 <TableRow
                   key={row.id}
                   hover
-                  sx={(theme) => ({
+                  sx={(currentTheme) => ({
                     "& td": {
                       backgroundColor:
-                        rowIndex % 2 === 0
-                          ? theme.customTokens.surfaces.surface
-                          : theme.customTokens.surfaces.alt,
+                        currentTheme.customTokens.surfaces.surface,
                     },
                     "&:hover td": {
                       backgroundColor:
-                        theme.customTokens.navigation.hoverBackground,
+                        currentTheme.customTokens.navigation.hoverBackground,
                     },
                   })}
                 >
                   {displayColumns.map((column) => (
-                    <TableCell key={column.key} sx={bodyCellSx}>
+                    <TableCell
+                      key={column.key}
+                      sx={(currentTheme) =>
+                        listingTableBodyCellSx(currentTheme)
+                      }
+                    >
                       {renderMasterTableCell(
                         row,
                         column,
@@ -420,7 +551,7 @@ export function MasterTable({
 
                   <TableCell
                     sx={[
-                      bodyCellSx,
+                      (currentTheme) => listingTableBodyCellSx(currentTheme),
                       {
                         position: "sticky",
                         right: 0,
@@ -440,17 +571,17 @@ export function MasterTable({
                         <IconButton
                           size="small"
                           aria-label="Open row actions"
-                          onClick={(event) => handleOpenActionMenu(row.id, event)}
-                          sx={(theme) => ({
-                            color: theme.customTokens.navigation.activeText,
-                            "&:hover": {
-                              backgroundColor:
-                                theme.customTokens.navigation.hoverBackground,
-                              color: theme.customTokens.brand.secondary,
-                            },
-                          })}
+                          onClick={(event) =>
+                            handleOpenActionMenu(row.id, event)
+                          }
+                          sx={(currentTheme) =>
+                            actionMenuTriggerSx(currentTheme)
+                          }
                         >
-                          <MoreHorizontal size={16} />
+                          <MoreHorizontal
+                            size={portalIconSize.md}
+                            strokeWidth={portalIconStroke.default}
+                          />
                         </IconButton>
                       ) : null}
                     </Box>
@@ -462,37 +593,41 @@ export function MasterTable({
         </TableContainer>
 
         <Box
-          sx={(theme) => ({
+          sx={(currentTheme) => ({
             display: "flex",
             alignItems: "center",
-            gap: theme.spacing(2),
+            justifyContent: "space-between",
+            gap: currentTheme.spacing(2),
             flexWrap: "wrap",
-            px: theme.spacing(2),
-            py: theme.spacing(1),
-            borderTop: `1px solid ${theme.customTokens.borders.default}`,
+            borderTop: `1px solid ${currentTheme.customTokens.borders.divider}`,
+            px: { xs: currentTheme.spacing(1.25), md: currentTheme.spacing(1.5) },
+            py: currentTheme.spacing(1),
+            minHeight: 34,
+            backgroundColor: currentTheme.customTokens.surfaces.surface,
           })}
         >
-          <Box
-            sx={(theme) => ({
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: theme.spacing(1.25),
-              flexWrap: "wrap",
-              width: "100%",
-            })}
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontSize: "12px" }}
           >
-            <Box
-              sx={(theme) => ({
-                display: "flex",
-                alignItems: "center",
-                gap: theme.spacing(0.75),
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
-                ml: "auto",
-              })}
-            >
-              <Typography variant="caption" color="text.secondary">
+            Showing {rangeStart}–{rangeEnd} of {totalRecords}
+            {hasActiveFilters ? " matching records" : " records"}
+          </Typography>
+
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.25}
+            flexWrap="wrap"
+            useFlexGap
+          >
+            <Stack direction="row" alignItems="center" spacing={0.75}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: "12px" }}
+              >
                 Rows per page
               </Typography>
 
@@ -503,18 +638,13 @@ export function MasterTable({
                   setRowsPerPage(Number(event.target.value));
                   setPage(1);
                 }}
-                sx={(theme) => ({
-                  minWidth: 68,
+                sx={(currentTheme) => ({
+                  minWidth: 64,
                   height: 30,
-                  borderRadius: `${theme.customTokens.radius.md}px`,
-                  "& .MuiSelect-select": {
-                    py: theme.spacing(0.5),
-                    pr: `${theme.spacing(3)} !important`,
-                    pl: theme.spacing(1),
-                    fontSize: theme.typography.caption.fontSize,
-                  },
+                  borderRadius: `${currentTheme.customTokens.radius.sm}px`,
+                  fontSize: "12px",
                   "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.customTokens.borders.default,
+                    borderColor: currentTheme.customTokens.borders.default,
                   },
                 })}
               >
@@ -524,293 +654,110 @@ export function MasterTable({
                   </MenuItem>
                 ))}
               </Select>
+            </Stack>
 
-              <Typography variant="caption" color="text.secondary">
-                Go To Page
-              </Typography>
-
-              <TextField
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <IconButton
                 size="small"
-                value={goToPage}
-                onChange={(event) => setGoToPage(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    setPage(clampPage(goToPage, totalPages));
-                  }
-                }}
-                sx={(theme) => ({
-                  width: 58,
-                  "& .MuiOutlinedInput-root": {
-                    height: 30,
-                    borderRadius: `${theme.customTokens.radius.md}px`,
-                    fontSize: theme.typography.caption.fontSize,
-                  },
-                  "& .MuiInputBase-input": {
-                    py: theme.spacing(0.5),
-                  },
-                })}
-              />
+                aria-label="Previous page"
+                disabled={safePage === 1}
+                onClick={() => setPage((current) => Math.max(current - 1, 1))}
+                sx={(currentTheme) =>
+                  listingPaginationIconButtonSx(currentTheme)
+                }
+              >
+                <ChevronLeft size={16} />
+              </IconButton>
 
-              <Button
+              {visiblePaginationPages.map((pageItem, index) =>
+                pageItem === "ellipsis" ? (
+                  <Typography
+                    key={`pagination-ellipsis-${index}`}
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ px: 0.5 }}
+                  >
+                    …
+                  </Typography>
+                ) : (
+                  <Button
+                    key={pageItem}
+                    size="small"
+                    onClick={() => setPage(pageItem)}
+                    sx={(currentTheme) =>
+                      listingPageNumberButtonSx(
+                        currentTheme,
+                        pageItem === safePage,
+                      )
+                    }
+                  >
+                    {pageItem}
+                  </Button>
+                ),
+              )}
+
+              <IconButton
                 size="small"
-                variant="outlined"
-                onClick={() => setPage(clampPage(goToPage, totalPages))}
-                sx={paginationButtonSx}
+                aria-label="Next page"
+                disabled={safePage === totalPages}
+                onClick={() =>
+                  setPage((current) => Math.min(current + 1, totalPages))
+                }
+                sx={(currentTheme) =>
+                  listingPaginationIconButtonSx(currentTheme)
+                }
               >
-                Go
-              </Button>
-
-              <Stack
-                direction="row"
-                spacing={0.5}
-                sx={(theme) => ({ ml: theme.spacing(1) })}
-                useFlexGap
-              >
-                <Button
-                  aria-label="Previous page"
-                  size="small"
-                  variant="outlined"
-                  disabled={safePage === 1}
-                  onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                  sx={paginationIconButtonSx}
-                >
-                  <ChevronLeft size={13} />
-                </Button>
-
-                {visiblePaginationPages.map((pageItem, index) =>
-                  pageItem === "ellipsis" ? (
-                    <Typography
-                      key={`pagination-ellipsis-${index}`}
-                      variant="caption"
-                      sx={(theme) => ({
-                        alignItems: "center",
-                        color: theme.palette.text.secondary,
-                        display: "inline-flex",
-                        height: 28,
-                        px: theme.spacing(0.5),
-                      })}
-                    >
-                      .....
-                    </Typography>
-                  ) : (
-                    <Button
-                      key={pageItem}
-                      size="small"
-                      variant={pageItem === safePage ? "contained" : "outlined"}
-                      onClick={() => setPage(pageItem)}
-                      sx={pageNumberButtonSx(pageItem === safePage)}
-                    >
-                      {pageItem}
-                    </Button>
-                  ),
-                )}
-
-                <Button
-                  aria-label="Next page"
-                  size="small"
-                  variant="outlined"
-                  disabled={safePage === totalPages}
-                  onClick={() =>
-                    setPage((current) => Math.min(current + 1, totalPages))
-                  }
-                  sx={paginationIconButtonSx}
-                >
-                  <ChevronRight size={13} />
-                </Button>
-              </Stack>
-            </Box>
-          </Box>
+                <ChevronRight size={16} />
+              </IconButton>
+            </Stack>
+          </Stack>
         </Box>
       </Box>
 
-      <Menu
+      <RowActionsMenu
         anchorEl={actionMenuAnchor}
         open={Boolean(actionMenuAnchor && activeActionRowId)}
         onClose={handleCloseActionMenu}
-        MenuListProps={{ dense: true }}
-        PaperProps={{
-          sx: {
-            border: `1px solid ${theme.customTokens.borders.default}`,
-            borderRadius: `${theme.customTokens.radius.md}px`,
-            boxShadow: "none",
-            mt: 1,
-          },
-        }}
-      >
-        {canView ? (
-          <MenuItem
-            onClick={() => {
-              if (activeActionRowId) {
-                navigate(getViewPath(activeActionRowId));
-              }
-              handleCloseActionMenu();
-            }}
-            sx={actionMenuItemSx}
-          >
-            View
-          </MenuItem>
-        ) : null}
+        actions={[
+          ...(canView && activeActionRowId
+            ? [
+                {
+                  id: "view",
+                  label: "View",
+                  icon: Eye,
+                  onSelect: () => navigate(getViewPath(activeActionRowId)),
+                },
+              ]
+            : []),
+          ...(canEdit && activeActionRowId
+            ? [
+                {
+                  id: "edit",
+                  label: "Edit",
+                  icon: Pencil,
+                  onSelect: () => navigate(getEditPath(activeActionRowId)),
+                },
+              ]
+            : []),
+        ]}
+      />
 
-        {canEdit ? (
-          <MenuItem
-            onClick={() => {
-              if (activeActionRowId) {
-                navigate(getEditPath(activeActionRowId));
-              }
-              handleCloseActionMenu();
-            }}
-            sx={actionMenuItemSx}
-          >
-            Edit
-          </MenuItem>
-        ) : null}
-      </Menu>
-
-      <Menu
-        anchorEl={filterMenuAnchor}
-        open={Boolean(filterMenuAnchor && activeFilterColumn)}
-        onClose={() => {
-          setFilterSearch("");
-          setFilterMenuAnchor(null);
-          setActiveFilterColumn(null);
-        }}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-        MenuListProps={{ dense: true }}
-        PaperProps={{
-          sx: {
-            border: `1px solid ${theme.customTokens.borders.default}`,
-            borderRadius: `${theme.customTokens.radius.md}px`,
-            boxShadow: "none",
-            mt: 1,
-            overflowX: "hidden",
-            width: filterMenuWidth,
-          },
-        }}
-      >
-        <Box
-          sx={{
-            px: theme.spacing(1),
-            py: theme.spacing(0.75),
-          }}
-        >
-          <TextField
-            autoFocus
-            fullWidth
-            size="small"
-            value={filterSearch}
-            onChange={(event) => handleFilterSearchChange(event.target.value)}
-            onClick={(event) => event.stopPropagation()}
-            slotProps={{
-              input: {
-                endAdornment: filterSearch ? (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="Clear filter search"
-                      edge="end"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleFilterSearchChange("");
-                      }}
-                      onMouseDown={(event) => event.preventDefault()}
-                      size="small"
-                      sx={{
-                        color: theme.customTokens.text.secondary,
-                        p: theme.spacing(0.25),
-                        "&:hover": {
-                          backgroundColor:
-                            theme.customTokens.navigation.hoverBackground,
-                          color: theme.palette.primary.main,
-                        },
-                      }}
-                    >
-                      <X size={12} />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-              },
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: `${theme.customTokens.radius.md}px`,
-                fontSize: theme.typography.body2.fontSize,
-              },
-              "& .MuiOutlinedInput-notchedOutline": {
-                borderColor: theme.customTokens.borders.default,
-              },
-            }}
-          />
-        </Box>
-
-        <Box
-          sx={{
-            borderTop: `1px solid ${theme.customTokens.borders.default}`,
-            maxHeight: 224,
-            overflowX: "hidden",
-            overflowY: "auto",
-            py: theme.spacing(0.5),
-            scrollbarWidth: "thin",
-            scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
-            "&::-webkit-scrollbar": {
-              width: 6,
-            },
-            "&::-webkit-scrollbar-track": {
-              backgroundColor: theme.customTokens.surfaces.alt,
-            },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: theme.customTokens.brand.primary,
-              borderRadius: theme.customTokens.radius.pill,
-            },
-          }}
-        >
-          {filterValueOptions.length > 0 ? (
-            filterValueOptions.map((option) => {
-              const selected = option === columnFilters[activeFilterColumn ?? ""];
-
-              return (
-                <MenuItem
-                  key={option}
-                  selected={selected}
-                  onClick={() => handleFilterValueSelect(option)}
-                  sx={{
-                    color: theme.customTokens.text.primary,
-                    fontSize: theme.typography.body2.fontSize,
-                    minHeight: 32,
-                    overflow: "hidden",
-                    px: theme.spacing(1.5),
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    "&.Mui-selected": {
-                      backgroundColor: theme.customTokens.navigation.activeBackground,
-                      color: theme.customTokens.navigation.activeText,
-                      fontWeight: 700,
-                    },
-                    "&.Mui-selected:hover, &:hover": {
-                      backgroundColor: theme.customTokens.navigation.hoverBackground,
-                      color: theme.customTokens.navigation.activeText,
-                    },
-                  }}
-                >
-                  {option}
-                </MenuItem>
-              );
-            })
-          ) : (
-            <MenuItem
-              disabled
-              sx={{
-                color: theme.customTokens.text.secondary,
-                fontSize: theme.typography.caption.fontSize,
-                minHeight: 32,
-                px: theme.spacing(1.5),
-              }}
-            >
-              No values found
-            </MenuItem>
-          )}
-        </Box>
-      </Menu>
-    </>
+      {activeFilterColumnDef && activeFilterMeta ? (
+        <ColumnFilterPopoverRouter
+          open={Boolean(filterMenuAnchor && activeFilterColumn)}
+          anchorEl={filterMenuAnchor}
+          onClose={handleCloseFilter}
+          label={activeFilterColumnDef.label}
+          filterType={activeFilterMeta.filterType}
+          options={activeFilterMeta.options}
+          uniqueCount={activeFilterMeta.uniqueCount}
+          value={columnFilters[activeFilterColumn!]}
+          onApply={handleApplyColumnFilter}
+          onApplyMultiSelect={handleApplyMultiSelectFilter}
+          onClear={() => handleClearColumnFilter()}
+        />
+      ) : null}
+    </Stack>
   );
 
   function SortIndicator({
@@ -823,8 +770,9 @@ export function MasterTable({
     if (!active || !direction) {
       return (
         <ArrowUpDown
-          color={theme.customTokens.text.inverse}
-          size={14}
+          color={theme.customTokens.neutrals[700]}
+          size={portalIconSize.tableHeader}
+          strokeWidth={portalIconStroke.default}
         />
       );
     }
@@ -832,123 +780,21 @@ export function MasterTable({
     if (direction === "asc") {
       return (
         <ArrowUpWideNarrow
-          color={theme.customTokens.brand.primaryScale[100]}
-          size={14}
+          color={theme.customTokens.brand.primary}
+          size={portalIconSize.tableHeader}
+          strokeWidth={portalIconStroke.emphasis}
         />
       );
     }
 
     return (
       <ArrowDownWideNarrow
-        color={theme.customTokens.brand.primaryScale[100]}
-        size={14}
+        color={theme.customTokens.brand.primary}
+        size={portalIconSize.tableHeader}
+        strokeWidth={portalIconStroke.emphasis}
       />
     );
   }
-}
-
-const headerCellSx = {
-  position: "sticky" as const,
-  top: 0,
-  zIndex: 2,
-  py: 1.25,
-  px: 1.5,
-  borderBottom: "1px solid",
-  borderColor: "primary.dark",
-  backgroundColor: "primary.main",
-};
-
-const bodyCellSx = {
-  py: 1.25,
-  px: 1.5,
-  borderBottom: "1px solid",
-  borderColor: "divider",
-};
-
-const headerIconButtonSx = {
-  width: 24,
-  height: 24,
-  color: "common.white",
-};
-
-const paginationButtonSx = (theme: Theme) => ({
-  minHeight: 28,
-  minWidth: 32,
-  px: theme.spacing(1),
-  borderRadius: `${theme.customTokens.radius.md}px`,
-  borderColor: theme.customTokens.borders.default,
-  color: theme.customTokens.navigation.activeText,
-  fontSize: theme.typography.caption.fontSize,
-  fontWeight: 700,
-  lineHeight: 1,
-  textTransform: "none",
-  boxShadow: "none",
-  "&:hover": {
-    borderColor: theme.customTokens.brand.primary,
-    backgroundColor: theme.customTokens.navigation.hoverBackground,
-    boxShadow: "none",
-  },
-  "&.Mui-disabled": {
-    borderColor: theme.customTokens.borders.default,
-    color: theme.customTokens.neutrals[400],
-    backgroundColor: theme.customTokens.surfaces.alt,
-  },
-});
-
-const paginationIconButtonSx = (theme: Theme) => ({
-  ...paginationButtonSx(theme),
-  width: 28,
-  minWidth: 28,
-  height: 28,
-  p: 0,
-  color: theme.customTokens.text.primary,
-  "& svg": {
-    color: theme.customTokens.text.primary,
-    strokeWidth: 2.25,
-  },
-  "&:hover": {
-    borderColor: theme.customTokens.text.primary,
-    backgroundColor: theme.customTokens.navigation.hoverBackground,
-    color: theme.customTokens.text.primary,
-    boxShadow: "none",
-  },
-});
-
-const actionMenuItemSx = {
-  color: "text.primary",
-  "&:hover": {
-    backgroundColor: "action.hover",
-    color: "primary.main",
-  },
-};
-
-function pageNumberButtonSx(active: boolean) {
-  return (theme: Theme) => ({
-    minHeight: 28,
-    minWidth: 28,
-    px: theme.spacing(0.75),
-    borderRadius: `${theme.customTokens.radius.md}px`,
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: 700,
-    lineHeight: 1,
-    color: active
-      ? theme.customTokens.text.inverse
-      : theme.customTokens.navigation.activeText,
-    backgroundColor: active
-      ? theme.customTokens.brand.primary
-      : "transparent",
-    borderColor: active
-      ? theme.customTokens.brand.primary
-      : theme.customTokens.borders.default,
-    boxShadow: "none",
-    "&:hover": {
-      backgroundColor: active
-        ? theme.customTokens.brand.primaryScale[800]
-        : theme.customTokens.navigation.hoverBackground,
-      borderColor: theme.customTokens.brand.primary,
-      boxShadow: "none",
-    },
-  });
 }
 
 function getStatusToggleState(
@@ -987,7 +833,7 @@ function renderMasterTableCell(
   const toggleState = getStatusToggleState(column, row[column.key]);
 
   if (toggleState === null) {
-    return formatMasterValue(row[column.key]);
+    return formatMasterValue(row[column.key], column.key, column.label);
   }
 
   const toggleKey = `${row.id}:${column.key}`;
@@ -1222,16 +1068,6 @@ function getAuditInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
-}
-
-function clampPage(value: string, totalPages: number) {
-  const parsed = Number(value);
-
-  if (Number.isNaN(parsed) || parsed < 1) {
-    return 1;
-  }
-
-  return Math.min(parsed, totalPages);
 }
 
 function getVisiblePaginationPages(totalPages: number) {

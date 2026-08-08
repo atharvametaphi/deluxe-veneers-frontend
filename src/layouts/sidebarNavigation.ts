@@ -1,13 +1,35 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Award,
+  Blocks,
+  Building2,
+  CircleDollarSign,
+  Cog,
   Factory,
+  FileSpreadsheet,
+  Folder,
+  FolderTree,
+  Layers,
   LayoutDashboard,
+  MapPin,
+  Package,
   PackageOpen,
+  Palette,
+  Percent,
+  Puzzle,
+  Ruler,
+  Scissors,
   ShoppingCart,
+  Slice,
+  Sparkles,
+  Stamp,
   Star,
+  Tags,
   Truck,
+  User,
   UsersRound,
   Warehouse,
+  Wind,
   Wrench,
 } from "lucide-react";
 
@@ -60,6 +82,7 @@ const matchesAnyWarehouseInventoryRecordRoute = (
 export type SidebarNavigationItem = {
   id: string;
   label: string;
+  icon?: LucideIcon;
   permissionKey?: string;
   to: string;
   match: (location: SidebarMatchLocation) => boolean;
@@ -105,6 +128,7 @@ const buildWarehouseNavigationItems = (
     {
       id: "warehouse-a",
       label: "Warehouse A",
+      icon: Warehouse,
       to: "/warehouse-a",
       match: (location) =>
         matchesPath(location, "/warehouse-a") ||
@@ -113,6 +137,7 @@ const buildWarehouseNavigationItems = (
     {
       id: "warehouse-b",
       label: "Warehouse B",
+      icon: Warehouse,
       to: "/warehouse-b",
       match: (location) =>
         matchesPath(location, "/warehouse-b") ||
@@ -125,6 +150,7 @@ const buildWarehouseNavigationItems = (
     {
       id: "warehouse-c",
       label: "Warehouse C",
+      icon: Warehouse,
       to: "/warehouse-c",
       match: (location) =>
         matchesPath(location, "/warehouse-c") ||
@@ -133,6 +159,7 @@ const buildWarehouseNavigationItems = (
     ...dynamicWarehouses.map<SidebarNavigationItem>((warehouse) => ({
       id: `dynamic-warehouse-${warehouse.slug}`,
       label: warehouse.label,
+      icon: Warehouse,
       permissionKey: getWarehousePermissionKeyByType(warehouse.warehouseType),
       to: `/warehouses/${warehouse.slug}`,
       match: (location: SidebarMatchLocation) =>
@@ -148,10 +175,14 @@ function getWarehousePermissionKeyByType(warehouseType: string) {
   }
 
   if (normalizedType === "production") {
+    return "warehouseB";
+  }
+
+  if (normalizedType === "finished") {
     return "warehouseC";
   }
 
-  return "warehouseB";
+  return "warehouseA";
 }
 
 const buildWarehousesNavigationEntry = (
@@ -186,30 +217,35 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "color-master",
         label: "Color",
+        icon: Palette,
         to: "/masters/color-master",
         match: (location) => matchesPath(location, "/masters/color-master"),
       },
       {
         id: "currency-master",
         label: "Currency",
+        icon: CircleDollarSign,
         to: "/masters/currency-master",
         match: (location) => matchesPath(location, "/masters/currency-master"),
       },
       {
         id: "customer-master",
         label: "Customer",
+        icon: User,
         to: "/masters/customer-master",
         match: (location) => matchesPath(location, "/masters/customer-master"),
       },
       {
         id: "cut-master",
         label: "Cut",
+        icon: Scissors,
         to: "/masters/cut-master",
         match: (location) => matchesPath(location, "/masters/cut-master"),
       },
       {
         id: "department-master",
         label: "Department",
+        icon: Building2,
         to: "/masters/department-master",
         match: (location) =>
           matchesPath(location, "/masters/department-master"),
@@ -217,24 +253,28 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "grade-master",
         label: "Grade",
+        icon: Award,
         to: "/masters/grade-master",
         match: (location) => matchesPath(location, "/masters/grade-master"),
       },
       {
         id: "gst-master",
         label: "GST",
+        icon: Percent,
         to: "/masters/gst-master",
         match: (location) => matchesPath(location, "/masters/gst-master"),
       },
       {
         id: "hsn-master",
         label: "HSN",
+        icon: Tags,
         to: "/masters/hsn-master",
         match: (location) => matchesPath(location, "/masters/hsn-master"),
       },
       {
         id: "item-category-master",
         label: "Item Category",
+        icon: Folder,
         to: "/masters/item-category-master",
         match: (location) =>
           matchesPath(location, "/masters/item-category-master"),
@@ -242,6 +282,7 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "item-name-master",
         label: "Item Name",
+        icon: Package,
         to: "/masters/item-name-master",
         match: (location) =>
           matchesPath(location, "/masters/item-name-master"),
@@ -249,6 +290,7 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "item-sub-category-master",
         label: "Item Sub Category",
+        icon: FolderTree,
         to: "/masters/item-sub-category-master",
         match: (location) =>
           matchesPath(location, "/masters/item-sub-category-master"),
@@ -256,6 +298,7 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "supplier-master",
         label: "Supplier",
+        icon: Truck,
         to: "/masters/supplier-master",
         match: (location) =>
           matchesPath(location, "/masters/supplier-master") ||
@@ -264,6 +307,7 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "transporter-master",
         label: "Transporter",
+        icon: Truck,
         to: "/masters/transporter-master",
         match: (location) =>
           matchesPath(location, "/masters/transporter-master"),
@@ -271,12 +315,14 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "unit-master",
         label: "Unit",
+        icon: Ruler,
         to: "/masters/unit-master",
         match: (location) => matchesPath(location, "/masters/unit-master"),
       },
       {
         id: "warehouse-location-master",
         label: "Warehouse / Location",
+        icon: MapPin,
         to: "/masters/warehouse-location-master",
         match: (location) =>
           matchesPath(location, "/masters/warehouse-location-master"),
@@ -291,54 +337,70 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "factory-slicing",
         label: "Slicing",
+        icon: Slice,
         to: "/factory/slicing",
         match: (location) => matchesPath(location, "/factory/slicing"),
       },
       {
         id: "factory-drying",
         label: "Drying",
+        icon: Wind,
         to: "/factory/drying",
         match: (location) => matchesPath(location, "/factory/drying"),
       },
       {
         id: "factory-grouping",
         label: "Grouping",
+        icon: Layers,
         to: "/factory/grouping",
         match: (location) => matchesPath(location, "/factory/grouping"),
       },
       {
+        id: "factory-sample-sheets",
+        label: "Sample Sheets",
+        icon: FileSpreadsheet,
+        to: "/factory/sample-sheets",
+        match: (location) => matchesPath(location, "/factory/sample-sheets"),
+      },
+      {
         id: "factory-splicing",
         label: "Splicing",
+        icon: Layers,
         to: "/factory/splicing",
         match: (location) => matchesPath(location, "/factory/splicing"),
       },
       {
         id: "factory-marquetry",
         label: "Marquetry",
+        icon: Puzzle,
         to: "/factory/marquetry",
         match: (location) => matchesPath(location, "/factory/marquetry"),
       },
       {
         id: "factory-pressing",
         label: "Pressing",
+        icon: Stamp,
         to: "/factory/pressing",
         match: (location) => matchesPath(location, "/factory/pressing"),
       },
       {
         id: "factory-cnc-fluting",
         label: "CNC / Fluting",
+        icon: Cog,
         to: "/factory/cnc-fluting",
         match: (location) => matchesPath(location, "/factory/cnc-fluting"),
       },
       {
         id: "factory-embossing",
         label: "Embossing",
+        icon: Stamp,
         to: "/factory/embossing",
         match: (location) => matchesPath(location, "/factory/embossing"),
       },
       {
         id: "factory-finishing",
         label: "Finishing",
+        icon: Sparkles,
         to: "/factory/finishing",
         match: (location) => matchesPath(location, "/factory/finishing"),
       },
@@ -373,6 +435,7 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
       {
         id: "component-library",
         label: "Component Library",
+        icon: Blocks,
         to: "/tools/component-library",
         match: (location) =>
           matchesPath(location, "/tools/component-library") ||

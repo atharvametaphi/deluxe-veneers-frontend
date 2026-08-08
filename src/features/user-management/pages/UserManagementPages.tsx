@@ -1,6 +1,7 @@
 import {
   UserManagementFormPage,
   UserManagementListing,
+  UserManagementViewPage,
 } from "../shared";
 
 export function UserManagementPage() {
@@ -16,5 +17,5 @@ export function EditUserManagementPage() {
 }
 
 export function ViewUserManagementPage() {
-  return <UserManagementFormPage mode="view" />;
+  return <UserManagementViewPage />;
 }

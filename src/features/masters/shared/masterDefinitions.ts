@@ -3,6 +3,11 @@ import { createMasterRows } from "./utils";
 
 const asDate = (value: string) => new Date(value);
 
+/** UI demo listings keep 2 seed rows only. */
+function limitDemoListingRows<T>(rows: ReadonlyArray<T>) {
+  return rows.slice(0, 2);
+}
+
 function withAuditFields<T extends MasterRecord>(rows: ReadonlyArray<T>) {
   return rows.map((row) => ({
     ...row,
@@ -794,7 +799,7 @@ export const itemMasterDefinition: MasterDefinition = {
       options: activeOptions(gstRows, "gstPercentage"),
       readOnly: true,
       autoFillFrom: {
-        rows: hsnRows,
+        rows: limitDemoListingRows(hsnRows),
         sourceSlug: "hsn-master",
         sourceKey: "hsn",
         sourceMatchKey: "hsnCode",
@@ -804,7 +809,7 @@ export const itemMasterDefinition: MasterDefinition = {
     { key: "remark", label: "Remark", type: "text" },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: itemRows,
+  rows: limitDemoListingRows(itemRows),
 };
 
 export const itemCategoryMasterDefinition: MasterDefinition = {
@@ -830,7 +835,7 @@ export const itemCategoryMasterDefinition: MasterDefinition = {
     { key: "remark", label: "Remark", type: "text" },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: itemCategoryRows,
+  rows: limitDemoListingRows(itemCategoryRows),
 };
 
 export const itemSubCategoryMasterDefinition: MasterDefinition = {
@@ -856,7 +861,7 @@ export const itemSubCategoryMasterDefinition: MasterDefinition = {
     { key: "category", label: "Category", type: "select", options: activeOptions(itemCategoryRows, "categoryName") },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: itemSubCategoryRows,
+  rows: limitDemoListingRows(itemSubCategoryRows),
 };
 
 export const colorMasterDefinition: MasterDefinition = {
@@ -881,12 +886,79 @@ export const colorMasterDefinition: MasterDefinition = {
     { key: "colorName", label: "Color Name", type: "text" },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: colorRows,
+  rows: limitDemoListingRows(colorRows),
 };
 
 export const cutMasterOptions = uniqueOptions(cutRows, "cutName");
 export const gradeMasterOptions = uniqueOptions(gradeRows, "gradeName");
 export const gstMasterOptions = uniqueOptions(gstRows, "gstPercentage");
+export const supplierMasterOptions = activeOptions(supplierRows, "supplierName");
+export const currencyMasterOptions = activeOptions(currencyRows, "currencyName");
+export const itemMasterOptions = activeOptions(itemRows, "itemName");
+export const hsnMasterOptions = activeOptions(hsnRows, "hsnCode");
+
+export const warehouseABillingState = "Gujarat";
+
+export function getItemMasterRecord(itemName: string) {
+  const normalizedName = itemName.trim().toLowerCase();
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  return (
+    itemRows.find(
+      (row) =>
+        String(row.itemName ?? "").trim().toLowerCase() === normalizedName &&
+        String(row.status ?? "Active").toLowerCase() !== "inactive",
+    ) ?? null
+  );
+}
+
+export function getHsnGstPercentage(hsnCode: string) {
+  const normalizedCode = hsnCode.trim().toLowerCase();
+
+  if (!normalizedCode) {
+    return "";
+  }
+
+  const match = hsnRows.find(
+    (row) =>
+      String(row.hsnCode ?? "").trim().toLowerCase() === normalizedCode &&
+      String(row.status ?? "Active").toLowerCase() !== "inactive",
+  );
+
+  return match ? String(match.gstPercentage ?? "") : "";
+}
+
+export function getSupplierState(supplierName: string) {
+  const normalizedName = supplierName.trim().toLowerCase();
+
+  if (!normalizedName) {
+    return "";
+  }
+
+  const match = supplierRows.find(
+    (row) =>
+      String(row.supplierName ?? "").trim().toLowerCase() === normalizedName,
+  );
+
+  return match ? String(match.state ?? "") : "";
+}
+
+export function getWarehouseAGstMode(
+  supplierName: string,
+): "intra" | "inter" {
+  const supplierState = getSupplierState(supplierName).trim().toLowerCase();
+
+  if (!supplierState) {
+    return "intra";
+  }
+
+  return supplierState === warehouseABillingState.toLowerCase()
+    ? "intra"
+    : "inter";
+}
 
 export const cutMasterDefinition: MasterDefinition = {
   slug: "cut-master",
@@ -911,7 +983,7 @@ export const cutMasterDefinition: MasterDefinition = {
     { key: "remark", label: "Remark", type: "text" },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: cutRows,
+  rows: limitDemoListingRows(cutRows),
 };
 
 export const gradeMasterDefinition: MasterDefinition = {
@@ -937,7 +1009,7 @@ export const gradeMasterDefinition: MasterDefinition = {
     { key: "remark", label: "Remark", type: "text" },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: gradeRows,
+  rows: limitDemoListingRows(gradeRows),
 };
 
 export const customerMasterDefinition: MasterDefinition = {
@@ -980,7 +1052,7 @@ export const customerMasterDefinition: MasterDefinition = {
     { key: "panUpload", label: "PAN Upload", type: "file" },
     { key: "remark", label: "Remark", type: "text" },
   ],
-  rows: customerRows,
+  rows: limitDemoListingRows(customerRows),
 };
 
 export const unitMasterDefinition: MasterDefinition = {
@@ -1006,7 +1078,7 @@ export const unitMasterDefinition: MasterDefinition = {
     { key: "symbolicName", label: "Symbolic Name", type: "text" },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: unitRows,
+  rows: limitDemoListingRows(unitRows),
 };
 
 export const supplierMasterDefinition: MasterDefinition = {
@@ -1044,7 +1116,7 @@ export const supplierMasterDefinition: MasterDefinition = {
     { key: "panUpload", label: "PAN Upload", type: "file" },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: supplierRows,
+  rows: limitDemoListingRows(supplierRows),
 };
 
 export const gstMasterDefinition: MasterDefinition = {
@@ -1071,7 +1143,7 @@ export const gstMasterDefinition: MasterDefinition = {
     { key: "status", label: "Status", type: "select", options: statusOptions },
     { key: "remark", label: "Remark", type: "text" },
   ],
-  rows: gstRows,
+  rows: limitDemoListingRows(gstRows),
 };
 
 export const hsnMasterDefinition: MasterDefinition = {
@@ -1100,7 +1172,7 @@ export const hsnMasterDefinition: MasterDefinition = {
     { key: "gstPercentage", label: "GST%", type: "select", options: activeOptions(gstRows, "gstPercentage") },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: hsnRows,
+  rows: limitDemoListingRows(hsnRows),
 };
 
 export const warehouseLocationMasterDefinition: MasterDefinition = {
@@ -1144,7 +1216,7 @@ export const warehouseLocationMasterDefinition: MasterDefinition = {
     { key: "city", label: "City", type: "text" },
     { key: "remark", label: "Remark", type: "text" },
   ],
-  rows: warehouseRows,
+  rows: limitDemoListingRows(warehouseRows),
 };
 
 export const currencyMasterDefinition: MasterDefinition = {
@@ -1171,7 +1243,7 @@ export const currencyMasterDefinition: MasterDefinition = {
     { key: "status", label: "Status", type: "select", options: statusOptions },
     { key: "remark", label: "Remark", type: "text" },
   ],
-  rows: currencyRows,
+  rows: limitDemoListingRows(currencyRows),
 };
 
 export const unitMasterOptions = uniqueOptions(unitRows, "unitName");
@@ -1219,22 +1291,22 @@ export const transporterMasterDefinition: MasterDefinition = {
     { key: "status", label: "Status", options: statusOptions },
   ],
   fields: [
-    { key: "transporterName", label: "Transporter Name*", type: "text" },
+    { key: "transporterName", label: "Transporter Name", type: "text" },
     { key: "branchName", label: "Branch Name", type: "text" },
     { key: "transporterId", label: "Transporter Id", type: "text" },
     {
       key: "type",
-      label: "Type*",
+      label: "Type",
       type: "select",
       options: transporterTypeOptions,
     },
     {
       key: "areaOfOperation",
-      label: "Area Of Operation*",
+      label: "Area Of Operation",
       type: "select",
       options: [],
     },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: transporterRows,
+  rows: limitDemoListingRows(transporterRows),
 };

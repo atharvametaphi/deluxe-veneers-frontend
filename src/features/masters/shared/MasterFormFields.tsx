@@ -30,14 +30,24 @@ import {
   locationSearchVisibleOptionLimit,
 } from "../../shared/locationOptions";
 import { ErpDatePickerField, ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
+import {
+  getSelectDropdownOptionSx,
+  getSelectDropdownPaperSx,
+} from "../../shared/dropdownMenuStyles";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
+import {
+  getMastersCompactFieldSx,
+  mastersErpControlHeight,
+  mastersFormGridGap,
+  mastersFormLabelSx,
+} from "./mastersFormStyles";
 import type {
   MasterDefinition,
   MasterFieldDefinition,
   MasterFieldValue,
   MasterUploadedFileValue,
 } from "./types";
-import { normalizeMasterStatusValue } from "./utils";
+import { normalizeMasterStatusValue, formatMasterValue } from "./utils";
 
 type FormFieldLayoutDefinition = {
   fields: readonly MasterFieldDefinition[];
@@ -45,12 +55,19 @@ type FormFieldLayoutDefinition = {
 };
 
 interface MasterFormFieldsProps {
+  compact?: boolean;
   definition: FormFieldLayoutDefinition;
   fieldActions?: Partial<Record<string, ReactNode>>;
   onChange: (key: string, value: MasterFieldValue) => void;
+  presentation?: "form" | "details";
   readOnly?: boolean;
   showRequiredErrors?: boolean;
   values: Record<string, MasterFieldValue>;
+  /**
+   * Masters Add/Edit density treatment. Other modules must omit this
+   * (or leave default) so their forms stay unchanged.
+   */
+  variant?: "default" | "masters";
 }
 
 interface PreviewState {
@@ -92,44 +109,6 @@ function getMasterFileName(value: MasterFieldValue) {
   return "";
 }
 
-const requiredFieldKeys = new Set([
-  "category",
-  "categoryName",
-  "colorName",
-  "consumableName",
-  "currencyName",
-  "customerName",
-  "cutName",
-  "department",
-  "departmentName",
-  "email",
-  "emailAddress",
-  "firstName",
-  "gstPercentage",
-  "hsnCode",
-  "itemCode",
-  "itemName",
-  "itemSubCategory",
-  "lastName",
-  "address",
-  "city",
-  "country",
-  "phoneNo",
-  "phoneNumber",
-  "pincode",
-  "role",
-  "roleName",
-  "state",
-  "mobileNumber",
-  "supplierName",
-  "transporterId",
-  "transporterName",
-  "unitName",
-  "userName",
-  "warehouseCode",
-  "warehouseName",
-]);
-
 const countryNameFormatter = new Intl.DisplayNames(["en"], { type: "region" });
 
 const countryCodeOptions = Array.from(
@@ -164,16 +143,22 @@ const countryCodeOptions = Array.from(
   .sort((first, second) => first.sortLabel.localeCompare(second.sortLabel));
 
 export function MasterFormFields({
+  compact = false,
   definition,
   fieldActions,
   onChange,
+  presentation = "form",
   readOnly = false,
   showRequiredErrors = false,
   values,
+  variant = "default",
 }: MasterFormFieldsProps) {
   const theme = useTheme();
+  const isMastersVariant = variant === "masters";
   const desktopColumns =
     definition.gridColumns === 5 ? 5 : definition.gridColumns === 4 ? 4 : 3;
+  const fieldControlSize = "regular";
+  const isDetailsPresentation = presentation === "details";
   const [previewState, setPreviewState] = useState<PreviewState | null>(null);
   const [locationOptions, setLocationOptions] = useState<Record<string, string[]>>(
     {},
@@ -181,6 +166,22 @@ export function MasterFormFields({
   const createdPreviewUrlsRef = useRef<Set<string>>(new Set());
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const fields = getOrderedFormFields(definition.fields);
+  const useSingleColumn = fields.length <= 1;
+  /** Compact forms use the 36px portal control height (not table-dense 33px). */
+  const fieldSxOptions = compact ? { dense: false } : {};
+  const resolveFieldSx = (
+    state: Parameters<typeof getCompactFieldSx>[1] = "default",
+  ) =>
+    isMastersVariant
+      ? getMastersCompactFieldSx(theme, state)
+      : getCompactFieldSx(theme, state, fieldSxOptions);
+  const mastersErpProps = isMastersVariant
+    ? {
+        controlHeight: mastersErpControlHeight,
+        controlRadius: 6,
+        focusRing: "subtle" as const,
+      }
+    : {};
   const selectedCountry = getLocationValue(definition.fields, values, "country");
   const selectedState = getLocationValue(definition.fields, values, "state");
   const handleFieldChange = (
@@ -275,16 +276,44 @@ export function MasterFormFields({
       <Box
         sx={(theme) => ({
           display: "grid",
-          gap: theme.spacing(2),
-          gridTemplateColumns: {
-            xs: "repeat(1, minmax(0, 1fr))",
-            md: "repeat(2, minmax(0, 1fr))",
-            lg:
-              desktopColumns === 5
-                ? "repeat(4, minmax(0, 1fr))"
-                : `repeat(${desktopColumns}, minmax(0, 1fr))`,
-            xl: `repeat(${desktopColumns}, minmax(0, 1fr))`,
-          },
+          gap: theme.spacing(
+            isMastersVariant
+              ? mastersFormGridGap.row
+              : compact
+                ? 1.25
+                : 1.5,
+          ),
+          rowGap: theme.spacing(
+            isMastersVariant
+              ? mastersFormGridGap.row
+              : compact
+                ? 1.25
+                : 1.5,
+          ),
+          columnGap: theme.spacing(
+            isMastersVariant
+              ? mastersFormGridGap.column
+              : compact
+                ? 1.5
+                : 1.75,
+          ),
+          width: "100%",
+          gridTemplateColumns: useSingleColumn
+            ? "minmax(0, 1fr)"
+            : {
+                xs: "repeat(1, minmax(0, 1fr))",
+                sm: compact
+                  ? "repeat(2, minmax(140px, 1fr))"
+                  : "repeat(1, minmax(0, 1fr))",
+                md: compact
+                  ? "repeat(3, minmax(150px, 1fr))"
+                  : "repeat(2, minmax(160px, 1fr))",
+                lg:
+                  desktopColumns >= 5
+                    ? "repeat(5, minmax(140px, 1fr))"
+                    : `repeat(${desktopColumns}, minmax(160px, 1fr))`,
+                xl: `repeat(${desktopColumns}, minmax(160px, 1fr))`,
+              },
         })}
       >
         {fields.map((field) => {
@@ -325,12 +354,24 @@ export function MasterFormFields({
             <Stack
               key={field.key}
               sx={(theme) => ({
-                gap: theme.spacing(0.75),
+                gap: theme.spacing(
+                  isMastersVariant
+                    ? mastersFormGridGap.labelToField
+                    : compact
+                      ? 0.65
+                      : 0.75,
+                ),
+                width: "100%",
+                minWidth: 0,
                 gridColumn: isFullWidth
                   ? {
                       xs: "span 1",
-                      lg: `span ${Math.min(desktopColumns, 2)}`,
-                      xl: `span ${Math.min(desktopColumns, 2)}`,
+                      lg: useSingleColumn
+                        ? "span 1"
+                        : `span ${Math.min(desktopColumns, 2)}`,
+                      xl: useSingleColumn
+                        ? "span 1"
+                        : `span ${Math.min(desktopColumns, 2)}`,
                     }
                   : undefined,
               })}
@@ -341,15 +382,35 @@ export function MasterFormFields({
                 justifyContent="space-between"
                 sx={(theme) => ({
                   gap: theme.spacing(0.75),
-                  minHeight: theme.spacing(2.5),
+                  minHeight: isMastersVariant ? "auto" : theme.spacing(2.5),
                 })}
               >
-                <FieldLabel label={field.label} required={fieldRequired} />
+                <FieldLabel
+                  compact={compact}
+                  label={field.label}
+                  required={fieldRequired && !isDetailsPresentation}
+                  masters={isMastersVariant}
+                />
 
                 {fieldAction}
               </Stack>
 
-              {field.type === "text" && isPhoneField(field) ? (
+              {isDetailsPresentation ? (
+                <Typography
+                  sx={(currentTheme) => ({
+                    color: currentTheme.customTokens.text.primary,
+                    fontSize: "14px",
+                    fontWeight: 400,
+                    lineHeight: 1.4,
+                    minHeight: currentTheme.spacing(2.5),
+                    wordBreak: "break-word",
+                  })}
+                >
+                  {formatDetailFieldValue(field, fieldValue, values)}
+                </Typography>
+              ) : null}
+
+              {!isDetailsPresentation && field.type === "text" && isPhoneField(field) ? (
                 <Box
                   sx={(currentTheme) => ({
                     display: "grid",
@@ -365,10 +426,7 @@ export function MasterFormFields({
                       onChange(getPhoneCountryCodeKey(field.key), event.target.value)
                     }
                     sx={[
-                      getCompactFieldSx(
-                        theme,
-                        fieldIsReadOnly ? "readOnly" : "default",
-                      ),
+                      resolveFieldSx(fieldIsReadOnly ? "readOnly" : "default"),
                       {
                         "& .MuiSelect-select": {
                           alignItems: "center",
@@ -408,15 +466,16 @@ export function MasterFormFields({
                           },
                           PaperProps: {
                             sx: {
-                              border: `1px solid ${theme.customTokens.borders.default}`,
-                              borderRadius: `${theme.customTokens.radius.md}px`,
-                              boxShadow: "none",
+                              ...getSelectDropdownPaperSx(theme, 280, {
+                                preferredMinWidth: 280,
+                              }),
                               maxHeight: 240,
-                              mt: 0.5,
                               overflowY: "auto",
                               scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
                               scrollbarWidth: "thin",
-                              width: 280,
+                              "& .MuiMenuItem-root": {
+                                ...getSelectDropdownOptionSx(theme, true),
+                              },
                               "&::-webkit-scrollbar": {
                                 width: 6,
                               },
@@ -472,7 +531,7 @@ export function MasterFormFields({
                         normalizeTextInputValue(field, event.target.value),
                       )
                     }
-                    sx={getCompactFieldSx(theme, fieldState)}
+                    sx={resolveFieldSx(fieldState)}
                     slotProps={{
                       input: {
                         readOnly: fieldIsReadOnly,
@@ -487,7 +546,7 @@ export function MasterFormFields({
                 </Box>
               ) : null}
 
-              {renderedFieldType === "text" &&
+              {!isDetailsPresentation && renderedFieldType === "text" &&
               !isPhoneField(field) &&
               !isLocationField(field) ? (
                 <TextField
@@ -503,12 +562,12 @@ export function MasterFormFields({
 
                     handleFieldChange(field, nextValue);
                   }}
-                  sx={getCompactFieldSx(theme, fieldState)}
+                  sx={resolveFieldSx(fieldState)}
                   slotProps={getTextFieldSlotProps(field, fieldIsReadOnly)}
                 />
               ) : null}
 
-              {renderedFieldType === "textarea" ? (
+              {!isDetailsPresentation && renderedFieldType === "textarea" ? (
                 <TextField
                   fullWidth
                   error={Boolean(fieldHasRequiredError || fieldValidationError)}
@@ -517,7 +576,7 @@ export function MasterFormFields({
                   minRows={field.rows ?? 3}
                   value={typeof fieldValue === "string" ? fieldValue : ""}
                   onChange={(event) => onChange(field.key, event.target.value)}
-                  sx={getCompactFieldSx(theme, fieldState)}
+                  sx={resolveFieldSx(fieldState)}
                   slotProps={{
                     input: {
                       readOnly: fieldIsReadOnly,
@@ -526,7 +585,8 @@ export function MasterFormFields({
                 />
               ) : null}
 
-              {renderedFieldType === "select" || isLocationField(field) ? (
+              {!isDetailsPresentation &&
+              (renderedFieldType === "select" || isLocationField(field)) ? (
                 <ErpSelectField
                   helperText={fieldHelperText}
                   maxVisibleOptions={
@@ -537,21 +597,25 @@ export function MasterFormFields({
                   onChange={(value) => handleFieldChange(field, value)}
                   options={getSelectOptions(field, locationOptions)}
                   searchable
+                  size={fieldControlSize}
                   state={interactiveFieldState}
                   value={typeof fieldValue === "string" ? fieldValue : ""}
+                  {...mastersErpProps}
                 />
               ) : null}
 
-              {renderedFieldType === "date" ? (
+              {!isDetailsPresentation && renderedFieldType === "date" ? (
                 <ErpDatePickerField
                   helperText={fieldHelperText}
                   onChange={(value) => onChange(field.key, value)}
+                  size={fieldControlSize}
                   state={interactiveFieldState}
                   value={fieldValue instanceof Date ? fieldValue : null}
+                  {...mastersErpProps}
                 />
               ) : null}
 
-              {renderedFieldType === "file" ? (() => {
+              {!isDetailsPresentation && renderedFieldType === "file" ? (() => {
                 const fileName = getMasterFileName(fieldValue);
                 const uploadedFieldValue = isMasterUploadedFileValue(fieldValue)
                   ? fieldValue
@@ -591,7 +655,7 @@ export function MasterFormFields({
                     <TextField
                       fullWidth
                       value={fileName}
-                      sx={getCompactFieldSx(theme, fieldHasRequiredError ? "error" : "readOnly")}
+                      sx={resolveFieldSx(fieldHasRequiredError ? "error" : "readOnly")}
                       slotProps={{
                         input: {
                           readOnly: true,
@@ -657,7 +721,7 @@ export function MasterFormFields({
                     <TextField
                       fullWidth
                       value={fileName}
-                      sx={getCompactFieldSx(theme, fieldHasRequiredError ? "error" : "readOnly")}
+                      sx={resolveFieldSx(fieldHasRequiredError ? "error" : "readOnly")}
                       slotProps={{
                         input: {
                           readOnly: true,
@@ -714,7 +778,7 @@ export function MasterFormFields({
                 );
               })() : null}
 
-              {renderedFieldType === "toggle" ? (
+              {!isDetailsPresentation && renderedFieldType === "toggle" ? (
                 <Box
                   sx={(theme) => ({
                     minHeight: theme.spacing(4.5),
@@ -763,7 +827,7 @@ export function MasterFormFields({
                 </Box>
               ) : null}
 
-              {renderedFieldType === "checkbox" ? (
+              {!isDetailsPresentation && renderedFieldType === "checkbox" ? (
                 <Box
                   sx={(theme) => ({
                     minHeight: theme.spacing(4.5),
@@ -857,27 +921,72 @@ export function hasFormFieldErrors(
   );
 }
 
+function formatDetailFieldValue(
+  field: MasterFieldDefinition,
+  value: MasterFieldValue | null,
+  values: Record<string, MasterFieldValue>,
+) {
+  if (isPhoneField(field)) {
+    const countryCode = getPhoneCountryCode(values, field.key);
+    const localDigits = typeof value === "string" ? getPhoneLocalDigits(value) : "";
+    if (!localDigits) {
+      return "—";
+    }
+    return `${countryCode} ${localDigits}`.trim();
+  }
+
+  if (isStatusField(field) || field.type === "toggle") {
+    const checked = getToggleCheckedValue(field, value);
+    if (isStatusField(field)) {
+      return getStatusFieldValue(checked);
+    }
+    return checked ? "Enabled" : "Disabled";
+  }
+
+  if (field.type === "checkbox") {
+    return value ? "Yes" : "No";
+  }
+
+  if (field.type === "file") {
+    const fileName = getMasterFileName(value);
+    return fileName || "—";
+  }
+
+  const display = formatMasterValue(
+    value as Parameters<typeof formatMasterValue>[0],
+    field.key,
+    field.label,
+  );
+  return display.trim().length > 0 ? display : "—";
+}
+
 function FieldLabel({
+  compact = false,
   label,
-  required,
+  masters = false,
+  required: _required,
 }: {
+  compact?: boolean;
   label: string;
+  masters?: boolean;
   required: boolean;
 }) {
   return (
-    <Typography variant="subtitle2" color="text.primary">
+    <Typography
+      variant="subtitle2"
+      color="text.primary"
+      sx={
+        masters
+          ? mastersFormLabelSx()
+          : {
+              fontSize: compact ? "12px" : "13px",
+              fontWeight: 600,
+              lineHeight: 1.3,
+              whiteSpace: compact ? "nowrap" : undefined,
+            }
+      }
+    >
       {getDisplayFieldLabel(label)}
-      {required ? (
-        <Typography
-          component="span"
-          sx={(theme) => ({
-            color: theme.palette.error.main,
-            ml: theme.spacing(0.25),
-          })}
-        >
-          *
-        </Typography>
-      ) : null}
     </Typography>
   );
 }
@@ -964,19 +1073,8 @@ function isRequiredFieldEmpty(
   return false;
 }
 
-function isRequiredField(field: MasterFieldDefinition) {
-  if (field.required !== undefined) {
-    return field.required;
-  }
-
-  if (field.type === "toggle" || field.type === "checkbox") {
-    return false;
-  }
-
-  return (
-    field.label.trim().endsWith("*") ||
-    requiredFieldKeys.has(field.key)
-  );
+function isRequiredField(_field: MasterFieldDefinition) {
+  return false;
 }
 
 function normalizeTextInputValue(field: MasterFieldDefinition, value: string) {

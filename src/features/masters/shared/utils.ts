@@ -6,6 +6,7 @@ import type {
   MasterFilterDefinition,
   MasterRecord,
 } from "./types";
+import { formatDisplayValueByField } from "../../shared/numberFormat";
 
 const activeStatusText = "Active";
 const inactiveStatusText = "Inactive";
@@ -97,7 +98,11 @@ export function normalizeMasterDefinitionStatus(
   };
 }
 
-export function formatMasterValue(value: MasterRecord[string]) {
+export function formatMasterValue(
+  value: MasterRecord[string],
+  key?: string,
+  label?: string,
+) {
   if (value instanceof Date) {
     return toDateDisplay(value);
   }
@@ -108,6 +113,10 @@ export function formatMasterValue(value: MasterRecord[string]) {
 
   if (value === null || typeof value === "undefined") {
     return "";
+  }
+
+  if (key) {
+    return formatDisplayValueByField(value, key, label);
   }
 
   return String(value);
