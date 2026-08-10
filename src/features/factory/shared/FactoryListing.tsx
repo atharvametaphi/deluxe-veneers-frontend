@@ -1003,10 +1003,20 @@ function normalizeFactorySourceColumns<Row extends FactoryRecord>(
   const issuedFrom = getFactoryIssuedFromProcess(row, processSlug);
   const warehouseName =
     getFactoryRowWarehouseName(row) || getDefaultFactoryWarehouseName(processSlug);
+  const height = getFactoryString(row.height);
+  const thickness = getFactoryString(row.thickness);
+  const bundleNumber =
+    getFactoryString(row.bundleNumber) || getFactoryString(row.noOfBundle);
+  const palletNo =
+    getFactoryString(row.palletNo) || getFactoryString(row.palletNumber);
 
   return {
     ...row,
+    ...(bundleNumber ? { bundleNumber } : {}),
+    ...(height || thickness ? { height: height || thickness } : {}),
     issuedFrom,
+    ...(palletNo ? { palletNo } : {}),
+    ...(thickness || height ? { thickness: thickness || height } : {}),
     warehouseName,
   } as Row;
 }

@@ -57,9 +57,47 @@ const factoryItemFieldOrderSpecs = [
   ["remark", "Remark"],
 ] as const;
 
-const commonFactoryListingFieldSpecs = commonFactoryItemFieldSpecs.filter(
+const commonFactoryListingFieldSpecs = factoryItemFieldOrderSpecs.filter(
   ([key]) => key !== "ratePerSqf",
 );
+
+const factoryListingColumnOrder = [
+  "warehouseName",
+  "issuedFrom",
+  "issuedFor",
+  "issuedDate",
+  "groupingDate",
+  "orderDate",
+  "customerName",
+  "orderNo",
+  "orderItemNo",
+  "groupNo",
+  "itemName",
+  "itemSubCategory",
+  "logNo",
+  "bundleNumber",
+  "palletNo",
+  "length",
+  "width",
+  "height",
+  "thickness",
+  "color",
+  "cut",
+  "cutColor",
+  "grade",
+  "noOfLeaves",
+  "noOfSheets",
+  "availableSheets",
+  "inspectionStatus",
+  "sqm",
+  "sqf",
+  "amount",
+  "remark",
+  "createdBy",
+  "createdAt",
+  "updatedBy",
+  "updatedAt",
+] as const;
 
 export const commonFactoryItemFieldKeys = commonFactoryItemFieldSpecs.map(
   ([key]) => key,
@@ -282,27 +320,65 @@ export function withCommonFactoryListingColumns(
   );
   const keys = new Set(result.map(([key]) => key));
 
-  let insertAt = result.findIndex(
-    ([key]) => key === "remark" || key === "Remarks",
-  );
-  if (insertAt < 0) {
-    insertAt = result.findIndex(([key]) => key === "createdBy");
-  }
-  if (insertAt < 0) {
-    insertAt = result.length;
-  }
-
   for (const spec of commonFactoryListingFieldSpecs) {
-    if (keys.has(spec[0])) {
+    if (hasEquivalentListingColumn(keys, spec[0])) {
       continue;
     }
 
-    result.splice(insertAt, 0, spec);
-    insertAt += 1;
+    result.push(spec);
     keys.add(spec[0]);
   }
 
-  return result;
+  return result.sort(
+    ([firstKey], [secondKey]) =>
+      getFactoryListingColumnOrder(firstKey) -
+      getFactoryListingColumnOrder(secondKey),
+  );
+}
+
+function hasEquivalentListingColumn(keys: Set<string>, key: string) {
+  if (keys.has(key)) {
+    return true;
+  }
+
+  if (key === "height") {
+    return keys.has("thickness");
+  }
+
+  if (key === "noOfLeaves") {
+    return keys.has("noOfSheets");
+  }
+
+  if (key === "bundleNumber") {
+    return keys.has("noOfBundle");
+  }
+
+  if (key === "palletNo") {
+    return keys.has("palletNumber");
+  }
+
+  return false;
+}
+
+function getFactoryListingColumnOrder(key: string) {
+  const normalizedKey = normalizeListingColumnKey(key);
+  const index = factoryListingColumnOrder.findIndex(
+    (columnKey) => columnKey === normalizedKey,
+  );
+
+  return index >= 0 ? index : factoryListingColumnOrder.length - 5;
+}
+
+function normalizeListingColumnKey(key: string) {
+  if (key === "noOfBundle") {
+    return "bundleNumber";
+  }
+
+  if (key === "palletNumber") {
+    return "palletNo";
+  }
+
+  return key;
 }
 
 /**
