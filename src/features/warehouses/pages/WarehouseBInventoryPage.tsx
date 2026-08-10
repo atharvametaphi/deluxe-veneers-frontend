@@ -242,8 +242,18 @@ export function WarehouseBInventoryModulePage({
       ? activeWarehouseBStockRows
       : activeRawVeneerConfig?.rows ?? activeWarehouseInventoryConfig.rows
   ) as readonly InventoryRecord[];
-  const activeInventoryColumns =
-    warehouseInvoiceListingColumns as readonly EnterpriseTableColumn<InventoryRecord>[];
+  const activeInventoryColumns = useMemo(() => {
+    const columns =
+      warehouseInvoiceListingColumns as readonly EnterpriseTableColumn<InventoryRecord>[];
+
+    if (activeInventory !== "raw-veneer" || activeRawVeneerTab !== "production") {
+      return columns;
+    }
+
+    return columns.filter(
+      (column) => column.key !== "invoiceNo" && column.key !== "supplierName",
+    );
+  }, [activeInventory, activeRawVeneerTab]);
   const inventoryPaths = getInventoryPaths(
     activeDefinition.slug,
     activeProcessTab,
@@ -281,11 +291,29 @@ export function WarehouseBInventoryModulePage({
       activeProcessTab === "issued"
         ? activeRows
         : getInventoryRowsForTab(activeRows, activeProcessTab);
+    const displayRows =
+      activeInventory === "raw-veneer" && activeRawVeneerTab === "all"
+        ? rows.map((row) =>
+            isWarehouseBRawVeneerProductionRow(row)
+              ? {
+                  ...row,
+                  invoiceNo: "-",
+                  supplierName: "-",
+                }
+              : row,
+          )
+        : rows;
 
     return activeProcessTab === "issued"
-      ? rows.filter((row) => !revertedRowIds.includes(row.id))
-      : rows;
-  }, [activeProcessTab, activeRows, revertedRowIds]);
+      ? displayRows.filter((row) => !revertedRowIds.includes(row.id))
+      : displayRows;
+  }, [
+    activeInventory,
+    activeProcessTab,
+    activeRawVeneerTab,
+    activeRows,
+    revertedRowIds,
+  ]);
 
   const filteredInventoryRows = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
@@ -1082,6 +1110,20 @@ function getWarehouseARawVeneerRows(activeRawVeneerTab: WarehouseBRawVeneerTab) 
 
 function getWarehouseBRecordId(row: InventoryRecord) {
   return row.id;
+}
+
+function isWarehouseBRawVeneerProductionRow(row: InventoryRecord) {
+  const inwardType = String(row["inwardType"] ?? "").trim().toLowerCase();
+  const rowId = String(row.id ?? "").trim().toLowerCase();
+  const inventoryRecordId = String(row["inventoryRecordId"] ?? "")
+    .trim()
+    .toLowerCase();
+
+  return (
+    inwardType === "production" ||
+    rowId.includes("production") ||
+    inventoryRecordId.includes("production")
+  );
 }
 
 function formatSearchValue(value: EnterpriseTableCellValue) {

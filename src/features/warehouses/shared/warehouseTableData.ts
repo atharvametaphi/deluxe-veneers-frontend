@@ -712,7 +712,16 @@ const warehouseBRawAllRows = warehouseBRawPurchaseRows
   .flatMap((row, index) => {
     const productionRow = warehouseBRawProductionRows[index];
 
-    return productionRow ? [row, productionRow] : [row];
+    return productionRow
+      ? [
+          row,
+          {
+            ...productionRow,
+            invoiceNo: "-",
+            supplierName: "-",
+          },
+        ]
+      : [row];
   })
   .slice(0, 2);
 
