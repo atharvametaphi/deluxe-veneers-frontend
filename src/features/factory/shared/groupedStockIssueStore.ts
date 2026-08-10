@@ -204,6 +204,10 @@ export function buildSampleSheetSourceRowFromIssue(
         : typeof snapshot.groupingDate === "string"
           ? new Date(snapshot.groupingDate)
           : snapshot.groupingDate,
+    warehouseName:
+      typeof snapshot.warehouseName === "string" && snapshot.warehouseName.trim()
+        ? snapshot.warehouseName
+        : "Warehouse C",
     issuedFrom: "Grouping",
     issuedFor: typeof snapshot.issuedFor === "string" ? snapshot.issuedFor : "",
     remark:

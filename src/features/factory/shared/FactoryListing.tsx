@@ -66,8 +66,8 @@ import {
 import {
   factoryIssuedWorkToRow,
   getFactoryIssuedWorkForListing,
-  getFactoryListPathForProcess,
   issueFactoryWork,
+  resolveFactoryProcessLabel,
   useFactoryIssuedWorkItems,
 } from "./factoryIssuedWorkStore";
 import {
@@ -155,12 +155,17 @@ export function FactoryListing<Row extends FactoryRecord>({
           !(activeTab === "done" && rejectedDoneRowIds.has(row.id)),
       )
       .map((row) => {
+        const sourceNormalizedRow = normalizeFactorySourceColumns(
+          row,
+          definition.slug,
+        ) as Row;
+
         if (isGroupingDoneTab) {
-          const available = getAvailableGroupedSheets(row);
-          const original = getOriginalGroupedSheets(row);
+          const available = getAvailableGroupedSheets(sourceNormalizedRow);
+          const original = getOriginalGroupedSheets(sourceNormalizedRow);
 
           return {
-            ...row,
+            ...sourceNormalizedRow,
             availableSheets: String(available),
             noOfSheets: String(original),
             for: "Order",
@@ -168,15 +173,24 @@ export function FactoryListing<Row extends FactoryRecord>({
           } as Row;
         }
 
-        if (supportsSamplePurposeColumn && !isSampleFactoryRow(row)) {
+        if (
+          supportsSamplePurposeColumn &&
+          !isSampleFactoryRow(sourceNormalizedRow)
+        ) {
           return {
-            ...row,
-            for: typeof row.for === "string" ? row.for : "Order",
-            forLabel: typeof row.forLabel === "string" ? row.forLabel : "Order",
+            ...sourceNormalizedRow,
+            for:
+              typeof sourceNormalizedRow.for === "string"
+                ? sourceNormalizedRow.for
+                : "Order",
+            forLabel:
+              typeof sourceNormalizedRow.forLabel === "string"
+                ? sourceNormalizedRow.forLabel
+                : "Order",
           } as Row;
         }
 
-        return row;
+        return sourceNormalizedRow;
       });
   }, [
     activeTab,
@@ -559,7 +573,6 @@ export function FactoryListing<Row extends FactoryRecord>({
                 destinationProcess: "Pressing",
                 row: selectedRow,
                 sourceSlug: definition.slug,
-                navigate,
               });
             }),
           );
@@ -574,7 +587,6 @@ export function FactoryListing<Row extends FactoryRecord>({
                   destinationProcess: process,
                   row: selectedRow,
                   sourceSlug: definition.slug,
-                  navigate,
                 });
               }),
             );
@@ -592,7 +604,6 @@ export function FactoryListing<Row extends FactoryRecord>({
                 destinationProcess: "Finishing",
                 row: selectedRow,
                 sourceSlug: definition.slug,
-                navigate,
               });
             }),
           );
@@ -606,13 +617,6 @@ export function FactoryListing<Row extends FactoryRecord>({
               if (sampleNo) {
                 issueSampleToProcess(sampleNo, "Packing");
               }
-              navigate("/packing", {
-                state: {
-                  sourceRow: selectedRow,
-                  sampleNo,
-                  issuedFromSample: true,
-                },
-              });
             }),
           );
           return sampleActions;
@@ -623,7 +627,6 @@ export function FactoryListing<Row extends FactoryRecord>({
 
       const nextProcessActions = getFactoryNextProcessActions(
         row,
-        navigate,
         definition.slug,
         (selectedRow) =>
           setSplicingOrderIssue({
@@ -705,8 +708,12 @@ export function FactoryListing<Row extends FactoryRecord>({
       destinationProcess: nextProcess,
       purpose: "SAMPLE",
       sampleNo: sample.sampleNo,
+      sourceProcess: "Grouping",
+      sourceWarehouseName: getFactoryRowWarehouseName(groupingSampleIssue.row),
       sourceRow: {
         ...groupingSampleIssue.row,
+        warehouseName: getFactoryRowWarehouseName(groupingSampleIssue.row),
+        issuedFrom: "Grouping",
         sampleNo: sample.sampleNo,
         purpose: "SAMPLE",
         for: "Sample",
@@ -718,7 +725,6 @@ export function FactoryListing<Row extends FactoryRecord>({
     });
 
     setGroupingSampleIssue(null);
-    navigate(getFactoryListPathForProcess(nextProcess));
   };
   const handleCloseGroupingOrderIssue = () => {
     setGroupingOrderIssue(null);
@@ -791,10 +797,11 @@ export function FactoryListing<Row extends FactoryRecord>({
       orderItemNo: groupingOrderIssue.orderItemNo,
       sourceRow,
       sourceSlug: "grouping",
+      sourceProcess: "Grouping",
+      sourceWarehouseName: getFactoryRowWarehouseName(sourceRow),
     });
 
     setGroupingOrderIssue(null);
-    navigate("/factory/splicing");
   };
   const handleCloseSplicingOrderIssue = () => {
     setSplicingOrderIssue(null);
@@ -848,10 +855,11 @@ export function FactoryListing<Row extends FactoryRecord>({
       orderItemNo: splicingOrderIssue.orderItemNo,
       sourceRow,
       sourceSlug: definition.slug,
+      sourceProcess: definition.title,
+      sourceWarehouseName: getFactoryRowWarehouseName(sourceRow),
     });
 
     setSplicingOrderIssue(null);
-    navigate(getFactoryListPathForProcess(destinationProcess));
   };
 
   return (
@@ -988,6 +996,82 @@ interface RowLike {
   [key: string]: unknown;
 }
 
+function normalizeFactorySourceColumns<Row extends FactoryRecord>(
+  row: Row,
+  processSlug: string,
+) {
+  const issuedFrom = getFactoryIssuedFromProcess(row, processSlug);
+  const warehouseName =
+    getFactoryRowWarehouseName(row) || getDefaultFactoryWarehouseName(processSlug);
+
+  return {
+    ...row,
+    issuedFrom,
+    warehouseName,
+  } as Row;
+}
+
+function getFactoryIssuedFromProcess<Row extends FactoryRecord>(
+  row: Row,
+  processSlug: string,
+) {
+  const explicitProcess = getFactoryString(row.sourceProcess);
+  if (explicitProcess) {
+    return explicitProcess;
+  }
+
+  const issuedFrom = getFactoryString(row.issuedFrom);
+  if (issuedFrom && !isFactoryWarehouseLabel(issuedFrom)) {
+    return issuedFrom;
+  }
+
+  return getDefaultFactoryIssuedFromProcess(processSlug);
+}
+
+function getFactoryRowWarehouseName<Row extends FactoryRecord>(row: Row) {
+  const explicitWarehouse =
+    getFactoryString(row.warehouseName) ||
+    getFactoryString(row.sourceWarehouseName);
+
+  if (explicitWarehouse) {
+    return explicitWarehouse;
+  }
+
+  const issuedFrom = getFactoryString(row.issuedFrom);
+  return isFactoryWarehouseLabel(issuedFrom) ? issuedFrom : "";
+}
+
+function getDefaultFactoryWarehouseName(processSlug: string) {
+  return processSlug === "slicing" || processSlug === "drying"
+    ? "Warehouse B"
+    : "Warehouse C";
+}
+
+function getDefaultFactoryIssuedFromProcess(processSlug: string) {
+  const sourceProcessBySlug: Record<string, string> = {
+    "cnc-fluting": "Pressing",
+    drying: "Slicing",
+    embossing: "Pressing",
+    finishing: "Pressing",
+    grouping: "Inventory",
+    marquetry: "Splicing",
+    pressing: "Splicing",
+    "sample-sheets": "Grouping",
+    slicing: "Inventory",
+    splicing: "Grouping",
+  };
+
+  return sourceProcessBySlug[processSlug] ?? "Inventory";
+}
+
+function isFactoryWarehouseLabel(value: string) {
+  return /^warehouse\b/i.test(value.trim());
+}
+
+function getFactoryString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
 function getPressingDoneIssuedForLabel(value: RowValue) {
   const issuedFor = typeof value === "string" ? value.trim() : "";
 
@@ -1004,12 +1088,11 @@ function getPressingDoneIssuedForLabel(value: RowValue) {
 
 function getFactoryNextProcessActions<Row extends FactoryRecord>(
   row: Row,
-  navigate: ReturnType<typeof useNavigate>,
   slug: string,
   onOpenSplicingOrderIssue: (row: Row) => void,
 ): readonly EnterpriseTableAction<Row>[] {
   if (slug === "pressing") {
-    return getPressingNextProcessActions(row, navigate, slug);
+    return getPressingNextProcessActions(row, slug);
   }
 
   if (slug === "splicing") {
@@ -1032,14 +1115,13 @@ function getFactoryNextProcessActions<Row extends FactoryRecord>(
     return [];
   }
 
-  return [createFactoryIssueAction<Row>(issuedFor, navigate, slug)].filter(
+  return [createFactoryIssueAction<Row>(issuedFor, slug)].filter(
     (action) => canAccessPermission(action.permissionKey, "create"),
   );
 }
 
 function getPressingNextProcessActions<Row extends FactoryRecord>(
   row: Row,
-  navigate: ReturnType<typeof useNavigate>,
   sourceSlug: string,
 ) {
   const issuedFor = typeof row.issuedFor === "string" ? row.issuedFor.trim() : "";
@@ -1059,7 +1141,7 @@ function getPressingNextProcessActions<Row extends FactoryRecord>(
       : ["Fluting", "Embossing"];
 
   return nextProcesses
-    .map((process) => createFactoryIssueAction<Row>(process, navigate, sourceSlug))
+    .map((process) => createFactoryIssueAction<Row>(process, sourceSlug))
     .filter((action) => canAccessPermission(action.permissionKey, "create"));
 }
 
@@ -1127,7 +1209,6 @@ function createRejectFactoryAction<Row extends FactoryRecord>(
 
 function createFactoryIssueAction<Row extends FactoryRecord>(
   issuedFor: string,
-  navigate: ReturnType<typeof useNavigate>,
   sourceSlug: string,
 ): EnterpriseTableAction<Row> & { permissionKey?: string } {
   const route = factoryNextProcessRouteMap[issuedFor]!;
@@ -1139,14 +1220,12 @@ function createFactoryIssueAction<Row extends FactoryRecord>(
     icon: Plus,
     tone: "primary",
     onSelect: (row) => {
-      if (route === "/packing" || route.startsWith("/warehouse-") || route === "/dispatch") {
-        navigate(route);
+      if (!route.startsWith("/factory/")) {
         return;
       }
 
       issueToNextFactoryProcess({
         destinationProcess: issuedFor,
-        navigate,
         row,
         sourceSlug,
       });
@@ -1157,12 +1236,10 @@ function createFactoryIssueAction<Row extends FactoryRecord>(
 
 function issueToNextFactoryProcess<Row extends FactoryRecord>({
   destinationProcess,
-  navigate,
   row,
   sourceSlug,
 }: {
   destinationProcess: string;
-  navigate: ReturnType<typeof useNavigate>;
   row: Row;
   sourceSlug: string;
 }) {
@@ -1192,12 +1269,12 @@ function issueToNextFactoryProcess<Row extends FactoryRecord>({
     purpose: sampleNo ? "SAMPLE" : "ORDER",
     sourceRow: row,
     sourceSlug,
+    sourceProcess: resolveFactoryProcessLabel(sourceSlug),
+    sourceWarehouseName: getFactoryRowWarehouseName(row),
     ...(sampleNo ? { sampleNo } : {}),
     ...(orderNo ? { orderNo } : {}),
     ...(orderItemNo ? { orderItemNo } : {}),
   });
-
-  navigate(getFactoryListPathForProcess(destinationProcess));
 }
 
 function getIssueRoutePermissionKey(route: string) {

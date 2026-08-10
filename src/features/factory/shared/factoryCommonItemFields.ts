@@ -19,19 +19,47 @@ import {
  */
 export const commonFactoryItemFieldSpecs = [
   ["itemName", "Item Name"],
-  ["itemSubCategory", "Sub Category"],
-  ["color", "Color"],
+  ["itemSubCategory", "Item Sub-Category"],
   ["logNo", "Log No."],
-  ["grade", "Grade"],
   ["length", "Length"],
   ["width", "Width"],
   ["height", "Thickness"],
+  ["color", "Color"],
+  ["grade", "Grade"],
   ["noOfLeaves", "No. of Leaves"],
   ["sqm", "SQM"],
   ["sqf", "SQF"],
+  ["ratePerSqf", "Rate per SQF"],
   ["amount", "Amount"],
   ["remark", "Remark"],
 ] as const;
+
+const optionalFactoryItemFieldSpecs = [
+  ["bundleNumber", "Bundle No"],
+  ["palletNo", "Pallet No"],
+] as const;
+
+const factoryItemFieldOrderSpecs = [
+  ["itemName", "Item Name"],
+  ["itemSubCategory", "Item Sub-Category"],
+  ["logNo", "Log No."],
+  ...optionalFactoryItemFieldSpecs,
+  ["length", "Length"],
+  ["width", "Width"],
+  ["height", "Thickness"],
+  ["color", "Color"],
+  ["grade", "Grade"],
+  ["noOfLeaves", "No. of Leaves"],
+  ["sqm", "SQM"],
+  ["sqf", "SQF"],
+  ["ratePerSqf", "Rate per SQF"],
+  ["amount", "Amount"],
+  ["remark", "Remark"],
+] as const;
+
+const commonFactoryListingFieldSpecs = commonFactoryItemFieldSpecs.filter(
+  ([key]) => key !== "ratePerSqf",
+);
 
 export const commonFactoryItemFieldKeys = commonFactoryItemFieldSpecs.map(
   ([key]) => key,
@@ -51,6 +79,8 @@ export const commonFactoryItemFieldAliases: Record<string, readonly string[]> = 
   itemSubCategory: ["itemSubCategory", "subCategory"],
   color: ["color", "colour", "processColour"],
   logNo: ["logNo", "logCode"],
+  bundleNumber: ["bundleNumber", "noOfBundle"],
+  palletNo: ["palletNo", "palletNumber"],
   grade: ["grade"],
   length: ["length"],
   width: ["width"],
@@ -89,6 +119,7 @@ export const commonFactoryItemFieldAliases: Record<string, readonly string[]> = 
     "consumeSqf",
     "finishedSqf",
   ],
+  ratePerSqf: ["ratePerSqf", "rate"],
   amount: ["amount"],
   remark: ["remark", "issueRemark"],
 };
@@ -146,18 +177,14 @@ export function mergeCommonFactoryItemFields(
   }
 
   for (const field of fields) {
+    const normalizedKey = normalizeCommonFieldKey(field.key);
     // Prefer richer process field when it already exists, but keep common label/order.
-    const existing = byKey.get(field.key);
+    const existing = byKey.get(normalizedKey);
     if (!existing) {
-      byKey.set(normalizeCommonFieldKey(field.key), {
+      byKey.set(normalizedKey, {
         ...field,
-        key: normalizeCommonFieldKey(field.key),
-        label:
-          field.key === "processColour" || field.key === "colour"
-            ? "Color"
-            : field.key === "itemSubCategory"
-              ? "Sub Category"
-              : field.label,
+        key: normalizedKey,
+        label: getCommonFieldLabel(normalizedKey, field.label),
       });
       continue;
     }
@@ -175,14 +202,14 @@ export function mergeCommonFactoryItemFields(
     }
 
     const mergedReadOnly =
-      field.key === "sqm" || field.key === "sqf"
+      normalizedKey === "sqm" || normalizedKey === "sqf"
         ? existing.readOnly
         : field.readOnly ?? existing.readOnly;
     if (mergedReadOnly !== undefined) {
       mergedField.readOnly = mergedReadOnly;
     }
 
-    byKey.set(field.key, mergedField);
+    byKey.set(normalizedKey, mergedField);
   }
 
   // Map legacy colour / thickness into the common keys when only legacy exists.
@@ -207,16 +234,12 @@ export function mergeCommonFactoryItemFields(
     seen.add(key);
   };
 
-  for (const [key] of commonFactoryItemFieldSpecs) {
+  for (const [key] of factoryItemFieldOrderSpecs) {
     pushKey(key);
   }
 
   for (const field of fields) {
     const key = normalizeCommonFieldKey(field.key);
-    if (key === "processColour" || key === "colour" || key === "thickness") {
-      // Represented by color / height in the common block.
-      continue;
-    }
     pushKey(key);
   }
 
@@ -227,10 +250,24 @@ function normalizeCommonFieldKey(key: string) {
   if (key === "processColour" || key === "colour") {
     return "color";
   }
-  if (key === "thickess") {
+  if (key === "thickness" || key === "thickess") {
     return "height";
   }
+  if (key === "noOfBundle") {
+    return "bundleNumber";
+  }
+  if (key === "palletNumber") {
+    return "palletNo";
+  }
+  if (key === "rate") {
+    return "ratePerSqf";
+  }
   return key;
+}
+
+function getCommonFieldLabel(key: string, fallbackLabel: string) {
+  const spec = factoryItemFieldOrderSpecs.find(([specKey]) => specKey === key);
+  return spec?.[1] ?? fallbackLabel;
 }
 
 /**
@@ -255,7 +292,7 @@ export function withCommonFactoryListingColumns(
     insertAt = result.length;
   }
 
-  for (const spec of commonFactoryItemFieldSpecs) {
+  for (const spec of commonFactoryListingFieldSpecs) {
     if (keys.has(spec[0])) {
       continue;
     }

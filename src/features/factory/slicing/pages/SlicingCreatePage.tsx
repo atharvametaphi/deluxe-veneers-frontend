@@ -23,6 +23,7 @@ import {
   ErpDatePickerField,
   ErpSelectField,
 } from "../../../../pages/ComponentLibrary/shared/ErpFieldControls";
+import { itemMasterOptions } from "../../../masters/shared/masterDefinitions";
 import {
   appendFactoryProcessRun,
   buildFactorySourceAllocationKey,
@@ -83,6 +84,7 @@ type LineItemColumn = {
 
 type SlicingSourceSummary = {
   amount: string;
+  bundleNumber: string;
   cmt: string;
   color: string;
   height: string;
@@ -90,6 +92,8 @@ type SlicingSourceSummary = {
   itemSubCategory: string;
   length: string;
   logNo: string;
+  palletNo: string;
+  ratePerSqf: string;
   remark: string;
   sqf: string;
   sqm: string;
@@ -107,6 +111,7 @@ type SlicingFormValues = {
 
 type SlicingLineItemValues = {
   amount: string;
+  bundleNumber: string;
   color: string;
   grade: string;
   height: string;
@@ -115,6 +120,8 @@ type SlicingLineItemValues = {
   length: string;
   logNo: string;
   noOfLeaves: string;
+  palletNo: string;
+  ratePerSqf: string;
   remark: string;
   sqf: string;
   sqm: string;
@@ -131,21 +138,15 @@ const lineItemColumns: readonly LineItemColumn[] = [
     key: "itemName",
     label: "Item Name",
     minWidth: 150,
-    placeholder: "Enter Item Name",
-    type: "text",
+    options: itemMasterOptions,
+    placeholder: "Select Item Name",
+    type: "select",
   },
   {
     key: "itemSubCategory",
-    label: "Sub Category",
-    minWidth: 140,
-    placeholder: "Enter Sub Category",
-    type: "text",
-  },
-  {
-    key: "color",
-    label: "Color",
-    minWidth: 130,
-    placeholder: "Enter Color",
+    label: "Item Sub-Category",
+    minWidth: 160,
+    placeholder: "Enter Item Sub-Category",
     type: "text",
   },
   {
@@ -156,12 +157,18 @@ const lineItemColumns: readonly LineItemColumn[] = [
     type: "text",
   },
   {
-    key: "grade",
-    label: "Grade",
-    minWidth: 120,
-    options: ["A", "B", "C", "Premium", "Select", "Commercial", "Export"],
-    placeholder: "Select Grade",
-    type: "select",
+    key: "bundleNumber",
+    label: "Bundle No",
+    minWidth: 130,
+    placeholder: "Enter Bundle No",
+    type: "text",
+  },
+  {
+    key: "palletNo",
+    label: "Pallet No",
+    minWidth: 130,
+    placeholder: "Enter Pallet No",
+    type: "text",
   },
   {
     key: "length",
@@ -180,9 +187,24 @@ const lineItemColumns: readonly LineItemColumn[] = [
   {
     key: "height",
     label: "Thickness (m)",
-    minWidth: 110,
+    minWidth: 120,
     placeholder: "Enter Thickness (m)",
     type: "text",
+  },
+  {
+    key: "color",
+    label: "Color",
+    minWidth: 130,
+    placeholder: "Enter Color",
+    type: "text",
+  },
+  {
+    key: "grade",
+    label: "Grade",
+    minWidth: 120,
+    options: ["A", "B", "C", "Premium", "Select", "Commercial", "Export"],
+    placeholder: "Select Grade",
+    type: "select",
   },
   {
     key: "noOfLeaves",
@@ -205,6 +227,13 @@ const lineItemColumns: readonly LineItemColumn[] = [
     minWidth: 110,
     placeholder: "From inventory",
     readOnly: true,
+    type: "text",
+  },
+  {
+    key: "ratePerSqf",
+    label: "Rate per SQF",
+    minWidth: 130,
+    placeholder: "Enter Rate per SQF",
     type: "text",
   },
   {
@@ -357,10 +386,17 @@ export function SlicingCreatePage() {
     quantityConfig,
     runTotals.processed,
   ]);
+  const visibleLineItemColumns = useMemo(
+    () =>
+      lineItemColumns.filter((column) =>
+        shouldShowLineItemColumn(column, sourceSummary, draftValues, editingValues, lineItems),
+      ),
+    [draftValues, editingValues, lineItems, sourceSummary],
+  );
   const lineItemsTableWidth = useMemo(
     () =>
-      lineItemColumns.reduce((total, column) => total + column.minWidth, 84),
-    [],
+      visibleLineItemColumns.reduce((total, column) => total + column.minWidth, 84),
+    [visibleLineItemColumns],
   );
 
   const handleAddLineItem = () => {
@@ -535,7 +571,7 @@ export function SlicingCreatePage() {
               <Table size="small" sx={{ minWidth: lineItemsTableWidth, tableLayout: "auto" }}>
                 <TableHead>
                   <TableRow>
-                    {lineItemColumns.map((column) => (
+                    {visibleLineItemColumns.map((column) => (
                       <TableCell
                         key={column.key}
                         sx={getHeaderCellSx(theme, column.minWidth)}
@@ -551,7 +587,7 @@ export function SlicingCreatePage() {
 
                 <TableBody>
                   <TableRow>
-                    {lineItemColumns.map((column) => (
+                    {visibleLineItemColumns.map((column) => (
                       <TableCell key={column.key} sx={getBodyCellSx(theme)}>
                         {renderEditableField({
                           column,
@@ -633,7 +669,7 @@ export function SlicingCreatePage() {
                 >
                   <TableHead>
                     <TableRow>
-                      {lineItemColumns.map((column) => (
+                      {visibleLineItemColumns.map((column) => (
                         <TableCell
                           key={column.key}
                           sx={getHeaderCellSx(theme, column.minWidth)}
@@ -663,7 +699,7 @@ export function SlicingCreatePage() {
                             },
                           }}
                         >
-                          {lineItemColumns.map((column) => (
+                          {visibleLineItemColumns.map((column) => (
                             <TableCell key={column.key} sx={getBodyCellSx(theme)}>
                               {isEditing
                                 ? renderEditableField({
@@ -871,11 +907,14 @@ function buildSourceSummary(sourceRow?: SourceRow): SlicingSourceSummary {
     color:
       getStringValue(sourceRow, ["color", "timberColor", "colour"]) || "Natural",
     logNo: getStringValue(sourceRow, ["logNo", "logCode"]) || "",
+    bundleNumber: getStringValue(sourceRow, ["bundleNumber", "noOfBundle"]),
+    palletNo: getStringValue(sourceRow, ["palletNo", "palletNumber"]),
     length,
     width,
     height,
     cmt: sqm,
     amount: getStringValue(sourceRow, ["amount"]) || "0.00",
+    ratePerSqf: getStringValue(sourceRow, ["ratePerSqf", "rate"]),
     remark: getStringValue(sourceRow, ["remark"]) || "",
     sqf,
     sqm,
@@ -891,8 +930,8 @@ function buildSlicingSourceOverviewItems(
     "Warehouse B";
   const orderNo = getStringValue(sourceRow, ["orderNo"]);
   const orderItemNo = getStringValue(sourceRow, ["orderItemNo"]);
-  const bundleNumber = getStringValue(sourceRow, ["bundleNumber", "noOfBundle"]);
-  const palletNo = getStringValue(sourceRow, ["palletNo"]);
+  const bundleNumber = sourceSummary.bundleNumber;
+  const palletNo = sourceSummary.palletNo;
   const originalLeaves =
     getStringValue(sourceRow, [
       "noOfLeaves",
@@ -932,20 +971,23 @@ function createDefaultLineItemValues(
   const values: SlicingLineItemValues = {
     itemName: sourceSummary.itemName,
     itemSubCategory: sourceSummary.itemSubCategory,
-    color: sourceSummary.color,
     logNo:
       sourceSummary.logNo ||
       getStringValue(sourceRow, ["logNo", "logCode"]),
-    grade: getPreferredSourceValue(sourceRow, "grade"),
+    bundleNumber: sourceSummary.bundleNumber,
+    palletNo: sourceSummary.palletNo,
     length: sourceSummary.length,
     width: sourceSummary.width,
     height: sourceSummary.height,
+    color: sourceSummary.color,
+    grade: getPreferredSourceValue(sourceRow, "grade"),
     noOfLeaves: getPreferredSourceValue(sourceRow, "noOfLeaves"),
     sqm:
       getPreferredSourceValue(sourceRow, "sqm") ||
       getStringValue(sourceRow, ["issuedSqm", "totalSqm", "availableSqm"]) ||
       sourceSummary.sqm,
     sqf: getPreferredSourceValue(sourceRow, "sqf") || sourceSummary.sqf,
+    ratePerSqf: sourceSummary.ratePerSqf,
     amount: sourceSummary.amount,
     remark: getPreferredSourceValue(sourceRow, "remark"),
   };
@@ -957,18 +999,40 @@ function createEmptyLineItemValues(): SlicingLineItemValues {
   return {
     itemName: "",
     itemSubCategory: "",
-    color: "",
     logNo: "",
-    grade: "",
+    bundleNumber: "",
+    palletNo: "",
     length: "",
     width: "",
     height: "",
+    color: "",
+    grade: "",
     noOfLeaves: "",
     sqm: "",
     sqf: "",
+    ratePerSqf: "",
     amount: "",
     remark: "",
   };
+}
+
+function shouldShowLineItemColumn(
+  column: LineItemColumn,
+  sourceSummary: SlicingSourceSummary,
+  draftValues: SlicingLineItemValues,
+  editingValues: SlicingLineItemValues,
+  lineItems: readonly SlicingLineItem[],
+) {
+  if (column.key !== "bundleNumber" && column.key !== "palletNo") {
+    return true;
+  }
+
+  return [
+    sourceSummary[column.key],
+    draftValues[column.key],
+    editingValues[column.key],
+    ...lineItems.map((lineItem) => lineItem.values[column.key]),
+  ].some((value) => value.trim().length > 0);
 }
 
 function updateSlicingLineItemValues(

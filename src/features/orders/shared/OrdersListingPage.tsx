@@ -19,6 +19,7 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import {
   EnterpriseDataTable,
   type EnterpriseTableAction,
+  type EnterpriseTableColumn,
 } from "../../../components/data-display/EnterpriseDataTable";
 import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { formatMasterValue, MasterPageShell } from "../../masters/shared";
@@ -30,10 +31,12 @@ import {
 } from "../../shared/buttonStyles";
 import {
   cancelOrderRecord,
+  getOrderLineItems,
   getOrdersPaths,
   getOrderVariantFromType,
   orderListingColumns,
   ordersModuleConfig,
+  type OrderLineItem,
   type OrderModuleConfig,
   type OrderCreateVariant,
   type OrderRecord,
@@ -45,6 +48,13 @@ type OrderListingTab = OrderCreateVariant;
 type OrderListingLocationState = {
   orderListingTab?: OrderListingTab;
 } | null;
+type OrderListingRow = OrderRecord & {
+  dispatchQuantity: string;
+  issuedQuantity: string;
+  orderId: string;
+  orderItemNumber: string;
+  orderLineItemId: string;
+};
 
 export function OrdersListingPage({
   moduleConfig = ordersModuleConfig,
@@ -73,7 +83,7 @@ export function OrdersListingPage({
     null,
   );
   const [cancelDialogOrder, setCancelDialogOrder] =
-    useState<OrderRecord | null>(null);
+    useState<OrderListingRow | null>(null);
   const canCreate = canAccessPermission(moduleConfig.permissionKey, "create");
   const canEdit = canAccessPermission(moduleConfig.permissionKey, "edit");
   const canView = canAccessPermission(moduleConfig.permissionKey, "view");
@@ -82,8 +92,13 @@ export function OrdersListingPage({
     setActiveTab(getDefaultOrderListingTab(moduleConfig, requestedTab));
   }, [moduleConfig, requestedTab]);
 
+  const listingRows = useMemo(
+    () => rows.flatMap((row) => buildOrderListingRows(row)),
+    [rows],
+  );
+
   const filteredRows = useMemo(() => {
-    return rows
+    return listingRows
       .filter((row) => getOrderVariantFromType(row.orderType) === activeTab)
       .filter((row) => {
       if (searchValue.trim().length === 0) {
@@ -96,7 +111,7 @@ export function OrdersListingPage({
           .includes(searchValue.trim().toLowerCase()),
       );
     });
-  }, [activeTab, rows, searchValue]);
+  }, [activeTab, listingRows, searchValue]);
 
   const viewRecord = useMemo(
     () => rows.find((row) => row.id === viewOrderId),
@@ -114,7 +129,7 @@ export function OrdersListingPage({
     }
   }, [moduleConfig.createOptions, viewRecord?.orderType]);
 
-  const rowActions = useMemo<readonly EnterpriseTableAction<OrderRecord>[]>(
+  const rowActions = useMemo<readonly EnterpriseTableAction<OrderListingRow>[]>(
     () => [
       ...(canView
         ? [
@@ -122,8 +137,8 @@ export function OrdersListingPage({
               id: "view",
               label: "View",
               icon: Eye,
-              onSelect: (row: OrderRecord) =>
-                navigate(paths.view(row.id), {
+              onSelect: (row: OrderListingRow) =>
+                navigate(paths.view(row.orderId), {
                   state: {
                     orderListingTab:
                       getOrderVariantFromType(row.orderType) ?? activeTab,
@@ -138,7 +153,8 @@ export function OrdersListingPage({
               id: "edit",
               label: "Edit",
               icon: Pencil,
-              onSelect: (row: OrderRecord) => navigate(paths.edit(row.id)),
+              onSelect: (row: OrderListingRow) =>
+                navigate(paths.edit(row.orderId)),
             },
           ]
         : []),
@@ -147,8 +163,8 @@ export function OrdersListingPage({
   );
 
   const getRowActions = (
-    row: OrderRecord,
-  ): readonly EnterpriseTableAction<OrderRecord>[] =>
+    row: OrderListingRow,
+  ): readonly EnterpriseTableAction<OrderListingRow>[] =>
     row.status === "Cancelled" || !canEdit
       ? rowActions
       : [
@@ -180,9 +196,12 @@ export function OrdersListingPage({
       return;
     }
 
-    cancelOrderRecord(cancelDialogOrder.id);
+    cancelOrderRecord(cancelDialogOrder.orderId);
     setCancelDialogOrder(null);
   };
+
+  const listingColumns =
+    orderListingColumns as readonly EnterpriseTableColumn<OrderListingRow>[];
 
   return (
     <MasterPageShell
@@ -272,7 +291,7 @@ export function OrdersListingPage({
 
       <EnterpriseDataTable
         key={activeTab}
-        columns={orderListingColumns}
+        columns={listingColumns}
         defaultRowsPerPage={10}
         emptyStateLabel={
           activeTab === "finished"
@@ -316,6 +335,53 @@ export function OrdersListingPage({
       />
     </MasterPageShell>
   );
+}
+
+function buildOrderListingRows(record: OrderRecord): OrderListingRow[] {
+  const lineItems = getOrderLineItems(record.id);
+
+  if (lineItems.length === 0) {
+    return [
+      {
+        ...record,
+        dispatchQuantity: record.quantitySheets,
+        issuedQuantity: record.quantitySheets,
+        id: `${record.id}:item-1`,
+        orderId: record.id,
+        orderItemNumber: "1",
+        orderLineItemId: "",
+      },
+    ];
+  }
+
+  return lineItems.map((lineItem, index) => ({
+    ...record,
+    ...getOrderLineItemListingValues(lineItem),
+    id: `${record.id}:${lineItem.id || `item-${index + 1}`}`,
+    orderId: record.id,
+    orderItemNumber: String(index + 1),
+    orderLineItemId: lineItem.id,
+  }));
+}
+
+function getOrderLineItemListingValues(lineItem: OrderLineItem) {
+  return {
+    amount: lineItem.amount,
+    dispatchQuantity: lineItem.quantitySheets,
+    grade: lineItem.grade,
+    issuedQuantity: lineItem.quantitySheets,
+    itemName: lineItem.itemName || lineItem.salesItemName,
+    length: lineItem.length,
+    productCategory: lineItem.productCategory || lineItem.finishedType,
+    quantitySheets: lineItem.quantitySheets,
+    remark: lineItem.remark,
+    series: lineItem.series,
+    sqm: lineItem.sqm,
+    subCategory: lineItem.subCategory,
+    thickness: lineItem.thickness,
+    totalSqm: lineItem.totalSqm,
+    width: lineItem.width,
+  };
 }
 
 function CancelOrderConfirmationDialog({

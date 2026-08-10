@@ -19,7 +19,9 @@ export type FactoryIssuedWorkRecord = {
   sampleNo?: string;
   sourceRowId: string;
   sourceSlug: string;
+  sourceProcess?: string;
   sourceSnapshot: Record<string, unknown>;
+  sourceWarehouseName?: string;
 };
 
 type FactoryIssuedWorkStore = {
@@ -149,8 +151,10 @@ export function issueFactoryWork(input: {
   orderNo?: string;
   purpose?: FactoryWorkPurpose;
   sampleNo?: string;
+  sourceProcess?: string;
   sourceRow: FactoryRecord;
   sourceSlug: string;
+  sourceWarehouseName?: string;
 }): FactoryIssuedWorkRecord {
   const store = readStore();
   const destinationSlug = resolveFactoryProcessSlug(input.destinationProcess);
@@ -175,6 +179,10 @@ export function issueFactoryWork(input: {
     ...(input.sampleNo ? { sampleNo: input.sampleNo } : {}),
     ...(input.orderNo ? { orderNo: input.orderNo } : {}),
     ...(input.orderItemNo ? { orderItemNo: input.orderItemNo } : {}),
+    ...(input.sourceProcess ? { sourceProcess: input.sourceProcess } : {}),
+    ...(input.sourceWarehouseName
+      ? { sourceWarehouseName: input.sourceWarehouseName }
+      : {}),
   };
 
   writeStore({
@@ -229,13 +237,16 @@ export function factoryIssuedWorkToRow(
   const processLabel = resolveFactoryProcessLabel(item.destinationSlug);
   const snapshot = item.sourceSnapshot;
   const isSample = item.purpose === "SAMPLE";
+  const warehouseName = getIssuedWorkWarehouseName(item);
+  const issuedFrom = getIssuedWorkSourceProcess(item);
 
   return {
     ...snapshot,
     id: item.id,
     workItemId: item.id,
     listingState: item.listingState,
-    issuedFrom: resolveFactoryProcessLabel(item.sourceSlug),
+    warehouseName,
+    issuedFrom,
     issuedFor: processLabel,
     issuedDate: new Date(item.createdAt),
     purpose: isSample ? "SAMPLE" : "ORDER",
@@ -260,4 +271,57 @@ export function factoryIssuedWorkToRow(
             ? `Order ${snapshot.orderNo}`
             : "",
   } as FactoryRecord;
+}
+
+function getIssuedWorkWarehouseName(item: FactoryIssuedWorkRecord) {
+  const snapshot = item.sourceSnapshot;
+  const explicitWarehouse =
+    item.sourceWarehouseName ||
+    getStringValue(snapshot, "warehouseName") ||
+    getStringValue(snapshot, "sourceWarehouseName");
+
+  if (explicitWarehouse) {
+    return explicitWarehouse;
+  }
+
+  const snapshotIssuedFrom = getStringValue(snapshot, "issuedFrom");
+  if (isWarehouseLabel(snapshotIssuedFrom)) {
+    return snapshotIssuedFrom;
+  }
+
+  if (isWarehouseLabel(item.sourceSlug)) {
+    return item.sourceSlug;
+  }
+
+  return "";
+}
+
+function getIssuedWorkSourceProcess(item: FactoryIssuedWorkRecord) {
+  const snapshot = item.sourceSnapshot;
+  const explicitProcess =
+    item.sourceProcess ||
+    getStringValue(snapshot, "issuedFromProcess") ||
+    getStringValue(snapshot, "sourceProcess");
+
+  if (explicitProcess) {
+    return explicitProcess;
+  }
+
+  if (isWarehouseLabel(item.sourceSlug)) {
+    const snapshotIssuedFrom = getStringValue(snapshot, "issuedFrom");
+    return snapshotIssuedFrom && !isWarehouseLabel(snapshotIssuedFrom)
+      ? snapshotIssuedFrom
+      : "Inventory";
+  }
+
+  return resolveFactoryProcessLabel(item.sourceSlug);
+}
+
+function isWarehouseLabel(value: unknown) {
+  return typeof value === "string" && /^warehouse\b/i.test(value.trim());
+}
+
+function getStringValue(source: Record<string, unknown>, key: string) {
+  const value = source[key];
+  return typeof value === "string" && value.trim() ? value.trim() : "";
 }

@@ -58,10 +58,7 @@ import {
 } from "../../shared/buttonStyles";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import { exportRowsToCsv } from "../../shared/exportToCsv";
-import {
-  getFactoryListPathForProcess,
-  issueFactoryWork,
-} from "../../factory/shared/factoryIssuedWorkStore";
+import { issueFactoryWork } from "../../factory/shared/factoryIssuedWorkStore";
 import type { FactoryRecord } from "../../factory/shared/types";
 import {
   warehouseAInventoryConfigs,
@@ -413,9 +410,12 @@ export function WarehouseBInventoryModulePage({
         issueFactoryWork({
           destinationProcess: "slicing",
           sourceSlug: warehouseName,
+          sourceProcess: "Inventory",
+          sourceWarehouseName: warehouseName,
           sourceRow: {
             ...row,
-            issuedFrom: warehouseName,
+            warehouseName,
+            issuedFrom: "Inventory",
             issuedFor: "Slicing",
             issuedDate: new Date(),
           } as FactoryRecord,
@@ -429,9 +429,8 @@ export function WarehouseBInventoryModulePage({
       });
       setSelectedRows([]);
       setSelectionResetKey((current) => current + 1);
-      navigate(getFactoryListPathForProcess("slicing"));
     },
-    [canCreateSlicing, canEditWarehouseB, navigate, warehouseName],
+    [canCreateSlicing, canEditWarehouseB, warehouseName],
   );
 
   const inventoryRowActions = useMemo<

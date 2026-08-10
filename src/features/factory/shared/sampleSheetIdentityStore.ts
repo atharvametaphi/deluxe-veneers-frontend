@@ -407,6 +407,11 @@ export function sampleToFactoryRecord(
     purpose: "SAMPLE",
     forLabel: "Sample",
     for: "Sample",
+    warehouseName:
+      typeof sample.sourceSnapshot.warehouseName === "string" &&
+      sample.sourceSnapshot.warehouseName.trim()
+        ? sample.sourceSnapshot.warehouseName
+        : "Warehouse C",
     issuedFrom: "Grouping",
     issuedFor: sample.currentStatus.replace(/^Issued for\s+/i, "") || sample.nextProcess,
     issuedDate: new Date(sample.issueDate),

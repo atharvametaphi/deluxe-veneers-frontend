@@ -158,6 +158,7 @@ export const orderModuleConfig: OrderModuleConfig = {
 export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] =
   [
     { key: "orderNo", label: "Order No" },
+    { key: "orderItemNumber", label: "Order Item Number" },
     { key: "orderDate", label: "Order Date" },
     { key: "customerName", label: "Customer Name", filterable: true },
     { key: "itemName", label: "Item Name", filterable: true },
@@ -170,6 +171,8 @@ export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] 
     { key: "thickness", label: "Thickness" },
     { key: "sqm", label: "SQM" },
     { key: "totalSqm", label: "SQF" },
+    { key: "issuedQuantity", label: "Issued Quantity" },
+    { key: "dispatchQuantity", label: "Dispatch Quantity" },
     { key: "remark", label: "Remark" },
     { key: "createdBy", label: "Created By" },
     { key: "createdDate", label: "Created Date" },

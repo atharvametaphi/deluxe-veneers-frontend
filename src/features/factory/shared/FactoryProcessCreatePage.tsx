@@ -1053,24 +1053,29 @@ function buildLineItemFields(
   const presetFields = factoryCreateLineItemPresets[slug];
 
   if (presetFields) {
-    return mergeCommonFactoryItemFields(presetFields);
+    return mergeCommonFactoryItemFields(
+      appendPresentOptionalLineItemFields(presetFields, sourceRow),
+    );
   }
 
-  const relevantFields = dedupeFields(
-    fields.filter((field) => {
-      if (field.key === "remark") {
-        return true;
-      }
-
-      return !metadataKeys.has(field.key);
-    }),
-  ).map((field) =>
-    field.type === "textarea"
-      ? {
-          ...field,
-          type: "text" as const,
+  const relevantFields = appendPresentOptionalLineItemFields(
+    dedupeFields(
+      fields.filter((field) => {
+        if (field.key === "remark") {
+          return true;
         }
-      : field,
+
+        return !metadataKeys.has(field.key);
+      }),
+    ).map((field) =>
+      field.type === "textarea"
+        ? {
+            ...field,
+            type: "text" as const,
+          }
+        : field,
+    ),
+    sourceRow,
   );
 
   if (relevantFields.length > 0) {
@@ -1094,8 +1099,36 @@ function buildLineItemFields(
   });
 
   return mergeCommonFactoryItemFields(
-    withSourceFallback.length > 0 ? withSourceFallback : fallbackFields,
+    appendPresentOptionalLineItemFields(
+      withSourceFallback.length > 0 ? withSourceFallback : fallbackFields,
+      sourceRow,
+    ),
   );
+}
+
+function appendPresentOptionalLineItemFields(
+  fields: readonly MasterFieldDefinition[],
+  sourceRow?: SourceRow,
+) {
+  const nextFields = [...fields];
+  const hasField = (keys: readonly string[]) =>
+    nextFields.some((field) => keys.includes(field.key));
+
+  if (
+    !hasField(["bundleNumber", "noOfBundle"]) &&
+    getPreferredFieldValue(sourceRow, "bundleNumber")
+  ) {
+    nextFields.push({ key: "bundleNumber", label: "Bundle No", type: "text" });
+  }
+
+  if (
+    !hasField(["palletNo", "palletNumber"]) &&
+    getPreferredFieldValue(sourceRow, "palletNo")
+  ) {
+    nextFields.push({ key: "palletNo", label: "Pallet No", type: "text" });
+  }
+
+  return nextFields;
 }
 
 function dedupeFields(fields: readonly MasterFieldDefinition[]) {

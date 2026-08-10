@@ -1318,7 +1318,7 @@ function ItemDetailsDialog({
   return (
     <Dialog
       fullWidth
-      maxWidth="lg"
+      maxWidth={false}
       onClose={onClose}
       open={open}
       slotProps={{
@@ -1326,7 +1326,10 @@ function ItemDetailsDialog({
           sx: (theme) => ({
             borderRadius: `${theme.customTokens.radius.md}px`,
             boxShadow: theme.customTokens.elevation.md,
+            maxHeight: "none",
+            overflow: "visible",
             outline: "none",
+            width: "min(96vw, 1760px)",
             "&:focus, &:focus-visible": {
               outline: "none",
             },
@@ -1361,14 +1364,13 @@ function ItemDetailsDialog({
               backgroundColor: theme.customTokens.surfaces.surface,
             })}
           >
-            <Box sx={(theme) => getScrollableTableSx(theme)}>
+            <Box sx={{ overflow: "hidden" }}>
               <Table
                 size="small"
                 sx={{
-                  minWidth: itemDetailColumns.reduce(
-                    (total, column) => total + column.minWidth,
-                    0,
-                  ),
+                  minWidth: "100%",
+                  tableLayout: "fixed",
+                  width: "100%",
                 }}
               >
                 <TableHead>
@@ -1376,7 +1378,11 @@ function ItemDetailsDialog({
                     {itemDetailColumns.map((column) => (
                       <TableCell
                         key={column.key}
-                        sx={(theme) => getHeaderCellSx(theme, column.minWidth)}
+                        sx={(theme) => ({
+                          ...getHeaderCellSx(theme, column.minWidth),
+                          overflowWrap: "anywhere",
+                          whiteSpace: "normal",
+                        })}
                       >
                         {column.label}
                       </TableCell>
@@ -1388,7 +1394,11 @@ function ItemDetailsDialog({
                     {itemDetailColumns.map((column) => (
                       <TableCell
                         key={column.key}
-                        sx={(theme) => getBodyCellSx(theme)}
+                        sx={(theme) => ({
+                          ...getBodyCellSx(theme),
+                          overflowWrap: "anywhere",
+                          whiteSpace: "normal",
+                        })}
                       >
                         {formatMasterValue(item?.[column.key])}
                       </TableCell>

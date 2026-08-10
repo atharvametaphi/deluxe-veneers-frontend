@@ -427,17 +427,17 @@ export function OrderRecordPage({
                       color: selectedCustomer
                         ? theme.customTokens.navigation.activeText
                         : theme.palette.text.disabled,
-                      height: 28,
-                      minHeight: 28,
+                      height: theme.spacing(2.5),
+                      minHeight: theme.spacing(2.5),
                       p: 0,
-                      width: 28,
+                      width: theme.spacing(2.5),
                       "&:hover": {
                         backgroundColor:
                           theme.customTokens.navigation.hoverBackground,
                       },
                     })}
                   >
-                    <Info size={16} />
+                    <Info size={14} />
                   </IconButton>
                 ),
               }}
@@ -851,7 +851,7 @@ function CustomerDetailsDialog({
   return (
     <Dialog
       fullWidth
-      maxWidth="lg"
+      maxWidth={false}
       onClose={onClose}
       open={open}
       slotProps={{
@@ -859,7 +859,10 @@ function CustomerDetailsDialog({
           sx: (theme) => ({
             borderRadius: `${theme.customTokens.radius.md}px`,
             boxShadow: theme.customTokens.elevation.md,
+            maxHeight: "none",
+            overflow: "visible",
             outline: "none",
+            width: "min(96vw, 1760px)",
             "&:focus": {
               outline: "none",
             },
@@ -892,6 +895,7 @@ function CustomerDetailsDialog({
           <OrderDetailTable
             columns={customerDetailColumns}
             emptyLabel="Customer details are not available."
+            fitToContainer
             rows={customer ? [customer] : []}
             title="Selected Customer"
           />
@@ -910,11 +914,13 @@ function CustomerDetailsDialog({
 function OrderDetailTable<TRow>({
   columns,
   emptyLabel = "No records are available.",
+  fitToContainer = false,
   rows,
   title,
 }: {
   columns: readonly DetailColumn<TRow>[];
   emptyLabel?: string;
+  fitToContainer?: boolean;
   rows: readonly TRow[];
   title: string;
 }) {
@@ -936,14 +942,33 @@ function OrderDetailTable<TRow>({
           backgroundColor: theme.customTokens.surfaces.surface,
         })}
       >
-        <Box sx={(theme) => getDetailTableScrollSx(theme)}>
-          <Table size="small" sx={{ minWidth: getDetailTableMinWidth(columns) }}>
+        <Box
+          sx={(theme) =>
+            fitToContainer
+              ? getDetailTableFitContainerSx(theme)
+              : getDetailTableScrollSx(theme)
+          }
+        >
+          <Table
+            size="small"
+            sx={{
+              minWidth: fitToContainer ? "100%" : getDetailTableMinWidth(columns),
+              tableLayout: fitToContainer ? "fixed" : "auto",
+              width: "100%",
+            }}
+          >
             <TableHead>
               <TableRow>
                 {columns.map((column) => (
                   <TableCell
                     key={column.label}
-                    sx={(theme) => getDetailHeaderCellSx(theme, column.minWidth)}
+                    sx={(theme) =>
+                      getDetailHeaderCellSx(
+                        theme,
+                        fitToContainer ? undefined : column.minWidth ?? 130,
+                        fitToContainer,
+                      )
+                    }
                   >
                     {column.label}
                   </TableCell>
@@ -957,7 +982,7 @@ function OrderDetailTable<TRow>({
                     {columns.map((column) => (
                       <TableCell
                         key={column.label}
-                        sx={(theme) => getDetailBodyCellSx(theme)}
+                        sx={(theme) => getDetailBodyCellSx(theme, fitToContainer)}
                       >
                         {formatDetailValue(column.getValue(row))}
                       </TableCell>
@@ -966,7 +991,10 @@ function OrderDetailTable<TRow>({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} sx={(theme) => getDetailBodyCellSx(theme)}>
+                  <TableCell
+                    colSpan={columns.length}
+                    sx={(theme) => getDetailBodyCellSx(theme, fitToContainer)}
+                  >
                     {emptyLabel}
                   </TableCell>
                 </TableRow>
@@ -1005,19 +1033,41 @@ function getDetailTableMinWidth<TRow>(columns: readonly DetailColumn<TRow>[]) {
   return columns.reduce((total, column) => total + (column.minWidth ?? 130), 0);
 }
 
-function getDetailHeaderCellSx(theme: Theme, minWidth = 130) {
+function getDetailHeaderCellSx(
+  theme: Theme,
+  minWidth?: number,
+  allowWrap = false,
+) {
   return {
     ...transactionTableHeaderCellSx(theme, minWidth, "center"),
     borderRight: `1px solid ${theme.customTokens.borders.divider}`,
     lineHeight: 1.35,
+    ...(allowWrap
+      ? {
+          whiteSpace: "normal",
+          overflowWrap: "anywhere",
+        }
+      : {}),
   } as const;
 }
 
-function getDetailBodyCellSx(theme: Theme) {
+function getDetailBodyCellSx(theme: Theme, allowWrap = false) {
   return {
     ...transactionTableBodyCellSx(theme, "center"),
     borderRight: `1px solid ${theme.customTokens.borders.divider}`,
     color: theme.palette.text.primary,
+    ...(allowWrap
+      ? {
+          whiteSpace: "normal",
+          overflowWrap: "anywhere",
+        }
+      : {}),
+  } as const;
+}
+
+function getDetailTableFitContainerSx(_theme: Theme) {
+  return {
+    overflow: "hidden",
   } as const;
 }
 

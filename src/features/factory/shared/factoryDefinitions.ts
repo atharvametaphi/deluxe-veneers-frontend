@@ -178,7 +178,8 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
   const itemName = itemNames[index % itemNames.length];
 
   return {
-    issuedFrom: warehouseName,
+    warehouseName,
+    issuedFrom: "Inventory",
     issuedDate: day(2 + index),
     orderDate: day(1 + index),
     itemName,
@@ -272,10 +273,34 @@ function factoryRows(
   return createFactoryRows<FactoryRecord>(
     prefix,
     Array.from({ length: 2 }, (_, index) => {
-      const row = commonRow(index, warehouseName) as FactoryRowSeed;
+      const row = {
+        ...commonRow(index, warehouseName),
+        issuedFrom: getDefaultIssuedFromProcess(prefix, index),
+      } as FactoryRowSeed;
       return override ? override(row, index) : row;
     }),
   );
+}
+
+function getDefaultIssuedFromProcess(prefix: string, index: number) {
+  const issuedFromByProcess: Record<string, string> = {
+    "cnc-fluting": "Pressing",
+    drying: "Slicing",
+    embossing: "Pressing",
+    "export-oem": "Finishing",
+    grouping: "Inventory",
+    marquetry: "Splicing",
+    pressing: "Splicing",
+    "sample-sheets": "Grouping",
+    slicing: "Inventory",
+    splicing: "Grouping",
+  };
+
+  if (prefix === "finishing") {
+    return ["Pressing", "CNC/Fluting", "Embossing"][index % 3]!;
+  }
+
+  return issuedFromByProcess[prefix] ?? "Inventory";
 }
 
 const slicingRows = factoryRows("slicing", "Warehouse B", (row, index) => ({
@@ -368,6 +393,7 @@ const exportOemRows = factoryRows("export-oem", "Warehouse C", (row) => ({
 
 /** Drying keeps the prior shared column set (not the Slicing field standard). */
 const dryingListingColumns = listingColumns([
+  ["warehouseName", "Warehouses"],
   ["issuedFrom", "Issued From"],
   ["issuedDate", "Issued Date"],
   ["itemName", "Item Name"],
@@ -387,6 +413,7 @@ const dryingListingColumns = listingColumns([
 ] as const);
 
 const slicingListingColumns = listingColumns([
+  ["warehouseName", "Warehouses"],
   ["issuedFrom", "Issued From"],
   ["issuedDate", "Issued Date"],
   ["itemName", "Item Name"],
@@ -404,6 +431,8 @@ const slicingListingColumns = listingColumns([
 ] as const);
 
 const splicingListingColumns = listingColumns([
+  ["warehouseName", "Warehouses"],
+  ["issuedFrom", "Issued From"],
   ["issuedFor", "Issued For"],
   ["groupNo", "Group No."],
   ["orderDate", "Order Date"],
@@ -430,6 +459,7 @@ const splicingListingColumns = listingColumns([
 ] as const);
 
 const productionListingColumns = listingColumns([
+  ["warehouseName", "Warehouses"],
   ["issuedFrom", "Issued From"],
   ["issuedFor", "Issued For"],
   ["groupNo", "Group No."],
@@ -458,6 +488,7 @@ const productionListingColumns = listingColumns([
 
 /** Grouping is stock/process focused — no order or customer columns. */
 const groupingListingColumns = listingColumns([
+  ["warehouseName", "Warehouses"],
   ["issuedFrom", "Issued From"],
   ["issuedDate", "Issued Date"],
   ["groupNo", "Group No."],
@@ -482,6 +513,7 @@ const groupingListingColumns = listingColumns([
 ] as const);
 
 const cncListingColumns = listingColumns([
+  ["warehouseName", "Warehouses"],
   ["issuedFrom", "Issued From"],
   ["issuedFor", "Issued For"],
   ["groupNo", "Group No."],
@@ -507,6 +539,7 @@ const cncListingColumns = listingColumns([
 ] as const);
 
 const finishingListingColumns = listingColumns([
+  ["warehouseName", "Warehouses"],
   ["issuedFrom", "Issued From"],
   ["issuedFor", "Issued For"],
   ["groupNo", "Group No."],

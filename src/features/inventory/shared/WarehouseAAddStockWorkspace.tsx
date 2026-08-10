@@ -18,7 +18,6 @@ import {
 } from "@mui/material";
 import { Plus, Trash2 } from "lucide-react";
 
-import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { getWarehouseAGstMode } from "../../masters/shared/masterDefinitions";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import {
@@ -52,28 +51,14 @@ export interface WarehouseAAddStockWorkspaceHandle {
   validate: () => boolean;
 }
 
-export type AddStockWorkspaceTab = "item-details" | "invoice-details";
-
-const warehouseAAddStockTabs = [
-  { label: "Item Details", value: "item-details" },
-  { label: "Invoice Details", value: "invoice-details" },
-] as const satisfies readonly {
-  label: string;
-  value: AddStockWorkspaceTab;
-}[];
-
 export const WarehouseAAddStockWorkspace = forwardRef<
   WarehouseAAddStockWorkspaceHandle,
   {
-    activeTab?: AddStockWorkspaceTab;
     invoiceDate?: Date | null;
-    onTabChange?: (tab: AddStockWorkspaceTab) => void;
     slug: WarehouseAAddStockSlug;
     supplierName?: string;
   }
 >(function WarehouseAAddStockWorkspace({
-  activeTab: activeTabProp,
-  onTabChange,
   slug,
   supplierName = "",
 }, ref) {
@@ -85,9 +70,6 @@ export const WarehouseAAddStockWorkspace = forwardRef<
   const [additionalCharges, setAdditionalCharges] = useState<
     AdditionalChargeRow[]
   >([]);
-  const [internalActiveTab, setInternalActiveTab] =
-    useState<AddStockWorkspaceTab>("item-details");
-  const activeTab = activeTabProp ?? internalActiveTab;
 
   const gstMode = useMemo(
     () => getWarehouseAGstMode(supplierName),
@@ -151,11 +133,6 @@ export const WarehouseAAddStockWorkspace = forwardRef<
     setAdditionalCharges((current) => current.filter((row) => row.id !== id));
   };
 
-  const handleTabChange = (tab: AddStockWorkspaceTab) => {
-    setInternalActiveTab(tab);
-    onTabChange?.(tab);
-  };
-
   useImperativeHandle(
     ref,
     () => ({
@@ -171,25 +148,15 @@ export const WarehouseAAddStockWorkspace = forwardRef<
         gap: theme.spacing(2),
       }}
     >
-      <ModuleProcessTabs
-        onChange={handleTabChange}
-        tabs={warehouseAAddStockTabs}
-        value={activeTab}
-      />
-
-      <Box sx={{ display: activeTab === "item-details" ? "block" : "none" }}>
-        <SectionBlock title="Item Details">
+      <SectionBlock title="Item Details">
+        <Stack spacing={2}>
           <WarehouseAAddStockLineItems
             ref={lineItemsRef}
             gstMode={gstMode}
             slug={slug}
             onTotalsChange={setLineTotals}
           />
-        </SectionBlock>
-      </Box>
 
-      <Box sx={{ display: activeTab === "invoice-details" ? "block" : "none" }}>
-        <SectionBlock title="Invoice Details">
           <Stack spacing={2}>
             <Box>
               <Typography
@@ -345,8 +312,8 @@ export const WarehouseAAddStockWorkspace = forwardRef<
               </Stack>
             </Box>
           </Stack>
-        </SectionBlock>
-      </Box>
+        </Stack>
+      </SectionBlock>
     </Stack>
   );
 });
