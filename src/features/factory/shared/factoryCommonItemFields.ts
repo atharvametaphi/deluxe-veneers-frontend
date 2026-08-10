@@ -25,7 +25,7 @@ export const commonFactoryItemFieldSpecs = [
   ["grade", "Grade"],
   ["length", "Length"],
   ["width", "Width"],
-  ["height", "Height"],
+  ["height", "Thickness"],
   ["noOfLeaves", "No. of Leaves"],
   ["sqm", "SQM"],
   ["sqf", "SQF"],
@@ -192,7 +192,7 @@ export function mergeCommonFactoryItemFields(
   }
   if (!byKey.has("height") && byKey.has("thickness")) {
     const thicknessField = byKey.get("thickness")!;
-    byKey.set("height", { ...thicknessField, key: "height", label: "Height" });
+    byKey.set("height", { ...thicknessField, key: "height", label: "Thickness" });
   }
 
   const ordered: MasterFieldDefinition[] = [];

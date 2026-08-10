@@ -48,12 +48,14 @@ type SampleSheetTableRow = EnterpriseTableRow & {
   color: string;
   currentStage: string;
   currentStatus: string;
-  dimensions: string;
   issueDate: Date;
   itemName: string;
+  length: string;
   processRoute: string;
   sampleNo: string;
   subCategory: string;
+  thickness: string;
+  width: string;
 };
 
 const warehouseCInventoryTabs = [
@@ -72,7 +74,9 @@ const sampleSheetColumns: readonly EnterpriseTableColumn<SampleSheetTableRow>[] 
   { key: "itemName", label: "Item Name" },
   { key: "subCategory", label: "Sub Category" },
   { key: "color", label: "Color" },
-  { key: "dimensions", label: "Dimensions" },
+  { key: "length", label: "Length" },
+  { key: "width", label: "Width" },
+  { key: "thickness", label: "Thickness" },
   { key: "availableQuantity", label: "No. of Leaves / Quantity" },
   { key: "processRoute", label: "Process Route / Type" },
   { key: "currentStage", label: "Current Stage" },
@@ -116,9 +120,9 @@ export function WarehouseCInventoryModulePage({
         itemName: sample.itemName,
         subCategory: sample.subCategory,
         color: sample.color,
-        dimensions: [sample.length, sample.width, sample.thickness]
-          .filter(Boolean)
-          .join(" × "),
+        length: sample.length,
+        width: sample.width,
+        thickness: sample.thickness,
         availableQuantity: String(sample.availableSheets),
         processRoute: sample.processRoute,
         currentStage: sample.currentStage,

@@ -68,7 +68,7 @@ export function markWarehouseQcPass(row: WarehouseQcRow | string) {
     status: typeof row === "string" ? undefined : row.status,
   });
 
-  if (currentStatus === "pass" || currentStatus === "fail") {
+  if (currentStatus === "pass") {
     return false;
   }
 

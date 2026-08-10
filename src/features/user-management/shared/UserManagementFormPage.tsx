@@ -426,7 +426,6 @@ export function UserManagementFormPage({
       <Box
         sx={{
           width: "100%",
-          maxWidth: mode === "add" ? 1280 : 980,
           pb: 2,
         }}
       >
@@ -593,7 +592,6 @@ export function UserManagementFormPage({
               <Box
                 sx={{
                   width: "100%",
-                  maxWidth: activeStep === "permissions" ? 920 : "100%",
                   mt: 0.5,
                   pt: 1.5,
                   borderTop: `1px solid ${theme.customTokens.borders.divider}`,

@@ -119,23 +119,22 @@ const groupingHiddenSourceKeys = new Set([
 ]);
 
 const sourceColumnDefinitions: readonly SourceColumnDefinition[] = [
-  { key: "issueSrNo", keys: ["issueSrNo", "sampleSrNo", "srNo", "itemSrNo"], label: "Reference No", minWidth: 150 },
-  { key: "issuedFrom", keys: ["issuedFrom", "issuedFor", "process"], label: "Source Process / Warehouse", minWidth: 180 },
+  { key: "issuedFrom", keys: ["issuedFrom", "issuedFor", "process"], label: "Issued From", minWidth: 180 },
   { key: "orderNo", keys: ["orderNo"], label: "Order No", minWidth: 140 },
   { key: "orderItemNo", keys: ["orderItemNo"], label: "Order Item No", minWidth: 140 },
   { key: "issuedDate", keys: ["issuedDate", "issueDate", "processDate", "sampleDate"], label: "Date", minWidth: 130 },
   { key: "supplierName", keys: ["supplierName", "customerName"], label: "Source Name", minWidth: 180 },
   { key: "itemName", keys: ["itemName", "productName"], label: "Item Name", minWidth: 170 },
   { key: "groupNo", keys: ["groupNo"], label: "Group No.", minWidth: 160 },
-  { key: "palletNo", keys: ["palletNo", "bundleNumber", "lotNo"], label: "Pallet / Bundle / Lot", minWidth: 160 },
+  { key: "bundleNumber", keys: ["bundleNumber", "noOfBundle"], label: "Bundle No", minWidth: 140 },
+  { key: "palletNo", keys: ["palletNo"], label: "Pallet No", minWidth: 140 },
   { key: "itemSubCategory", keys: ["itemSubCategory", "subCategory"], label: "Item Sub Category", minWidth: 170 },
   { key: "color", keys: ["color", "colour", "processColour"], label: "Color", minWidth: 140 },
   { key: "logNo", keys: ["logNo", "logCode"], label: "Log No.", minWidth: 130 },
   { key: "grade", keys: ["grade"], label: "Grade", minWidth: 110 },
   { key: "length", keys: ["length"], label: "Length", minWidth: 120 },
   { key: "width", keys: ["width"], label: "Width", minWidth: 120 },
-  { key: "height", keys: ["height", "thickness"], label: "Height", minWidth: 120 },
-  { key: "thickness", keys: ["thickness", "thickess"], label: "Thickness", minWidth: 120 },
+  { key: "height", keys: ["height", "thickness", "thickess"], label: "Thickness", minWidth: 120 },
   { key: "noOfSheets", keys: ["noOfSheets", "sampleSheets", "finishedSheets", "issuedLeaves", "noOfLeaves", "noOfLeavesSheets"], label: "Original Quantity", minWidth: 140 },
   { key: "sqm", keys: ["sqm", "totalSqm", "availableSqm", "avSqm", "issuedSqm", "outputSqm", "consumedSqm", "consumeSqm", "finishedSqm"], label: "SQM", minWidth: 120 },
   { key: "sqf", keys: ["sqf", "totalSqf", "availableSqf", "avSqf", "issuedSqf", "outputSqf", "consumedSqf", "consumeSqf", "finishedSqf"], label: "SQF", minWidth: 120 },
@@ -238,7 +237,7 @@ const factoryCreateLineItemPresets: Partial<
     { key: "noOfBundle", label: "No of Bundle", type: "text" },
     { key: "length", label: "Length", type: "text" },
     { key: "width", label: "Width", type: "text" },
-    { key: "height", label: "Height", type: "text" },
+    { key: "height", label: "Thickness", type: "text" },
     { key: "remark", label: "Remark", type: "text" },
   ],
 };
@@ -1032,9 +1031,10 @@ const sourceOverviewLabelOverrides: Partial<Record<string, string>> = {
   supplierName: "Source / Customer",
   itemName: "Item Name",
   itemSubCategory: "Sub Category",
-  issuedFrom: "Source Process / Warehouse",
+  issuedFrom: "Issued From",
+  bundleNumber: "Bundle No",
   groupNo: "Group No.",
-  palletNo: "Pallet / Bundle / Lot",
+  palletNo: "Pallet No",
   noOfSheets: "Original Quantity",
 };
 
@@ -1046,16 +1046,9 @@ function buildSourceOverviewItems(
   sourceRow: SourceRow | undefined,
   columns: readonly SourceColumnDefinition[],
 ) {
-  const lengthValue = formatSourceValue(getSourceValue(sourceRow, ["length"]));
-  const widthValue = formatSourceValue(getSourceValue(sourceRow, ["width"]));
-  const hasDimensions = Boolean(lengthValue || widthValue);
   const items: Array<{ label: string; value: string }> = [];
 
   columns.forEach((column) => {
-    if (hasDimensions && (column.key === "length" || column.key === "width")) {
-      return;
-    }
-
     const value = formatSourceValue(getSourceValue(sourceRow, column.keys));
     if (!value) {
       return;
@@ -1066,20 +1059,6 @@ function buildSourceOverviewItems(
       value,
     });
   });
-
-  if (hasDimensions) {
-    const thicknessIndex = items.findIndex((item) => item.label === "Thickness");
-    const dimensionsItem = {
-      label: "Dimensions",
-      value: [lengthValue, widthValue].filter(Boolean).join(" × "),
-    };
-
-    if (thicknessIndex >= 0) {
-      items.splice(thicknessIndex, 0, dimensionsItem);
-    } else {
-      items.push(dimensionsItem);
-    }
-  }
 
   return items;
 }
@@ -1123,7 +1102,7 @@ function buildLineItemFields(
     { key: "logNo", label: "Log No.", type: "text" },
     { key: "length", label: "Length", type: "text" },
     { key: "width", label: "Width", type: "text" },
-    { key: "height", label: "Height", type: "text" },
+    { key: "height", label: "Thickness", type: "text" },
     { key: "remark", label: "Remark", type: "text" },
   ];
 

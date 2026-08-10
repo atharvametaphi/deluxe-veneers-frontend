@@ -923,7 +923,9 @@ const finishedListingHeaders = [
   { label: "Finished Type", minWidth: 130, align: "left" as const },
   { label: "Sales Item", minWidth: 160, align: "left" as const },
   { label: "Item Name", minWidth: 180, align: "left" as const },
-  { label: "Size", minWidth: 160, align: "left" as const },
+  { label: "Length", minWidth: 110, align: "left" as const },
+  { label: "Width", minWidth: 110, align: "left" as const },
+  { label: "Thickness", minWidth: 110, align: "left" as const },
   { label: "Sheets", minWidth: 80, align: "right" as const },
   { label: "SQM", minWidth: 90, align: "right" as const },
   { label: "SQF", minWidth: 90, align: "right" as const },
@@ -935,7 +937,9 @@ const rawListingHeaders = [
   { label: "#", minWidth: 56, align: "left" as const },
   { label: "Product Type", minWidth: 140, align: "left" as const },
   { label: "Item Name", minWidth: 180, align: "left" as const },
-  { label: "Size", minWidth: 160, align: "left" as const },
+  { label: "Length", minWidth: 110, align: "left" as const },
+  { label: "Width", minWidth: 110, align: "left" as const },
+  { label: "Thickness", minWidth: 110, align: "left" as const },
   { label: "Sheets", minWidth: 80, align: "right" as const },
   { label: "SQM", minWidth: 90, align: "right" as const },
   { label: "SQF", minWidth: 90, align: "right" as const },
@@ -966,11 +970,9 @@ function getFinishedListingValues(row: OrderLineItem, index: number) {
       value: row.itemName,
       align: "left" as const,
     },
-    {
-      label: "Size",
-      value: formatDimensions(row.length, row.width, row.thickness),
-      align: "left" as const,
-    },
+    { label: "Length", value: row.length, align: "left" as const },
+    { label: "Width", value: row.width, align: "left" as const },
+    { label: "Thickness", value: row.thickness, align: "left" as const },
     {
       label: "Sheets",
       value: row.quantitySheets,
@@ -1006,11 +1008,9 @@ function getRawListingValues(row: OrderLineItem, index: number) {
       value: row.itemName,
       align: "left" as const,
     },
-    {
-      label: "Size",
-      value: formatDimensions(row.length, row.width, row.thickness),
-      align: "left" as const,
-    },
+    { label: "Length", value: row.length, align: "left" as const },
+    { label: "Width", value: row.width, align: "left" as const },
+    { label: "Thickness", value: row.thickness, align: "left" as const },
     {
       label: "Sheets",
       value: row.quantitySheets,
@@ -1026,18 +1026,6 @@ function getRawListingValues(row: OrderLineItem, index: number) {
       emphasize: true,
     },
   ];
-}
-
-function formatDimensions(length: string, width: string, thickness: string) {
-  const parts = [length, width, thickness]
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (parts.length === 0) {
-    return "";
-  }
-
-  return `${parts.join(" × ")}${/[a-zA-Z]/.test(parts.join("")) ? "" : " mm"}`;
 }
 
 function mapValuesToLineItem(values: Record<string, string>): Omit<OrderLineItem, "id"> {

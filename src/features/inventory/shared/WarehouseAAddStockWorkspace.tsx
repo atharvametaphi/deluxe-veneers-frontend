@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { Plus, Trash2 } from "lucide-react";
 
+import { ModuleProcessTabs } from "../../../components/navigation/ModuleProcessTabs";
 import { getWarehouseAGstMode } from "../../masters/shared/masterDefinitions";
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import {
@@ -53,6 +54,14 @@ export interface WarehouseAAddStockWorkspaceHandle {
 
 export type AddStockWorkspaceTab = "item-details" | "invoice-details";
 
+const warehouseAAddStockTabs = [
+  { label: "Item Details", value: "item-details" },
+  { label: "Invoice Details", value: "invoice-details" },
+] as const satisfies readonly {
+  label: string;
+  value: AddStockWorkspaceTab;
+}[];
+
 export const WarehouseAAddStockWorkspace = forwardRef<
   WarehouseAAddStockWorkspaceHandle,
   {
@@ -63,6 +72,8 @@ export const WarehouseAAddStockWorkspace = forwardRef<
     supplierName?: string;
   }
 >(function WarehouseAAddStockWorkspace({
+  activeTab: activeTabProp,
+  onTabChange,
   slug,
   supplierName = "",
 }, ref) {
@@ -74,6 +85,9 @@ export const WarehouseAAddStockWorkspace = forwardRef<
   const [additionalCharges, setAdditionalCharges] = useState<
     AdditionalChargeRow[]
   >([]);
+  const [internalActiveTab, setInternalActiveTab] =
+    useState<AddStockWorkspaceTab>("item-details");
+  const activeTab = activeTabProp ?? internalActiveTab;
 
   const gstMode = useMemo(
     () => getWarehouseAGstMode(supplierName),
@@ -137,6 +151,11 @@ export const WarehouseAAddStockWorkspace = forwardRef<
     setAdditionalCharges((current) => current.filter((row) => row.id !== id));
   };
 
+  const handleTabChange = (tab: AddStockWorkspaceTab) => {
+    setInternalActiveTab(tab);
+    onTabChange?.(tab);
+  };
+
   useImperativeHandle(
     ref,
     () => ({
@@ -152,167 +171,181 @@ export const WarehouseAAddStockWorkspace = forwardRef<
         gap: theme.spacing(2),
       }}
     >
-      <SectionBlock title="Item Details">
-        <WarehouseAAddStockLineItems
-          ref={lineItemsRef}
-          gstMode={gstMode}
-          slug={slug}
-          onTotalsChange={setLineTotals}
-        />
-      </SectionBlock>
+      <ModuleProcessTabs
+        onChange={handleTabChange}
+        tabs={warehouseAAddStockTabs}
+        value={activeTab}
+      />
 
-      <Box>
-        <Typography
-          variant="subtitle2"
-          sx={{
-            mb: 1,
-            fontSize: "0.8125rem",
-            fontWeight: 600,
-          }}
-        >
-          Additional Charges
-        </Typography>
-
-        <Stack spacing={1}>
-          {additionalCharges.length > 0 ? (
-            <Box
-              sx={{
-                display: { xs: "none", md: "grid" },
-                gap: 1,
-                gridTemplateColumns:
-                  "minmax(200px, 1.4fr) minmax(120px, 0.7fr) 40px",
-                px: 0.25,
-              }}
-            >
-              <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                Charge Name
-              </Typography>
-              <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                Amount
-              </Typography>
-              <span />
-            </Box>
-          ) : null}
-
-          {additionalCharges.map((row) => (
-            <Box
-              key={row.id}
-              sx={{
-                display: "grid",
-                gap: 1,
-                alignItems: "center",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  md: "minmax(200px, 1.4fr) minmax(120px, 0.7fr) 40px",
-                },
-              }}
-            >
-              <TextField
-                fullWidth
-                placeholder="Enter charge name"
-                size="small"
-                value={row.name}
-                onChange={(event) =>
-                  handleChargeChange(row.id, "name", event.target.value)
-                }
-                sx={getCompactFieldSx(theme, "default", { dense: true })}
-              />
-              <TextField
-                fullWidth
-                placeholder="Amount"
-                size="small"
-                value={row.amount}
-                onChange={(event) =>
-                  handleChargeChange(row.id, "amount", event.target.value)
-                }
-                sx={getCompactFieldSx(theme, "default", { dense: true })}
-              />
-              <IconButton
-                aria-label="Remove charge"
-                onClick={() => handleRemoveCharge(row.id)}
-                size="small"
-                sx={{
-                  color: theme.customTokens.text.secondary,
-                  "&:hover": {
-                    color: theme.palette.error.main,
-                  },
-                }}
-              >
-                <Trash2 size={15} />
-              </IconButton>
-            </Box>
-          ))}
-
-          <Box>
-            <Button
-              disableElevation
-              onClick={handleAddCharge}
-              startIcon={<Plus size={14} />}
-              size="small"
-              sx={{
-                minHeight: 32,
-                textTransform: "none",
-                fontWeight: 600,
-                color: theme.customTokens.brand.primary,
-              }}
-              variant="text"
-            >
-              Add Charge
-            </Button>
-          </Box>
-        </Stack>
+      <Box sx={{ display: activeTab === "item-details" ? "block" : "none" }}>
+        <SectionBlock title="Item Details">
+          <WarehouseAAddStockLineItems
+            ref={lineItemsRef}
+            gstMode={gstMode}
+            slug={slug}
+            onTotalsChange={setLineTotals}
+          />
+        </SectionBlock>
       </Box>
 
-      <Divider sx={{ borderColor: theme.customTokens.borders.divider }} />
+      <Box sx={{ display: activeTab === "invoice-details" ? "block" : "none" }}>
+        <SectionBlock title="Invoice Details">
+          <Stack spacing={2}>
+            <Box>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  mb: 1,
+                  fontSize: "0.8125rem",
+                  fontWeight: 600,
+                }}
+              >
+                Additional Charges
+              </Typography>
 
-      <Box
-        sx={{
-          border: `1px solid ${theme.customTokens.borders.default}`,
-          borderRadius: `${theme.customTokens.radius.md}px`,
-          backgroundColor: theme.customTokens.surfaces.alt,
-          px: theme.spacing(2),
-          py: theme.spacing(1.5),
-          maxWidth: 420,
-          ml: "auto",
-          width: "100%",
-        }}
-      >
-        <Typography
-          variant="subtitle2"
-          sx={{
-            mb: 1,
-            fontSize: "0.75rem",
-            fontWeight: 600,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
-            color: theme.customTokens.text.secondary,
-          }}
-        >
-          Invoice Totals
-        </Typography>
+              <Stack spacing={1}>
+                {additionalCharges.length > 0 ? (
+                  <Box
+                    sx={{
+                      display: { xs: "none", md: "grid" },
+                      gap: 1,
+                      gridTemplateColumns:
+                        "minmax(200px, 1.4fr) minmax(120px, 0.7fr) 40px",
+                      px: 0.25,
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      Charge Name
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      Amount
+                    </Typography>
+                    <span />
+                  </Box>
+                ) : null}
 
-        <Stack spacing={0.75}>
-          <SummaryLine
-            label="Item Sub Total"
-            value={invoiceSummary.itemSubTotal}
-          />
-          <SummaryLine label="CGST" value={invoiceSummary.cgst} />
-          <SummaryLine label="SGST" value={invoiceSummary.sgst} />
-          <SummaryLine
-            label="Item Sub Total"
-            value={invoiceSummary.itemSubTotalWithTax}
-          />
-          <SummaryLine
-            label="Additional Charges"
-            value={invoiceSummary.additionalCharges}
-          />
-          <Divider sx={{ borderColor: theme.customTokens.borders.default }} />
-          <SummaryLine
-            emphasize
-            label="Grand Total"
-            value={invoiceSummary.grandTotal}
-          />
-        </Stack>
+                {additionalCharges.map((row) => (
+                  <Box
+                    key={row.id}
+                    sx={{
+                      display: "grid",
+                      gap: 1,
+                      alignItems: "center",
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        md: "minmax(200px, 1.4fr) minmax(120px, 0.7fr) 40px",
+                      },
+                    }}
+                  >
+                    <TextField
+                      fullWidth
+                      placeholder="Enter charge name"
+                      size="small"
+                      value={row.name}
+                      onChange={(event) =>
+                        handleChargeChange(row.id, "name", event.target.value)
+                      }
+                      sx={getCompactFieldSx(theme, "default", { dense: true })}
+                    />
+                    <TextField
+                      fullWidth
+                      placeholder="Amount"
+                      size="small"
+                      value={row.amount}
+                      onChange={(event) =>
+                        handleChargeChange(row.id, "amount", event.target.value)
+                      }
+                      sx={getCompactFieldSx(theme, "default", { dense: true })}
+                    />
+                    <IconButton
+                      aria-label="Remove charge"
+                      onClick={() => handleRemoveCharge(row.id)}
+                      size="small"
+                      sx={{
+                        color: theme.customTokens.text.secondary,
+                        "&:hover": {
+                          color: theme.palette.error.main,
+                        },
+                      }}
+                    >
+                      <Trash2 size={15} />
+                    </IconButton>
+                  </Box>
+                ))}
+
+                <Box>
+                  <Button
+                    disableElevation
+                    onClick={handleAddCharge}
+                    startIcon={<Plus size={14} />}
+                    size="small"
+                    sx={{
+                      minHeight: 32,
+                      textTransform: "none",
+                      fontWeight: 600,
+                      color: theme.customTokens.brand.primary,
+                    }}
+                    variant="text"
+                  >
+                    Add Charge
+                  </Button>
+                </Box>
+              </Stack>
+            </Box>
+
+            <Divider sx={{ borderColor: theme.customTokens.borders.divider }} />
+
+            <Box
+              sx={{
+                border: `1px solid ${theme.customTokens.borders.default}`,
+                borderRadius: `${theme.customTokens.radius.md}px`,
+                backgroundColor: theme.customTokens.surfaces.alt,
+                px: theme.spacing(2),
+                py: theme.spacing(1.5),
+                maxWidth: 420,
+                ml: "auto",
+                width: "100%",
+              }}
+            >
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  mb: 1,
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  color: theme.customTokens.text.secondary,
+                }}
+              >
+                Invoice Totals
+              </Typography>
+
+              <Stack spacing={0.75}>
+                <SummaryLine
+                  label="Item Sub Total"
+                  value={invoiceSummary.itemSubTotal}
+                />
+                <SummaryLine label="CGST" value={invoiceSummary.cgst} />
+                <SummaryLine label="SGST" value={invoiceSummary.sgst} />
+                <SummaryLine
+                  label="Item Sub Total"
+                  value={invoiceSummary.itemSubTotalWithTax}
+                />
+                <SummaryLine
+                  label="Additional Charges"
+                  value={invoiceSummary.additionalCharges}
+                />
+                <Divider sx={{ borderColor: theme.customTokens.borders.default }} />
+                <SummaryLine
+                  emphasize
+                  label="Grand Total"
+                  value={invoiceSummary.grandTotal}
+                />
+              </Stack>
+            </Box>
+          </Stack>
+        </SectionBlock>
       </Box>
     </Stack>
   );

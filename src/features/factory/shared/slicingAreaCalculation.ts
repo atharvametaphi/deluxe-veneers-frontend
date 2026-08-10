@@ -24,7 +24,7 @@ export function parseMeasurementMagnitude(value: unknown): number {
 }
 
 /**
- * Resolve Length / Width / Height in metres for Slicing.
+ * Resolve Length / Width / Thickness in metres for Slicing.
  * Values already in m/mtr are used as-is; legacy mm values are converted.
  */
 export function resolveSlicingDimensionMetres(value: unknown): number {

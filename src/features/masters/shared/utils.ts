@@ -30,6 +30,35 @@ function toDateDisplay(value: Date) {
   }).format(value);
 }
 
+function isRemarkToken(token: { key: string; label?: string }) {
+  const normalizedKey = normalizeTokenIdentifier(token.key);
+  const normalizedLabel = normalizeTokenIdentifier(token.label ?? "");
+
+  return (
+    normalizedKey === "remark" ||
+    normalizedKey === "remarks" ||
+    normalizedLabel === "remark" ||
+    normalizedLabel === "remarks"
+  );
+}
+
+function insertBeforeStatus<T extends { key: string; label?: string }>(
+  items: readonly T[],
+  itemToInsert: T,
+) {
+  const statusIndex = items.findIndex(isStatusToken);
+
+  if (statusIndex === -1) {
+    return [...items, itemToInsert];
+  }
+
+  return [
+    ...items.slice(0, statusIndex),
+    itemToInsert,
+    ...items.slice(statusIndex),
+  ];
+}
+
 export function createMasterRows(
   prefix: string,
   rows: ReadonlyArray<Omit<MasterRecord, "id"> & Partial<Pick<MasterRecord, "id">>>,
@@ -67,9 +96,17 @@ export function normalizeMasterRecordStatus(row: MasterRecord): MasterRecord {
 export function normalizeMasterDefinitionStatus(
   definition: MasterDefinition,
 ): MasterDefinition {
+  const hasRemarkColumn = definition.columns.some(isRemarkToken);
+  const hasRemarkField = definition.fields.some(isRemarkToken);
   const hasStatusColumn = definition.columns.some(isStatusToken);
   const hasStatusFilter = definition.filters.some(isStatusToken);
   const hasStatusField = definition.fields.some(isStatusToken);
+  const remarkColumn: MasterColumn = { key: "remark", label: "Remark" };
+  const remarkField: MasterFieldDefinition = {
+    key: "remark",
+    label: "Remark",
+    type: "text",
+  };
   const statusColumn: MasterColumn = { key: "status", label: "Status" };
   const statusFilter: MasterFilterDefinition = {
     key: "status",
@@ -85,17 +122,33 @@ export function normalizeMasterDefinitionStatus(
 
   return {
     ...definition,
-    columns: hasStatusColumn
-      ? definition.columns
-      : [...definition.columns, statusColumn],
-    fields: hasStatusField
-      ? definition.fields
-      : [...definition.fields, statusField],
+    columns: addStatusIfMissing(
+      hasRemarkColumn
+        ? definition.columns
+        : insertBeforeStatus(definition.columns, remarkColumn),
+      hasStatusColumn,
+      statusColumn,
+    ),
+    fields: addStatusIfMissing(
+      hasRemarkField
+        ? definition.fields
+        : insertBeforeStatus(definition.fields, remarkField),
+      hasStatusField,
+      statusField,
+    ),
     filters: hasStatusFilter
       ? definition.filters
       : [...definition.filters, statusFilter],
     rows: definition.rows.map(normalizeMasterRecordStatus),
   };
+}
+
+function addStatusIfMissing<T extends { key: string; label?: string }>(
+  items: readonly T[],
+  hasStatus: boolean,
+  statusItem: T,
+) {
+  return hasStatus ? [...items] : [...items, statusItem];
 }
 
 export function formatMasterValue(

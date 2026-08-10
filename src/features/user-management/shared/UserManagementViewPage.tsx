@@ -189,7 +189,6 @@ export function UserManagementViewPage() {
       <Box
         sx={{
           width: "100%",
-          maxWidth: 1080,
         }}
       >
         {errorMessage && !notFound ? (

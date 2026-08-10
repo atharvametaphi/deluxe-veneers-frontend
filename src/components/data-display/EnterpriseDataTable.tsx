@@ -1437,18 +1437,24 @@ function renderQcStatusChip(value: EnterpriseTableCellValue, theme: Theme) {
   const isPass =
     normalizedValue === "pass" ||
     normalizedValue === "qc pass" ||
+    normalizedValue === "inspection pass" ||
     normalizedValue === "done" ||
     normalizedValue === "qc done" ||
     normalizedValue === "inspection done";
   const isFail =
     normalizedValue === "fail" ||
     normalizedValue === "qc fail" ||
+    normalizedValue === "inspection fail" ||
     normalizedValue === "failed";
 
-  const label = isInspectionStatus
-    ? isPass
-      ? "Inspection Done"
-      : "Inspection Pending"
+  const label = normalizedValue === "inspection pass"
+    ? "Inspection Pass"
+    : normalizedValue === "inspection fail"
+      ? "Inspection Fail"
+      : isInspectionStatus
+        ? isPass
+          ? "Inspection Done"
+          : "Inspection Pending"
     : isPass
       ? "QC Pass"
       : isFail

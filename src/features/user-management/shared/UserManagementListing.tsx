@@ -5,7 +5,6 @@ import {
   Avatar,
   Box,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -77,7 +76,7 @@ import type { UserManagementRecord } from "./userManagementConfig";
 
 const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 75, 100, 200] as const;
 
-type ColumnFilterKey = "role" | "department" | "status";
+type ColumnFilterKey = "department" | "status";
 
 type RowAction = {
   id: string;
@@ -95,7 +94,6 @@ export function UserManagementListing() {
   const canView = canAccessPermission("userManagement", "view");
   const [searchValue, setSearchValue] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string[]>([]);
-  const [roleFilter, setRoleFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -162,11 +160,6 @@ export function UserManagementListing() {
     [rows],
   );
 
-  const roleOptions = useMemo(
-    () => getUniqueSortedValues(rows.map((row) => row.role)),
-    [rows],
-  );
-
   const filteredRows = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
@@ -185,10 +178,6 @@ export function UserManagementListing() {
           departmentFilter.length > 0 &&
           !departmentFilter.includes(row.department)
         ) {
-          return false;
-        }
-
-        if (roleFilter.length > 0 && !roleFilter.includes(row.role)) {
           return false;
         }
 
@@ -217,11 +206,11 @@ export function UserManagementListing() {
 
         return rightTime - leftTime;
       });
-  }, [departmentFilter, roleFilter, rows, searchValue, statusFilter]);
+  }, [departmentFilter, rows, searchValue, statusFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [searchValue, departmentFilter, roleFilter, statusFilter, rowsPerPage]);
+  }, [searchValue, departmentFilter, statusFilter, rowsPerPage]);
 
   const tableActions: readonly RowAction[] = [
     ...(canView
@@ -401,20 +390,11 @@ export function UserManagementListing() {
   };
 
   const activeColumnFilterCount =
-    (roleFilter.length > 0 ? 1 : 0) +
     (departmentFilter.length > 0 ? 1 : 0) +
     (statusFilter.length > 0 ? 1 : 0);
 
   const activeFilterChips = useMemo(() => {
     const chips: ActiveColumnFilterChip[] = [];
-
-    if (roleFilter.length > 0) {
-      chips.push({
-        columnKey: "role",
-        columnLabel: "Role",
-        filter: { type: "multiSelect", values: roleFilter },
-      });
-    }
 
     if (departmentFilter.length > 0) {
       chips.push({
@@ -427,7 +407,7 @@ export function UserManagementListing() {
     if (statusFilter.length > 0) {
       chips.push({
         columnKey: "status",
-        columnLabel: "Active",
+        columnLabel: "Status",
         filter: {
           type: "multiSelect",
           values: statusFilter.map((value) =>
@@ -438,7 +418,7 @@ export function UserManagementListing() {
     }
 
     return chips;
-  }, [departmentFilter, roleFilter, statusFilter]);
+  }, [departmentFilter, statusFilter]);
 
   const handleOpenColumnFilter = (
     columnKey: ColumnFilterKey,
@@ -455,16 +435,10 @@ export function UserManagementListing() {
   };
 
   const handleClearAllFilters = () => {
-    setRoleFilter([]);
     setDepartmentFilter([]);
     setStatusFilter([]);
     handleCloseColumnFilter();
   };
-
-  const roleFilterOptions = useMemo(
-    () => roleOptions.map((option) => ({ value: option, label: option })),
-    [roleOptions],
-  );
 
   const departmentFilterOptions = useMemo(
     () =>
@@ -481,17 +455,7 @@ export function UserManagementListing() {
   );
 
   const activeFilterConfig =
-    activeColumnFilter === "role"
-      ? {
-          label: "Role",
-          options: roleFilterOptions,
-          selectedValues: roleFilter,
-          searchable: true,
-          searchPlaceholder: "Search values...",
-          onApply: setRoleFilter,
-          onClear: () => setRoleFilter([]),
-        }
-      : activeColumnFilter === "department"
+    activeColumnFilter === "department"
         ? {
             label: "Department",
             options: departmentFilterOptions,
@@ -503,7 +467,7 @@ export function UserManagementListing() {
           }
         : activeColumnFilter === "status"
           ? {
-              label: "Active",
+              label: "Status",
               options: statusFilterOptions,
               selectedValues: statusFilter,
               searchable: true,
@@ -571,9 +535,7 @@ export function UserManagementListing() {
           filters={activeFilterChips}
           onClearAll={handleClearAllFilters}
           onRemove={(columnKey) => {
-            if (columnKey === "role") {
-              setRoleFilter([]);
-            } else if (columnKey === "department") {
+            if (columnKey === "department") {
               setDepartmentFilter([]);
             } else if (columnKey === "status") {
               setStatusFilter([]);
@@ -620,19 +582,6 @@ export function UserManagementListing() {
                 <TableCell
                   sx={{
                     ...tableHeaderCellSx(theme),
-                    width: "12%",
-                  }}
-                >
-                  <FilterableColumnHeader
-                    label="Role"
-                    selectedCount={roleFilter.length}
-                    onOpen={(event) => handleOpenColumnFilter("role", event)}
-                  />
-                </TableCell>
-
-                <TableCell
-                  sx={{
-                    ...tableHeaderCellSx(theme),
                     width: "13%",
                   }}
                 >
@@ -664,6 +613,15 @@ export function UserManagementListing() {
                 </TableCell>
 
                 <TableCell
+                  sx={{
+                    ...tableHeaderCellSx(theme),
+                    width: "14%",
+                  }}
+                >
+                  Remarks
+                </TableCell>
+
+                <TableCell
                   align="center"
                   sx={{
                     ...tableHeaderCellSx(theme),
@@ -671,7 +629,7 @@ export function UserManagementListing() {
                   }}
                 >
                   <FilterableColumnHeader
-                    label="Active"
+                    label="Status"
                     selectedCount={statusFilter.length}
                     align="center"
                     onOpen={(event) => handleOpenColumnFilter("status", event)}
@@ -791,30 +749,6 @@ export function UserManagementListing() {
                       </TableCell>
 
                       <TableCell sx={tableBodyCellSx(theme)}>
-                        <Chip
-                          label={row.role || "—"}
-                          size="small"
-                          sx={{
-                            height: 22,
-                            borderRadius: "8px",
-                            backgroundColor:
-                              theme.customTokens.neutrals[100],
-                            color: theme.customTokens.text.secondary,
-                            border: `1px solid ${theme.customTokens.borders.default}`,
-                            fontSize: "0.75rem",
-                            fontWeight: 500,
-                            maxWidth: "100%",
-                            "& .MuiChip-label": {
-                              px: 1,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            },
-                          }}
-                          variant="outlined"
-                        />
-                      </TableCell>
-
-                      <TableCell sx={tableBodyCellSx(theme)}>
                         <Typography
                           sx={{
                             fontSize: "0.875rem",
@@ -853,6 +787,20 @@ export function UserManagementListing() {
                           }}
                         >
                           {row.phoneNo || "—"}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell sx={tableBodyCellSx(theme)}>
+                        <Typography
+                          sx={{
+                            fontSize: "0.875rem",
+                            color: theme.customTokens.text.secondary,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {row.remarks || "—"}
                         </Typography>
                       </TableCell>
 

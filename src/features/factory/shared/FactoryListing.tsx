@@ -16,7 +16,14 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Eye, Pencil, Plus, RotateCcw, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Eye,
+  Pencil,
+  Plus,
+  RotateCcw,
+  XCircle,
+} from "lucide-react";
 import { useNavigate } from "react-router";
 
 import {
@@ -275,8 +282,8 @@ export function FactoryListing<Row extends FactoryRecord>({
         ({
           ...row,
           inspectionStatus: inspectionDoneRowIds.includes(row.id)
-            ? "Done"
-            : "Pending",
+            ? "Inspection Pass"
+            : "Inspection Fail",
         }) as Row,
     );
   }, [
@@ -299,7 +306,7 @@ export function FactoryListing<Row extends FactoryRecord>({
               },
             ]
           : []),
-        ...(canEdit
+        ...(canEdit && activeTab !== "issued"
           ? [
               {
                 id: "edit",
@@ -382,8 +389,9 @@ export function FactoryListing<Row extends FactoryRecord>({
                 navigate("/warehouse-c?section=inventory&inventory=raw-veneer"),
             }
           : {
-              id: "mark-inspection-done",
-              label: "Mark as Inspection Done",
+              id: "mark-inspection-pass",
+              label: "Inspection Pass",
+              icon: CheckCircle2,
               onSelect: (selectedRow) =>
                 setInspectionDoneRowIds((current) =>
                   current.includes(selectedRow.id)
@@ -1208,13 +1216,13 @@ function GroupingSampleIssueDialog<Row extends FactoryRecord>({
     "colour",
     "processColour",
   ]);
-  const dimensions = [
-    getGroupingSampleField(state?.row, ["length"]),
-    getGroupingSampleField(state?.row, ["width"]),
-    getGroupingSampleField(state?.row, ["thickness", "thickess"]),
-  ]
-    .filter(Boolean)
-    .join(" × ");
+  const length = getGroupingSampleField(state?.row, ["length"]);
+  const width = getGroupingSampleField(state?.row, ["width"]);
+  const thickness = getGroupingSampleField(state?.row, [
+    "height",
+    "thickness",
+    "thickess",
+  ]);
   const groupingRef = state?.row?.id ? String(state.row.id) : "";
   const issueSheetsNumber = Number(state?.issueSheets ?? "");
   const hasIssueSheetsValue = Boolean(state?.issueSheets);
@@ -1282,7 +1290,9 @@ function GroupingSampleIssueDialog<Row extends FactoryRecord>({
             <ReadOnlyDialogField label="Item Name" value={itemName} />
             <ReadOnlyDialogField label="Sub Category" value={subCategory} />
             <ReadOnlyDialogField label="Color" value={color} />
-            <ReadOnlyDialogField label="Dimensions" value={dimensions || "-"} />
+            <ReadOnlyDialogField label="Length" value={length || "-"} />
+            <ReadOnlyDialogField label="Width" value={width || "-"} />
+            <ReadOnlyDialogField label="Thickness" value={thickness || "-"} />
             <ReadOnlyDialogField
               label="Available No. of Leaves"
               value={availableSheets}

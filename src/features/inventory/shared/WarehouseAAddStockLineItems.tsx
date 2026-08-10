@@ -60,17 +60,25 @@ export type WarehouseALineItemsTotals = {
   totalAmount: number;
 };
 
-type DynamicFieldType = "text" | "select" | "item-name" | "hsn" | "gst" | "computed";
+export type WarehouseAAddStockFieldType =
+  | "text"
+  | "select"
+  | "item-name"
+  | "hsn"
+  | "gst"
+  | "computed";
 
-type DynamicFieldConfig = {
+export type WarehouseAAddStockFieldConfig = {
   key: string;
   label: string;
   minWidth: number;
   options?: readonly string[];
   placeholder: string;
   required?: boolean;
-  type: DynamicFieldType;
+  type: WarehouseAAddStockFieldType;
 };
+
+type DynamicFieldConfig = WarehouseAAddStockFieldConfig;
 
 type DynamicLineItem = {
   id: string;
@@ -130,7 +138,6 @@ const warehouseAAddStockTableConfigs: Record<
     { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
     { key: "hsn", label: "HSN Code", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
     { key: "color", label: "Color", minWidth: 160, options: ["Natural Oak", "Walnut Brown", "Teak Gold", "Ash Grey"], placeholder: "Color", type: "select" },
-    { key: "plywoodType", label: "Plywood Type", minWidth: 180, options: ["MR Grade", "BWR Grade", "Marine Grade", "Flexi Plywood"], placeholder: "Type", type: "select" },
     { key: "palletNo", label: "Pallet No", minWidth: 110, placeholder: "Pallet No", type: "text" },
     { key: "length", label: "Length", minWidth: 90, placeholder: "Length", type: "text", required: true },
     { key: "width", label: "Width", minWidth: 90, placeholder: "Width", type: "text", required: true },
@@ -149,7 +156,6 @@ const warehouseAAddStockTableConfigs: Record<
     { key: "itemName", label: "Item Name", minWidth: 260, placeholder: "Search or enter item", type: "item-name", required: true },
     { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
     { key: "hsn", label: "HSN Code", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
-    { key: "mdfType", label: "MDF Type", minWidth: 180, options: ["Plain MDF", "Moisture Resistant MDF", "Pre-Laminated MDF", "High Density MDF"], placeholder: "Type", type: "select" },
     { key: "palletNo", label: "Pallet No", minWidth: 110, placeholder: "Pallet No", type: "text" },
     { key: "length", label: "Length", minWidth: 90, placeholder: "Length", type: "text", required: true },
     { key: "width", label: "Width", minWidth: 90, placeholder: "Width", type: "text", required: true },
@@ -185,6 +191,22 @@ export function isWarehouseAAddStockSlug(
   value: string,
 ): value is WarehouseAAddStockSlug {
   return value in warehouseAAddStockTableConfigs;
+}
+
+export function getWarehouseAAddStockTableConfig(
+  slug: WarehouseAAddStockSlug,
+) {
+  return warehouseAAddStockTableConfigs[slug];
+}
+
+export function getWarehouseAAddStockTableMinWidth(
+  columns: readonly WarehouseAAddStockFieldConfig[],
+  includeActions = true,
+) {
+  return (
+    columns.reduce((total, column) => total + column.minWidth, 0) +
+    (includeActions ? 72 : 0)
+  );
 }
 
 export const WarehouseAAddStockLineItems = forwardRef<
@@ -259,8 +281,7 @@ export const WarehouseAAddStockLineItems = forwardRef<
   }, [lineItems, pendingFocusRowId]);
 
   const tableMinWidth = useMemo(
-    () =>
-      columnConfig.reduce((total, column) => total + column.minWidth, 0) + 72,
+    () => getWarehouseAAddStockTableMinWidth(columnConfig),
     [columnConfig],
   );
 
@@ -698,6 +719,13 @@ function formatAmount(value: number) {
   return formatAmountShared(value);
 }
 
+export function getWarehouseAAddStockHeaderCellSx(
+  theme: Theme,
+  minWidth: number,
+) {
+  return getHeaderCellSx(theme, minWidth);
+}
+
 function getHeaderCellSx(theme: Theme, minWidth: number) {
   return {
     minWidth,
@@ -712,6 +740,10 @@ function getHeaderCellSx(theme: Theme, minWidth: number) {
     py: theme.spacing(1),
     whiteSpace: "nowrap",
   } as const;
+}
+
+export function getWarehouseAAddStockBodyCellSx(theme: Theme) {
+  return getBodyCellSx(theme);
 }
 
 function getBodyCellSx(theme: Theme) {
@@ -751,6 +783,10 @@ function getActionBodyCellSx(
         : theme.customTokens.surfaces.alt,
     boxShadow: `-1px 0 0 ${theme.customTokens.borders.divider}`,
   } as const;
+}
+
+export function getWarehouseAAddStockScrollableTableSx(theme: Theme) {
+  return getScrollableTableSx(theme);
 }
 
 function getScrollableTableSx(theme: Theme) {
@@ -806,6 +842,36 @@ function getAddItemButtonSx(theme: Theme) {
       boxShadow: "none",
     },
   } as const;
+}
+
+export function renderWarehouseAAddStockEditableField({
+  column,
+  errorText,
+  onChange,
+  theme,
+  value,
+}: {
+  column: WarehouseAAddStockFieldConfig;
+  errorText?: string;
+  onChange: (value: string) => void;
+  theme: Theme;
+  value: string;
+}): ReactNode {
+  const input = {
+    column,
+    onChange,
+    theme,
+    value,
+  };
+
+  return renderEditableField(
+    errorText
+      ? {
+          ...input,
+          errorText,
+        }
+      : input,
+  );
 }
 
 function renderEditableField({

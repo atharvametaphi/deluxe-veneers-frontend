@@ -2,15 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
-  InputAdornment,
   Stack,
-  TextField,
   Typography,
   useTheme,
 } from "@mui/material";
-import { Check, Search } from "lucide-react";
+import { Check } from "lucide-react";
 
-import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
 import {
   type UserPermissionAction,
   type UserPermissionFlags,
@@ -49,7 +46,6 @@ export function UserPermissionMatrix({
   readOnly = false,
 }: UserPermissionMatrixProps) {
   const theme = useTheme();
-  const [searchValue, setSearchValue] = useState("");
   const [selectedSectionId, setSelectedSectionId] = useState(
     userPermissionSections[0]?.id ?? "",
   );
@@ -69,16 +65,7 @@ export function UserPermissionMatrix({
       return [];
     }
 
-    const query = searchValue.trim().toLowerCase();
     let items = selectedSection.items;
-
-    if (query) {
-      items = items.filter(
-        (item) =>
-          item.label.toLowerCase().includes(query) ||
-          item.key.toLowerCase().includes(query),
-      );
-    }
 
     if (readOnly && viewFilter === "granted") {
       items = items.filter((item) => {
@@ -88,7 +75,7 @@ export function UserPermissionMatrix({
     }
 
     return items;
-  }, [permissions, readOnly, searchValue, selectedSection, viewFilter]);
+  }, [permissions, readOnly, selectedSection, viewFilter]);
 
   useEffect(() => {
     if (
@@ -158,7 +145,6 @@ export function UserPermissionMatrix({
     <Box
       sx={{
         width: "100%",
-        maxWidth: 920,
         border: `1px solid ${theme.customTokens.borders.default}`,
         borderRadius: "10px",
         backgroundColor: theme.customTokens.surfaces.surface,
@@ -204,36 +190,6 @@ export function UserPermissionMatrix({
                 : "Configure what this user can access."}
             </Typography>
           </Stack>
-
-          <TextField
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="Search modules..."
-            size="small"
-            sx={[
-              getCompactFieldSx(theme),
-              {
-                width: { xs: "100%", sm: 240 },
-                "& .MuiOutlinedInput-root": {
-                  height: 36,
-                  minHeight: 36,
-                  borderRadius: "8px",
-                },
-              },
-            ]}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search
-                      size={14}
-                      color={theme.customTokens.text.secondary}
-                    />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
         </Stack>
 
         <Stack
@@ -336,7 +292,6 @@ export function UserPermissionMatrix({
           >
             {filteredItems.length} module
             {filteredItems.length === 1 ? "" : "s"}
-            {searchValue.trim() ? " matching search" : ""}
           </Typography>
         </Stack>
 
@@ -461,7 +416,7 @@ export function UserPermissionMatrix({
           >
             {readOnly && viewFilter === "granted"
               ? "No granted permissions in this category."
-              : "No modules match your search."}
+              : "No modules available in this category."}
           </Typography>
         </Box>
       ) : (

@@ -12,6 +12,7 @@ import {
   TableRow,
   TextField,
   Typography,
+  useTheme,
 } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
 import { ChevronLeft, Pencil, Save } from "lucide-react";
@@ -50,7 +51,15 @@ import {
 } from "../../warehouses/shared/warehouseTableData";
 import { InventoryPageShell } from "./InventoryPageShell";
 import {
+  getWarehouseAAddStockBodyCellSx,
+  getWarehouseAAddStockHeaderCellSx,
+  getWarehouseAAddStockScrollableTableSx,
+  getWarehouseAAddStockTableConfig,
+  getWarehouseAAddStockTableMinWidth,
   isWarehouseAAddStockSlug,
+  renderWarehouseAAddStockEditableField,
+  type WarehouseAAddStockFieldConfig,
+  type WarehouseAAddStockSlug,
 } from "./WarehouseAAddStockLineItems";
 import {
   WarehouseAAddStockWorkspace,
@@ -81,6 +90,9 @@ interface InventoryFormProps<Row extends InventoryRecord> {
 }
 
 type InventoryRecordDetailTab = "item-details" | "invoice-details";
+type InventoryItemDetailTableField =
+  | MasterFieldDefinition
+  | WarehouseAAddStockFieldConfig;
 
 const warehouseARecordDetailTabs = [
   { label: "Item Details", value: "item-details" },
@@ -135,6 +147,13 @@ export function InventoryForm<Row extends InventoryRecord>({
     isWarehouseAAddStockSlug(definition.slug)
       ? definition.slug
       : null;
+  const warehouseRecordDetailSlug =
+    (activeWarehouse === "warehouse-a" ||
+      activeWarehouse === "warehouse-b" ||
+      activeWarehouse === "warehouse-c") &&
+    isWarehouseAAddStockSlug(definition.slug)
+      ? definition.slug
+      : null;
   const closeInventoryForm = () => {
     navigate(listPath, { replace: true, flushSync: true });
   };
@@ -148,7 +167,11 @@ export function InventoryForm<Row extends InventoryRecord>({
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
     warehouseAAddStockSlug
       ? buildWarehouseAAddStockInitialValues(warehouseAAddStockSlug)
-      : buildInventoryInitialValues(baseFields, row),
+      : buildWarehouseARecordInitialValues(
+          baseFields,
+          row,
+          warehouseRecordDetailSlug,
+        ),
   );
   const fields = warehouseAAddStockSlug
     ? createWarehouseAAddStockHeaderFields(
@@ -162,8 +185,23 @@ export function InventoryForm<Row extends InventoryRecord>({
       )
     : null;
   const warehouseAInvoiceFields =
-    shouldSplitInventoryDetails && activeWarehouse === "warehouse-a"
-      ? getWarehouseAInvoiceDetailFields(baseFields)
+    shouldSplitInventoryDetails && warehouseRecordDetailSlug
+      ? getWarehouseAInvoiceDetailFields(baseFields, row)
+      : [];
+  const warehouseAInwardFields =
+    shouldSplitInventoryDetails &&
+    warehouseRecordDetailSlug &&
+    viewFieldGroups
+      ? getWarehouseAInwardDetailFields(viewFieldGroups.commonFields, row)
+      : [];
+  const warehouseAItemFields =
+    shouldSplitInventoryDetails &&
+    warehouseRecordDetailSlug &&
+    viewFieldGroups
+      ? getWarehouseAItemDetailFields(
+          warehouseRecordDetailSlug,
+          viewFieldGroups.itemFields,
+        )
       : [];
 
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -175,8 +213,14 @@ export function InventoryForm<Row extends InventoryRecord>({
       return;
     }
 
-    setValues(buildInventoryInitialValues(baseFields, row));
-  }, [baseFields, row, warehouseAAddStockSlug]);
+    setValues(
+      buildWarehouseARecordInitialValues(
+        baseFields,
+        row,
+        warehouseRecordDetailSlug,
+      ),
+    );
+  }, [baseFields, row, warehouseAAddStockSlug, warehouseRecordDetailSlug]);
 
   if ((mode === "edit" || mode === "view") && !row) {
     return (
@@ -272,29 +316,48 @@ export function InventoryForm<Row extends InventoryRecord>({
         >
           {shouldSplitInventoryDetails && viewFieldGroups ? (
             <Stack sx={(theme) => ({ gap: theme.spacing(1.5) })}>
-              <MasterFormFields
-                key={`${definition.slug}-${mode}-${row?.id ?? "new"}-common`}
-                compact={activeWarehouse !== "warehouse-a"}
-                definition={{
-                  gridColumns: 4,
-                  fields: viewFieldGroups.commonFields,
-                }}
-                onChange={(key, value) =>
-                  setValues((current) => ({
-                    ...current,
-                    [key]: value,
-                  }))
-                }
-                presentation={
-                  activeWarehouse !== "warehouse-a" && mode === "view"
-                    ? "details"
-                    : "form"
-                }
-                readOnly={mode === "view"}
-                values={values}
-              />
+              {warehouseRecordDetailSlug ? (
+                <Stack spacing={1.15}>
+                  <FormSectionHeader title="Inward Details" />
+                  <MasterFormFields
+                    key={`${definition.slug}-${mode}-${row?.id ?? "new"}-${activeWarehouse}-inward`}
+                    compact
+                    definition={{
+                      gridColumns: 5,
+                      fields: warehouseAInwardFields,
+                    }}
+                    onChange={(key, value) =>
+                      setValues((current) => ({
+                        ...current,
+                        [key]: value,
+                      }))
+                    }
+                    presentation="form"
+                    readOnly={mode === "view"}
+                    values={values}
+                  />
+                </Stack>
+              ) : (
+                <MasterFormFields
+                  key={`${definition.slug}-${mode}-${row?.id ?? "new"}-common`}
+                  compact
+                  definition={{
+                    gridColumns: 4,
+                    fields: viewFieldGroups.commonFields,
+                  }}
+                  onChange={(key, value) =>
+                    setValues((current) => ({
+                      ...current,
+                      [key]: value,
+                    }))
+                  }
+                  presentation={mode === "view" ? "details" : "form"}
+                  readOnly={mode === "view"}
+                  values={values}
+                />
+              )}
 
-              {activeWarehouse === "warehouse-a" &&
+              {warehouseRecordDetailSlug &&
               warehouseAInvoiceFields.length > 0 ? (
                 <WarehouseARecordDetailTabs
                   invoiceDetails={
@@ -313,7 +376,7 @@ export function InventoryForm<Row extends InventoryRecord>({
                   }
                   itemDetails={
                     <InventoryItemDetailsTable
-                      fields={viewFieldGroups.itemFields}
+                      fields={warehouseAItemFields}
                       onChange={(key, value) =>
                         setValues((current) => ({
                           ...current,
@@ -567,6 +630,15 @@ const warehouseAInvoiceDetailFieldKeys = new Set([
   "remark",
 ]);
 
+const warehouseAInwardDetailFieldOrder = [
+  "inwardSrNo",
+  "inwardDate",
+  "supplierName",
+  "invoiceNo",
+  "currency",
+  "exchangeRate",
+];
+
 const warehouseAAdditionalChargesField: MasterFieldDefinition = {
   key: "additionalCharges",
   label: "Additional Charges",
@@ -590,10 +662,136 @@ function getInventoryViewFieldGroups(
   };
 }
 
+function buildWarehouseARecordInitialValues(
+  fields: readonly MasterFieldDefinition[],
+  row: InventoryRecord | undefined,
+  slug: WarehouseAAddStockSlug | null,
+) {
+  const initialValues = buildInventoryInitialValues(fields, row);
+
+  if (!slug || !row) {
+    return initialValues;
+  }
+
+  return {
+    ...initialValues,
+    ...buildWarehouseARecordAliases(row),
+  };
+}
+
+function buildWarehouseARecordAliases(row: InventoryRecord) {
+  const getValue = (...keys: string[]) => {
+    for (const key of keys) {
+      const value = row[key];
+
+      if (value instanceof Date) {
+        return new Intl.DateTimeFormat("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }).format(value);
+      }
+
+      if (typeof value === "string" && value.length > 0) {
+        return value;
+      }
+    }
+
+    return "";
+  };
+
+  return {
+    additionalCharges: getValue("additionalCharges", "expenseAmount"),
+    amount: getValue("amount"),
+    bundleNumber: getValue("bundleNumber"),
+    cgst: getValue("cgst"),
+    color: getValue("color", "processColor", "timberColor"),
+    currency: getValue("currency"),
+    exchangeRate: getValue("exchangeRate"),
+    gstPercentage: getValue("gstPercentage", "gst"),
+    hsn: getValue("hsn", "hsnCode"),
+    igst: getValue("igst"),
+    invoiceNo: getValue("invoiceNo"),
+    itemName: getValue("itemName"),
+    itemSubCategory: getValue("itemSubCategory", "subCategory"),
+    logCode: getValue("logCode"),
+    mdfType: getValue("mdfType"),
+    noOfLeaves: getValue("noOfLeaves", "noOfLeavesSheets"),
+    noOfSheets: getValue("noOfSheets", "totalNoOfSheets"),
+    palletNo: getValue("palletNo", "palletNumber"),
+    plywoodType: getValue("plywoodType"),
+    productAmount: getValue("productAmount", "amount"),
+    remark: getValue("remark", "remarks"),
+    remarks: getValue("remark", "remarks"),
+    sgst: getValue("sgst"),
+    sheets: getValue("sheets", "totalNoOfSheets"),
+    supplierName: getValue("supplierName"),
+    thickness: getValue("thickness"),
+    totalAmount: getValue("totalAmount"),
+    totalSqMeter: getValue("totalSqMeter", "totalSqm"),
+    totalSqm: getValue("totalSqm", "totalSqMeter"),
+    width: getValue("width"),
+    length: getValue("length"),
+  } satisfies Record<string, MasterFieldValue>;
+}
+
+function getWarehouseAInwardDetailFields(
+  fields: readonly MasterFieldDefinition[],
+  row?: InventoryRecord,
+) {
+  const fieldsByKey = new Map(fields.map((field) => [field.key, field]));
+  const generatedFields = createWarehouseAAddStockHeaderFields(
+    typeof row?.currency === "string" ? row.currency : "INR",
+  );
+
+  if (!fieldsByKey.has("inwardSrNo") && typeof row?.inwardSrNo === "string") {
+    fieldsByKey.set("inwardSrNo", {
+      key: "inwardSrNo",
+      label: "Inward Sr No",
+      readOnly: true,
+      type: "text",
+    });
+  }
+
+  generatedFields.forEach((field) => {
+    if (!fieldsByKey.has(field.key)) {
+      fieldsByKey.set(field.key, field);
+    }
+  });
+
+  return warehouseAInwardDetailFieldOrder
+    .map((key) => fieldsByKey.get(key))
+    .filter((field): field is MasterFieldDefinition => Boolean(field));
+}
+
+function getWarehouseAItemDetailFields(
+  slug: WarehouseAAddStockSlug | null,
+  fallbackFields: readonly MasterFieldDefinition[],
+) {
+  if (!slug) {
+    return fallbackFields;
+  }
+
+  const fields = getWarehouseAAddStockTableConfig(slug);
+  return fields.length > 0 ? fields : fallbackFields;
+}
+
 function getWarehouseAInvoiceDetailFields(
   fields: readonly MasterFieldDefinition[],
+  row?: InventoryRecord,
 ) {
-  const invoiceFields = fields.filter((field) =>
+  const fieldsByKey = new Map(fields.map((field) => [field.key, field]));
+  const generatedFields = createWarehouseAAddStockHeaderFields(
+    typeof row?.currency === "string" ? row.currency : "INR",
+  );
+
+  generatedFields.forEach((field) => {
+    if (!fieldsByKey.has(field.key)) {
+      fieldsByKey.set(field.key, field);
+    }
+  });
+
+  const invoiceFields = Array.from(fieldsByKey.values()).filter((field) =>
     warehouseAInvoiceDetailFieldKeys.has(field.key),
   );
 
@@ -680,7 +878,7 @@ function InventoryItemDetailsTable({
   showTitle = true,
   values,
 }: {
-  fields: readonly MasterFieldDefinition[];
+  fields: readonly InventoryItemDetailTableField[];
   onChange: (key: string, value: MasterFieldValue) => void;
   readOnly: boolean;
   showTitle?: boolean;
@@ -689,6 +887,14 @@ function InventoryItemDetailsTable({
   if (fields.length === 0) {
     return null;
   }
+
+  const usesAddStockTable = fields.some(isWarehouseAAddStockTableField);
+  const tableMinWidth = usesAddStockTable
+    ? getWarehouseAAddStockTableMinWidth(
+        fields.filter(isWarehouseAAddStockTableField),
+        false,
+      )
+    : Math.max(fields.length * 150, 720);
 
   return (
     <Box
@@ -702,36 +908,43 @@ function InventoryItemDetailsTable({
         <Box
           sx={(theme) => ({
             border: `1px solid ${theme.customTokens.borders.default}`,
-            borderRadius: "8px",
+            borderRadius: usesAddStockTable
+              ? `${theme.customTokens.radius.md}px`
+              : "8px",
+            backgroundColor: theme.customTokens.surfaces.surface,
             overflow: "hidden",
           })}
         >
         <Box
-          sx={(theme) => ({
-            overflowX: "auto",
-            scrollbarColor: `${theme.palette.primary.main} ${theme.customTokens.surfaces.alt}`,
-            scrollbarWidth: "thin",
-            "&::-webkit-scrollbar": {
-              height: 8,
-            },
-            "&::-webkit-scrollbar-track": {
-              backgroundColor: theme.customTokens.surfaces.alt,
-              borderRadius: theme.customTokens.radius.pill,
-            },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: theme.palette.primary.main,
-              borderRadius: theme.customTokens.radius.pill,
-            },
-            "&::-webkit-scrollbar-thumb:hover": {
-              backgroundColor: theme.palette.primary.dark,
-            },
-          })}
+          sx={(theme) =>
+            usesAddStockTable
+              ? getWarehouseAAddStockScrollableTableSx(theme)
+              : {
+                  overflowX: "auto",
+                  scrollbarColor: `${theme.palette.primary.main} ${theme.customTokens.surfaces.alt}`,
+                  scrollbarWidth: "thin",
+                  "&::-webkit-scrollbar": {
+                    height: 8,
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    backgroundColor: theme.customTokens.surfaces.alt,
+                    borderRadius: theme.customTokens.radius.pill,
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    backgroundColor: theme.palette.primary.main,
+                    borderRadius: theme.customTokens.radius.pill,
+                  },
+                  "&::-webkit-scrollbar-thumb:hover": {
+                    backgroundColor: theme.palette.primary.dark,
+                  },
+                }
+          }
         >
           <Table
             size="small"
             sx={{
-              minWidth: Math.max(fields.length * 150, 720),
-              tableLayout: "auto",
+              minWidth: tableMinWidth,
+              tableLayout: usesAddStockTable ? "fixed" : "auto",
             }}
           >
             <TableHead>
@@ -739,19 +952,9 @@ function InventoryItemDetailsTable({
                 {fields.map((field) => (
                   <TableCell
                     key={field.key}
-                    sx={(theme) => ({
-                      backgroundColor: theme.palette.primary.main,
-                      borderRight: `1px solid ${theme.palette.primary.dark}`,
-                      color: theme.palette.primary.contrastText,
-                      fontSize: theme.typography.caption.fontSize,
-                      fontWeight: 700,
-                      px: theme.spacing(1.5),
-                      py: theme.spacing(1),
-                      whiteSpace: "nowrap",
-                      "&:last-of-type": {
-                        borderRight: 0,
-                      },
-                    })}
+                    sx={(theme) =>
+                      getInventoryItemDetailHeaderCellSx(theme, field)
+                    }
                   >
                     {field.label}
                   </TableCell>
@@ -764,22 +967,14 @@ function InventoryItemDetailsTable({
                 {fields.map((field) => (
                   <TableCell
                     key={field.key}
-                    sx={(theme) => ({
-                      borderRight: `1px solid ${theme.customTokens.borders.default}`,
-                      color: theme.palette.text.primary,
-                      fontSize: theme.typography.body2.fontSize,
-                      px: theme.spacing(1.5),
-                      py: theme.spacing(1.25),
-                      whiteSpace: "nowrap",
-                      "&:last-of-type": {
-                        borderRight: 0,
-                      },
-                    })}
+                    sx={(theme) =>
+                      getInventoryItemDetailBodyCellSx(theme, field)
+                    }
                   >
-                    {readOnly || field.readOnly ? (
+                    {readOnly || isInventoryItemDetailFieldReadOnly(field) ? (
                       formatInventoryViewValue(values[field.key])
                     ) : (
-                      <InventoryItemDetailsInput
+                      <InventoryItemDetailsField
                         field={field}
                         onChange={(value) => onChange(field.key, value)}
                         value={values[field.key]}
@@ -794,6 +989,95 @@ function InventoryItemDetailsTable({
       </Box>
       </Stack>
     </Box>
+  );
+}
+
+function isWarehouseAAddStockTableField(
+  field: InventoryItemDetailTableField,
+): field is WarehouseAAddStockFieldConfig {
+  return "minWidth" in field;
+}
+
+function isInventoryItemDetailFieldReadOnly(
+  field: InventoryItemDetailTableField,
+) {
+  return "readOnly" in field && field.readOnly === true;
+}
+
+function getInventoryItemDetailHeaderCellSx(
+  theme: Theme,
+  field: InventoryItemDetailTableField,
+) {
+  if (isWarehouseAAddStockTableField(field)) {
+    return getWarehouseAAddStockHeaderCellSx(theme, field.minWidth);
+  }
+
+  return {
+    backgroundColor: theme.palette.primary.main,
+    borderRight: `1px solid ${theme.palette.primary.dark}`,
+    color: theme.palette.primary.contrastText,
+    fontSize: theme.typography.caption.fontSize,
+    fontWeight: 700,
+    px: theme.spacing(1.5),
+    py: theme.spacing(1),
+    whiteSpace: "nowrap",
+    "&:last-of-type": {
+      borderRight: 0,
+    },
+  } as const;
+}
+
+function getInventoryItemDetailBodyCellSx(
+  theme: Theme,
+  field: InventoryItemDetailTableField,
+) {
+  if (isWarehouseAAddStockTableField(field)) {
+    return getWarehouseAAddStockBodyCellSx(theme);
+  }
+
+  return {
+    borderRight: `1px solid ${theme.customTokens.borders.default}`,
+    color: theme.palette.text.primary,
+    fontSize: theme.typography.body2.fontSize,
+    px: theme.spacing(1.5),
+    py: theme.spacing(1.25),
+    whiteSpace: "nowrap",
+    "&:last-of-type": {
+      borderRight: 0,
+    },
+  } as const;
+}
+
+function InventoryItemDetailsField({
+  field,
+  onChange,
+  value,
+}: {
+  field: InventoryItemDetailTableField;
+  onChange: (value: MasterFieldValue) => void;
+  value: MasterFieldValue | undefined;
+}) {
+  const theme = useTheme();
+
+  if (isWarehouseAAddStockTableField(field)) {
+    return (
+      <Box sx={{ minWidth: field.minWidth - 16 }}>
+        {renderWarehouseAAddStockEditableField({
+          column: field,
+          onChange: (nextValue) => onChange(nextValue),
+          theme,
+          value: getInventoryInputValue(value),
+        })}
+      </Box>
+    );
+  }
+
+  return (
+    <InventoryItemDetailsInput
+      field={field}
+      onChange={onChange}
+      value={value}
+    />
   );
 }
 

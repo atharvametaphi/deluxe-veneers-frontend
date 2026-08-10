@@ -120,6 +120,19 @@ const warehouseBaseColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow
     { key: "remark", label: "Remark" },
   ];
 
+export const warehouseInvoiceListingColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
+  [
+    { key: "inwardSrNo", label: "Inward Sr No" },
+    { key: "inwardDate", label: "Inward Date" },
+    { key: "invoiceNo", label: "Invoice No" },
+    { key: "supplierName", label: "Supplier Name" },
+    { key: "currency", label: "Currency" },
+    { key: "amount", label: "Amount" },
+    { key: "expenseAmount", label: "Expense Amount" },
+    { key: "qcStatus", label: "QC Status" },
+    { key: "remark", label: "Remark" },
+  ];
+
 const warehouseBColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
   [...warehouseBaseColumns, { key: "status", label: "Status" }];
 
@@ -223,6 +236,55 @@ const warehouseAConsumablesColumns: readonly EnterpriseTableColumn<WarehouseInve
     { key: "currency", label: "Currency" },
     { key: "amount", label: "Amount" },
     { key: "remark", label: "Remark" },
+  ];
+
+const warehouseCVeneerColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
+  [
+    { key: "inwardDate", label: "Inward Date" },
+    { key: "itemName", label: "Item Name" },
+    { key: "subCategory", label: "Sub Category" },
+    { key: "length", label: "Length" },
+    { key: "width", label: "Width" },
+    { key: "thickness", label: "Thickness" },
+    { key: "noOfLeaves", label: "No of Leaves" },
+    { key: "totalSqm", label: "SQM" },
+    { key: "totalSqf", label: "SQF" },
+    { key: "grade", label: "Grade" },
+    { key: "currency", label: "Currency" },
+    { key: "amount", label: "Amount" },
+    { key: "remark", label: "Remark" },
+  ];
+
+const warehouseCPlywoodColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
+  [
+    { key: "inwardDate", label: "Inward Date" },
+    { key: "itemName", label: "Item Name" },
+    { key: "subCategory", label: "Sub Category" },
+    { key: "color", label: "Color" },
+    { key: "length", label: "Length" },
+    { key: "width", label: "Width" },
+    { key: "thickness", label: "Thickness" },
+    { key: "totalNoOfSheets", label: "No of Sheets" },
+    { key: "totalSqm", label: "SQM" },
+    { key: "totalSqf", label: "SQF" },
+    { key: "amount", label: "Amount" },
+    { key: "remark", label: "Remark" },
+  ];
+
+const warehouseCMdfColumns: readonly EnterpriseTableColumn<WarehouseInventoryRow>[] =
+  [
+    { key: "inwardDate", label: "Inward Date" },
+    { key: "itemName", label: "Item Name" },
+    { key: "mdfType", label: "MDF Type" },
+    { key: "length", label: "Length" },
+    { key: "width", label: "Width" },
+    { key: "thickness", label: "Thickness" },
+    { key: "noOfLeaves", label: "No of Leaves" },
+    { key: "totalSqm", label: "SQM" },
+    { key: "totalSqf", label: "SQF" },
+    { key: "currency", label: "Currency" },
+    { key: "amount", label: "Amount" },
+    { key: "remark", label: "Remarks" },
   ];
 
 const warehouseAVeneerColumnsWithQc = withQcStatusColumn(warehouseAVeneerColumns);
@@ -436,6 +498,7 @@ function mapWarehouseVeneerRow(
     dropSupplierFields?: boolean;
     dropInvoice?: boolean;
     idPrefix?: string;
+    inventorySlug?: WarehouseAInventorySlug;
     status?: string;
   },
 ): WarehouseInventoryRow {
@@ -447,6 +510,7 @@ function mapWarehouseVeneerRow(
   return {
     ...base,
     id: `${base.id}-${index + 1}`,
+    inventorySlug: options?.inventorySlug ?? base.inventorySlug,
     inventoryRecordId: options?.dropSupplierFields
       ? `${base.inventoryRecordId}-production`
       : base.inventoryRecordId,
@@ -606,7 +670,7 @@ const warehouseAVeneerBlockRows = rawVeneerDefinition.rows.map((row, index) =>
         `VNR-${String(index + 1).padStart(5, "0")}`,
     } as Record<string, unknown>,
     index,
-    { idPrefix: "warehouse-a-veneer-blocks" },
+    { idPrefix: "warehouse-a-veneer-blocks", inventorySlug: "veneer-blocks" },
   ),
 );
 
@@ -828,17 +892,17 @@ export const warehouseCInventoryConfigs: Record<
 > = {
   "raw-veneer": {
     title: "Raw Veneer",
-    columns: warehouseAVeneerColumns,
+    columns: warehouseCVeneerColumns,
     rows: rawRows.slice(0, 2),
   },
   plywood: {
     title: "Plywood",
-    columns: warehouseAPlywoodColumns,
+    columns: warehouseCPlywoodColumns,
     rows: plywoodRows.slice(0, 2),
   },
   mdf: {
     title: "MDF",
-    columns: warehouseAMdfColumns,
+    columns: warehouseCMdfColumns,
     rows: mdfRows.slice(0, 2),
   },
 };

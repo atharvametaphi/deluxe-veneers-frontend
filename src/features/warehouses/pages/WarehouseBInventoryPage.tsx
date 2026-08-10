@@ -1,15 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck,
   Eye,
   FileOutput,
-  Pencil,
   Plus,
+  RotateCcw,
   Truck,
 } from "lucide-react";
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Stack,
   Typography,
   useTheme,
@@ -47,16 +51,24 @@ import {
   getFactoryPermissionKey,
 } from "../../permissions";
 import {
+  getListingToolbarButtonSx,
   getListingToolbarOutlinedButtonSx,
   portalButtonGroupGap,
+  recordFormActionButtonSx,
 } from "../../shared/buttonStyles";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import { exportRowsToCsv } from "../../shared/exportToCsv";
+import {
+  getFactoryListPathForProcess,
+  issueFactoryWork,
+} from "../../factory/shared/factoryIssuedWorkStore";
+import type { FactoryRecord } from "../../factory/shared/types";
 import {
   warehouseAInventoryConfigs,
   warehouseBInspectionConfigs,
   warehouseBInventoryConfigs,
   warehouseBRawVeneerTabConfigs,
+  warehouseInvoiceListingColumns,
   warehouseRawVeneerTabConfigs,
   type WarehouseBRawVeneerTab,
 } from "../shared/warehouseTableData";
@@ -69,6 +81,11 @@ import {
   getWarehouseQcPassedRows,
   subscribeWarehouseQcStatusUpdates,
 } from "../shared/warehouseQcStore";
+import {
+  getOrderLineItems,
+  useOrderRecords,
+  type OrderRecord,
+} from "../../orders/shared/ordersStore";
 
 type WarehouseBSection = "inspection" | "inventory";
 type WarehouseBInventorySlug =
@@ -134,6 +151,12 @@ const warehouseBMoveToWarehouseCInventories = new Set<WarehouseBInventorySlug>([
   "mdf",
 ]);
 
+const warehouseBIssueOrderInventories = new Set<WarehouseBInventorySlug>([
+  "raw-veneer",
+  "plywood",
+  "mdf",
+]);
+
 export function WarehouseBInventoryPage() {
   return <WarehouseBInventoryModulePage />;
 }
@@ -178,12 +201,19 @@ export function WarehouseBInventoryModulePage({
     },
   };
   const navigate = useNavigate();
+  const orderRecords = useOrderRecords();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState("");
   const [selectedRows, setSelectedRows] = useState<InventoryRecord[]>([]);
   const [selectionResetKey, setSelectionResetKey] = useState(0);
+  const [revertedRowIds, setRevertedRowIds] = useState<string[]>([]);
   const [qcStatusRevision, setQcStatusRevision] = useState(0);
   const [inwardRevision, setInwardRevision] = useState(0);
+  const [issueOrderDialogOpen, setIssueOrderDialogOpen] = useState(false);
+  const [issueOrderValues, setIssueOrderValues] = useState({
+    orderItemNo: "",
+    orderNo: "",
+  });
 
   const activeSection = getActiveWarehouseBSection(searchParams.get("section"));
   const activeInventory = getActiveInventoryTab(searchParams.get("inventory"));
@@ -212,9 +242,8 @@ export function WarehouseBInventoryModulePage({
       ? activeWarehouseBStockRows
       : activeRawVeneerConfig?.rows ?? activeWarehouseInventoryConfig.rows
   ) as readonly InventoryRecord[];
-  const activeColumns = (
-    activeRawVeneerConfig?.columns ?? activeWarehouseInventoryConfig.columns
-  ) as readonly EnterpriseTableColumn<InventoryRecord>[];
+  const activeInventoryColumns =
+    warehouseInvoiceListingColumns as readonly EnterpriseTableColumn<InventoryRecord>[];
   const inventoryPaths = getInventoryPaths(
     activeDefinition.slug,
     activeProcessTab,
@@ -247,13 +276,16 @@ export function WarehouseBInventoryModulePage({
     [],
   );
 
-  const inventoryTabRows = useMemo(
-    () =>
+  const inventoryTabRows = useMemo(() => {
+    const rows =
       activeProcessTab === "issued"
         ? activeRows
-        : getInventoryRowsForTab(activeRows, activeProcessTab),
-    [activeProcessTab, activeRows],
-  );
+        : getInventoryRowsForTab(activeRows, activeProcessTab);
+
+    return activeProcessTab === "issued"
+      ? rows.filter((row) => !revertedRowIds.includes(row.id))
+      : rows;
+  }, [activeProcessTab, activeRows, revertedRowIds]);
 
   const filteredInventoryRows = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
@@ -315,6 +347,65 @@ export function WarehouseBInventoryModulePage({
     );
   }, [activeInspectionRows, searchValue]);
 
+  const rawOrderRecords = useMemo(
+    () => orderRecords.filter(isRawOrderRecord),
+    [orderRecords],
+  );
+  const issueOrderNoOptions = useMemo(
+    () =>
+      rawOrderRecords
+        .filter((record) => getOrderLineItems(record.id).length > 0)
+        .map((record) => record.orderNo),
+    [rawOrderRecords],
+  );
+  const selectedIssueOrder = useMemo(
+    () =>
+      rawOrderRecords.find(
+        (record) => record.orderNo === issueOrderValues.orderNo,
+      ) ?? null,
+    [issueOrderValues.orderNo, rawOrderRecords],
+  );
+  const issueOrderItemNoOptions = useMemo(
+    () =>
+      selectedIssueOrder
+        ? getOrderLineItems(selectedIssueOrder.id).map((_, index) =>
+            String(index + 1),
+          )
+        : [],
+    [selectedIssueOrder],
+  );
+
+  const issueWarehouseBRowsForSlicing = useCallback(
+    (rows: readonly InventoryRecord[]) => {
+      if (!canEditWarehouseB || !canCreateSlicing || rows.length === 0) {
+        return;
+      }
+
+      rows.forEach((row) => {
+        issueFactoryWork({
+          destinationProcess: "slicing",
+          sourceSlug: warehouseName,
+          sourceRow: {
+            ...row,
+            issuedFrom: warehouseName,
+            issuedFor: "Slicing",
+            issuedDate: new Date(),
+          } as FactoryRecord,
+        });
+      });
+
+      setRevertedRowIds((current) => {
+        const nextIds = new Set(current);
+        rows.forEach((row) => nextIds.add(row.id));
+        return [...nextIds];
+      });
+      setSelectedRows([]);
+      setSelectionResetKey((current) => current + 1);
+      navigate(getFactoryListPathForProcess("slicing"));
+    },
+    [canCreateSlicing, canEditWarehouseB, navigate, warehouseName],
+  );
+
   const inventoryRowActions = useMemo<
     ReadonlyArray<EnterpriseTableAction<InventoryRecord>>
   >(() => {
@@ -338,11 +429,14 @@ export function WarehouseBInventoryModulePage({
 
     if (activeInventory === "veneer-blocks" && canEditWarehouseB) {
       baseActions.push({
-        id: "edit",
-        label: "Edit",
-        icon: Pencil,
+        id: "revert",
+        label: "Revert",
+        icon: RotateCcw,
+        tone: "danger",
         onSelect: (row) =>
-          navigate(inventoryPaths.edit(getWarehouseBRecordId(row))),
+          setRevertedRowIds((current) =>
+            current.includes(row.id) ? current : [...current, row.id],
+          ),
       });
     }
 
@@ -352,11 +446,14 @@ export function WarehouseBInventoryModulePage({
     ) {
       baseActions.push(
         {
-          id: "edit",
-          label: "Edit",
-          icon: Pencil,
+          id: "revert",
+          label: "Revert",
+          icon: RotateCcw,
+          tone: "danger",
           onSelect: (row) =>
-            navigate(inventoryPaths.edit(getWarehouseBRecordId(row))),
+            setRevertedRowIds((current) =>
+              current.includes(row.id) ? current : [...current, row.id],
+            ),
         },
         ...(canCreateWarehouseC
           ? [
@@ -385,12 +482,7 @@ export function WarehouseBInventoryModulePage({
         label: "Issue for Slicing",
         icon: Plus,
         tone: "primary",
-        onSelect: (row) =>
-          navigate("/factory/slicing/add", {
-            state: {
-              sourceRow: row,
-            },
-          }),
+        onSelect: (row) => issueWarehouseBRowsForSlicing([row]),
       });
     }
 
@@ -403,6 +495,7 @@ export function WarehouseBInventoryModulePage({
     canEditWarehouseB,
     canViewWarehouseB,
     inventoryPaths,
+    issueWarehouseBRowsForSlicing,
     navigate,
   ]);
 
@@ -462,14 +555,19 @@ export function WarehouseBInventoryModulePage({
     activeProcessTab === "issued" &&
     canEditWarehouseB &&
     canCreateSlicing &&
-    selectedRows.length > 1;
+    selectedRows.length > 0;
   const showBulkMoveToWarehouseC =
     activeSection === "inventory" &&
     warehouseBMoveToWarehouseCInventories.has(activeInventory) &&
     activeProcessTab === "issued" &&
     canEditWarehouseB &&
     canCreateWarehouseC &&
-    selectedRows.length > 1;
+    selectedRows.length > 0;
+  const showIssueOrderButton =
+    activeSection === "inventory" &&
+    activeProcessTab === "issued" &&
+    warehouseBIssueOrderInventories.has(activeInventory) &&
+    canEditWarehouseB;
 
   const handleCancelBulkSelection = () => {
     setSelectedRows([]);
@@ -482,6 +580,26 @@ export function WarehouseBInventoryModulePage({
     }
 
     navigate(`/warehouse-c?section=inventory&inventory=${activeInventory}`);
+  };
+
+  const handleOpenIssueOrderDialog = () => {
+    setIssueOrderValues({
+      orderItemNo: "",
+      orderNo: "",
+    });
+    setIssueOrderDialogOpen(true);
+  };
+
+  const handleCloseIssueOrderDialog = () => {
+    setIssueOrderDialogOpen(false);
+  };
+
+  const handleSubmitIssueOrder = () => {
+    if (!issueOrderValues.orderNo || !issueOrderValues.orderItemNo) {
+      return;
+    }
+
+    setIssueOrderDialogOpen(false);
   };
 
   return (
@@ -580,6 +698,17 @@ export function WarehouseBInventoryModulePage({
                 flexWrap: "wrap",
               }}
             >
+              {showIssueOrderButton ? (
+                <Button
+                  variant="contained"
+                  startIcon={<Plus size={15} />}
+                  onClick={handleOpenIssueOrderDialog}
+                  sx={(theme) => getListingToolbarButtonSx(theme)}
+                >
+                  Issue Order
+                </Button>
+              ) : null}
+
               <Button
                 variant="outlined"
                 startIcon={<FileOutput size={15} />}
@@ -587,7 +716,7 @@ export function WarehouseBInventoryModulePage({
                 onClick={() =>
                   exportRowsToCsv(
                     filteredInventoryRows,
-                    activeColumns,
+                    activeInventoryColumns,
                     `warehouse-b-${activeInventory}`,
                   )
                 }
@@ -595,7 +724,6 @@ export function WarehouseBInventoryModulePage({
               >
                 Export
               </Button>
-
             </Stack>
           ) : null}
         </Stack>
@@ -638,13 +766,7 @@ export function WarehouseBInventoryModulePage({
 
                 <Button
                   variant="contained"
-                  onClick={() =>
-                    navigate("/factory/slicing/add", {
-                      state: {
-                        sourceRows: selectedRows,
-                      },
-                    })
-                  }
+                  onClick={() => issueWarehouseBRowsForSlicing(selectedRows)}
                   sx={bulkPrimaryButtonSx}
                 >
                   Issue for Slicing
@@ -707,7 +829,7 @@ export function WarehouseBInventoryModulePage({
           <EnterpriseDataTable
             key={`${activeInventory}-${activeRawVeneerTab}-${activeProcessTab}`}
             actions={inventoryRowActions}
-            columns={activeColumns}
+            columns={activeInventoryColumns}
             defaultRowsPerPage={10}
             emptyStateLabel={`No ${activeDefinition.title.toLowerCase()} records are available for this tab.`}
             onSelectionChange={setSelectedRows}
@@ -739,6 +861,16 @@ export function WarehouseBInventoryModulePage({
           />
         ) : null}
       </Stack>
+
+      <IssueOrderDialog
+        itemNoOptions={issueOrderItemNoOptions}
+        onChange={(nextValues) => setIssueOrderValues(nextValues)}
+        onClose={handleCloseIssueOrderDialog}
+        onSubmit={handleSubmitIssueOrder}
+        open={issueOrderDialogOpen}
+        orderNoOptions={issueOrderNoOptions}
+        values={issueOrderValues}
+      />
     </InventoryPageShell>
   );
 }
@@ -968,4 +1100,146 @@ function formatSearchValue(value: EnterpriseTableCellValue) {
   }
 
   return String(value).toLowerCase();
+}
+
+type IssueOrderValues = {
+  orderItemNo: string;
+  orderNo: string;
+};
+
+function IssueOrderDialog({
+  itemNoOptions,
+  onChange,
+  onClose,
+  onSubmit,
+  open,
+  orderNoOptions,
+  values,
+}: {
+  itemNoOptions: readonly string[];
+  onChange: (values: IssueOrderValues) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  open: boolean;
+  orderNoOptions: readonly string[];
+  values: IssueOrderValues;
+}) {
+  return (
+    <Dialog
+      fullWidth
+      maxWidth="sm"
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: (theme) => ({
+          borderRadius: `${theme.customTokens.radius.lg}px`,
+          border: `1px solid ${theme.customTokens.borders.default}`,
+          boxShadow: theme.customTokens.elevation.lg,
+        }),
+      }}
+    >
+      <DialogTitle
+        sx={(theme) => ({
+          borderBottom: `1px solid ${theme.customTokens.borders.default}`,
+          fontSize: theme.typography.h3.fontSize,
+          fontWeight: 700,
+          px: theme.spacing(2),
+          py: theme.spacing(1.5),
+        })}
+      >
+        Issue Order
+      </DialogTitle>
+
+      <DialogContent
+        sx={(theme) => ({
+          px: theme.spacing(2),
+          py: `${theme.spacing(2)} !important`,
+        })}
+      >
+        <Box
+          sx={(theme) => ({
+            display: "grid",
+            gap: theme.spacing(2),
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+            },
+          })}
+        >
+          <Stack spacing={0.75}>
+            <IssueOrderFieldLabel>Order No</IssueOrderFieldLabel>
+            <ErpSelectField
+              onChange={(value) =>
+                onChange({
+                  orderItemNo: "",
+                  orderNo: value,
+                })
+              }
+              options={orderNoOptions}
+              size="dense"
+              state={orderNoOptions.length === 0 ? "disabled" : "default"}
+              value={values.orderNo}
+            />
+          </Stack>
+
+          <Stack spacing={0.75}>
+            <IssueOrderFieldLabel>Order Item No</IssueOrderFieldLabel>
+            <ErpSelectField
+              onChange={(value) =>
+                onChange({
+                  ...values,
+                  orderItemNo: value,
+                })
+              }
+              options={itemNoOptions}
+              size="dense"
+              state={!values.orderNo ? "disabled" : "default"}
+              value={values.orderItemNo}
+            />
+          </Stack>
+        </Box>
+      </DialogContent>
+
+      <DialogActions
+        sx={(theme) => ({
+          borderTop: `1px solid ${theme.customTokens.borders.default}`,
+          gap: theme.spacing(1),
+          justifyContent: "flex-end",
+          px: theme.spacing(2),
+          py: theme.spacing(1.5),
+        })}
+      >
+        <Button onClick={onClose} sx={recordFormActionButtonSx} variant="outlined">
+          Cancel
+        </Button>
+
+        <Button
+          disabled={!values.orderNo || !values.orderItemNo}
+          onClick={onSubmit}
+          sx={recordFormActionButtonSx}
+          variant="contained"
+        >
+          Submit
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function IssueOrderFieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography
+      sx={(theme) => ({
+        color: theme.customTokens.text.primary,
+        fontSize: theme.typography.caption.fontSize,
+        fontWeight: 700,
+      })}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+function isRawOrderRecord(record: OrderRecord) {
+  return record.orderType.trim().toLowerCase().includes("raw");
 }

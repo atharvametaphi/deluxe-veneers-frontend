@@ -180,9 +180,9 @@ const lineItemColumns: readonly LineItemColumn[] = [
   },
   {
     key: "height",
-    label: "Height (m)",
+    label: "Thickness (m)",
     minWidth: 110,
-    placeholder: "Enter Height (m)",
+    placeholder: "Enter Thickness (m)",
     type: "text",
   },
   {
@@ -909,9 +909,8 @@ function buildSlicingSourceOverviewItems(
     "Warehouse B";
   const orderNo = getStringValue(sourceRow, ["orderNo"]);
   const orderItemNo = getStringValue(sourceRow, ["orderItemNo"]);
-  const bundleLot =
-    getStringValue(sourceRow, ["bundleNumber", "palletNo", "groupNo", "lotNo"]) ||
-    sourceSummary.logNo;
+  const bundleNumber = getStringValue(sourceRow, ["bundleNumber", "noOfBundle"]);
+  const palletNo = getStringValue(sourceRow, ["palletNo"]);
   const originalLeaves =
     getStringValue(sourceRow, [
       "noOfLeaves",
@@ -922,8 +921,7 @@ function buildSlicingSourceOverviewItems(
     ]) || sourceSummary.cmt;
 
   return [
-    { label: "Reference No", value: sourceSummary.srNo },
-    { label: "Source Process / Warehouse", value: sourceProcess },
+    { label: "Issued From", value: sourceProcess },
     ...(orderNo ? [{ label: "Order No", value: orderNo }] : []),
     ...(orderItemNo ? [{ label: "Order Item No", value: orderItemNo }] : []),
     { label: "Item Name", value: sourceSummary.itemName },
@@ -932,15 +930,11 @@ function buildSlicingSourceOverviewItems(
     ...(sourceSummary.logNo
       ? [{ label: "Log No.", value: sourceSummary.logNo }]
       : []),
-    {
-      label: "Dimensions",
-      value: [sourceSummary.length, sourceSummary.width, sourceSummary.height]
-        .filter(Boolean)
-        .join(" × "),
-    },
-    ...(bundleLot && bundleLot !== sourceSummary.logNo
-      ? [{ label: "Bundle / Pallet / Lot", value: bundleLot }]
-      : []),
+    { label: "Length", value: sourceSummary.length },
+    { label: "Width", value: sourceSummary.width },
+    { label: "Thickness", value: sourceSummary.height },
+    ...(bundleNumber ? [{ label: "Bundle No", value: bundleNumber }] : []),
+    ...(palletNo ? [{ label: "Pallet No", value: palletNo }] : []),
     { label: "Original Quantity", value: originalLeaves },
     { label: "SQM", value: sourceSummary.sqm },
     { label: "SQF", value: sourceSummary.sqf },

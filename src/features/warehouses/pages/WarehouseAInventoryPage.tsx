@@ -31,6 +31,7 @@ import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import { exportRowsToCsv } from "../../shared/exportToCsv";
 import {
   warehouseAInventoryConfigs,
+  warehouseInvoiceListingColumns,
   type WarehouseInventoryRow,
   type WarehouseAInventorySlug,
 } from "../shared/warehouseTableData";
@@ -184,7 +185,11 @@ export function WarehouseAInventoryModulePage({
       const qcStatus = getWarehouseQcStatus(row);
       const alreadyTransferred = isWarehouseQcTransferred(row);
 
-      if (canEdit && qcStatus === "pending" && !alreadyTransferred) {
+      if (
+        canEdit &&
+        (qcStatus === "pending" || qcStatus === "fail") &&
+        !alreadyTransferred
+      ) {
         actions.push({
           id: "qc-pass",
           label: "QC Pass",
@@ -194,6 +199,9 @@ export function WarehouseAInventoryModulePage({
             setQcStatusRevision((current) => current + 1);
           },
         });
+      }
+
+      if (canEdit && qcStatus === "pending" && !alreadyTransferred) {
         actions.push({
           id: "qc-fail",
           label: "QC Fail",
@@ -281,7 +289,7 @@ export function WarehouseAInventoryModulePage({
               onClick={() =>
                 exportRowsToCsv(
                   filteredRows,
-                  activeConfig.columns,
+                  warehouseInvoiceListingColumns,
                   `warehouse-a-${activeInventory}`,
                 )
               }
@@ -294,7 +302,7 @@ export function WarehouseAInventoryModulePage({
 
         <EnterpriseDataTable
           key={activeInventory}
-          columns={activeConfig.columns}
+          columns={warehouseInvoiceListingColumns}
           defaultRowsPerPage={10}
           getRowActions={getRowActions}
           initialSort={{ key: "inwardDate", direction: "desc" }}

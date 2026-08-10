@@ -375,7 +375,7 @@ const dryingListingColumns = listingColumns([
   ["color", "Color"],
   ["length", "Length"],
   ["width", "Width"],
-  ["height", "Height"],
+  ["height", "Thickness"],
   ["sqm", "SQM"],
   ["sqf", "SQF"],
   ["amount", "Amount"],
@@ -395,7 +395,7 @@ const slicingListingColumns = listingColumns([
   ["logNo", "Log No."],
   ["length", "Length (m)"],
   ["width", "Width (m)"],
-  ["height", "Height (m)"],
+  ["height", "Thickness (m)"],
   ["noOfLeaves", "No. of Leaves"],
   ["sqm", "SQM"],
   ["sqf", "SQF"],
@@ -469,7 +469,7 @@ const groupingListingColumns = listingColumns([
   ["grade", "Grade"],
   ["length", "Length"],
   ["width", "Width"],
-  ["height", "Height"],
+  ["height", "Thickness"],
   ["noOfLeaves", "No. of Leaves"],
   ["sqm", "SQM"],
   ["sqf", "SQF"],
@@ -538,7 +538,7 @@ const dryingCreateFields = [
   ["color", "Color"],
   ["length", "Length"],
   ["width", "Width"],
-  ["height", "Height"],
+  ["height", "Thickness"],
   ["sqm", "SQM"],
   ["sqf", "SQF"],
   ["amount", "Amount"],
@@ -566,7 +566,7 @@ const slicingProcessDetailFields = [
       : key === "width"
         ? (["width", "Width (m)"] as const)
         : key === "height"
-          ? (["height", "Height (m)"] as const)
+          ? (["height", "Thickness (m)"] as const)
           : ([key, label] as const),
   ),
   ["remark", "Remark"],
