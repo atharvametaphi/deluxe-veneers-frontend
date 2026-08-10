@@ -106,6 +106,7 @@ export function FactoryListing<Row extends FactoryRecord>({
         ? ["drying-done-2", "drying-done-5", "drying-done-8"]
         : [],
   );
+  const [inspectionFailRowIds, setInspectionFailRowIds] = useState<string[]>([]);
   const [splicingOrderIssue, setSplicingOrderIssue] =
     useState<SplicingOrderIssueState<Row> | null>(null);
   const [groupingSampleIssue, setGroupingSampleIssue] =
@@ -283,12 +284,15 @@ export function FactoryListing<Row extends FactoryRecord>({
           ...row,
           inspectionStatus: inspectionDoneRowIds.includes(row.id)
             ? "Inspection Pass"
-            : "Inspection Fail",
+            : inspectionFailRowIds.includes(row.id)
+              ? "Inspection Fail"
+            : "Inspection Pending",
         }) as Row,
     );
   }, [
     filteredRows,
     inspectionDoneRowIds,
+    inspectionFailRowIds,
     isDryingDoneTab,
     shouldUsePressingIssuedForLabels,
   ]);
@@ -381,26 +385,60 @@ export function FactoryListing<Row extends FactoryRecord>({
     if (isDryingDoneTab) {
       return (row) => {
         const isInspectionDone = inspectionDoneRowIds.includes(row.id);
-        const inspectionAction: EnterpriseTableAction<Row> = isInspectionDone
-          ? {
+        const isInspectionFail = inspectionFailRowIds.includes(row.id);
+
+        if (isInspectionDone) {
+          return [
+            ...doneActions,
+            {
               id: "move-to-warehouse-c",
               label: "Move to Warehouse C",
               onSelect: () =>
                 navigate("/warehouse-c?section=inventory&inventory=raw-veneer"),
-            }
-          : {
-              id: "mark-inspection-pass",
-              label: "Inspection Pass",
-              icon: CheckCircle2,
-              onSelect: (selectedRow) =>
-                setInspectionDoneRowIds((current) =>
-                  current.includes(selectedRow.id)
-                    ? current
-                    : [...current, selectedRow.id],
-                ),
-            };
+            },
+          ];
+        }
 
-        return [...doneActions, inspectionAction];
+        const markInspectionPassAction: EnterpriseTableAction<Row> = {
+          id: "mark-inspection-pass",
+          label: "Inspection Pass",
+          icon: CheckCircle2,
+          onSelect: (selectedRow) => {
+            setInspectionFailRowIds((current) =>
+              current.filter((rowId) => rowId !== selectedRow.id),
+            );
+            setInspectionDoneRowIds((current) =>
+              current.includes(selectedRow.id)
+                ? current
+                : [...current, selectedRow.id],
+            );
+          },
+        };
+
+        if (isInspectionFail) {
+          return [...doneActions, markInspectionPassAction];
+        }
+
+        return [
+          ...doneActions,
+          markInspectionPassAction,
+          {
+            id: "mark-inspection-fail",
+            label: "Inspection Fail",
+            icon: XCircle,
+            tone: "danger",
+            onSelect: (selectedRow) => {
+              setInspectionDoneRowIds((current) =>
+                current.filter((rowId) => rowId !== selectedRow.id),
+              );
+              setInspectionFailRowIds((current) =>
+                current.includes(selectedRow.id)
+                  ? current
+                  : [...current, selectedRow.id],
+              );
+            },
+          },
+        ];
       };
     }
 
@@ -613,6 +651,7 @@ export function FactoryListing<Row extends FactoryRecord>({
     definition.slug,
     definition.title,
     inspectionDoneRowIds,
+    inspectionFailRowIds,
     isDryingDoneTab,
     isGroupingDoneTab,
     navigate,
