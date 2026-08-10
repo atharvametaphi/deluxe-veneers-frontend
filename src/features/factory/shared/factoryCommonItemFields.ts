@@ -57,9 +57,7 @@ const factoryItemFieldOrderSpecs = [
   ["remark", "Remark"],
 ] as const;
 
-const commonFactoryListingFieldSpecs = factoryItemFieldOrderSpecs.filter(
-  ([key]) => key !== "ratePerSqf",
-);
+const commonFactoryListingFieldSpecs = factoryItemFieldOrderSpecs;
 
 const factoryListingColumnOrder = [
   "warehouseName",
@@ -82,8 +80,6 @@ const factoryListingColumnOrder = [
   "height",
   "thickness",
   "color",
-  "cut",
-  "cutColor",
   "grade",
   "noOfLeaves",
   "noOfSheets",
@@ -91,7 +87,10 @@ const factoryListingColumnOrder = [
   "inspectionStatus",
   "sqm",
   "sqf",
+  "ratePerSqf",
   "amount",
+  "cut",
+  "cutColor",
   "remark",
   "createdBy",
   "createdAt",

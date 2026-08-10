@@ -49,6 +49,11 @@ import {
 } from "../../orders/shared/ordersStore";
 import { ClearableSearchField } from "../../shared/ClearableSearchField";
 import { recordFormActionButtonSx } from "../../shared/buttonStyles";
+import {
+  formatAmount,
+  parseNumericValue,
+  SQM_TO_SQF,
+} from "../../shared/numberFormat";
 import { FactoryPageShell } from "./FactoryPageShell";
 import { FactoryToolbar } from "./FactoryToolbar";
 import {
@@ -1003,19 +1008,66 @@ function normalizeFactorySourceColumns<Row extends FactoryRecord>(
   const issuedFrom = getFactoryIssuedFromProcess(row, processSlug);
   const warehouseName =
     getFactoryRowWarehouseName(row) || getDefaultFactoryWarehouseName(processSlug);
+  const rowSequence = getFactoryRowSequence(row);
+  const itemName =
+    getFactoryString(row.itemName) || getFactoryString(row.productName);
+  const itemSubCategory =
+    getFactoryString(row.itemSubCategory) || getFactoryString(row.subCategory);
+  const color =
+    getFactoryString(row.color) ||
+    getFactoryString(row.timberColor) ||
+    getFactoryString(row.processColor);
+  const logNo = getFactoryString(row.logNo) || getFactoryString(row.logCode);
   const height = getFactoryString(row.height);
   const thickness = getFactoryString(row.thickness);
   const bundleNumber =
-    getFactoryString(row.bundleNumber) || getFactoryString(row.noOfBundle);
+    getFactoryString(row.bundleNumber) ||
+    getFactoryString(row.noOfBundle) ||
+    `BDL-${getFactoryWarehouseCode(warehouseName)}-${rowSequence}`;
   const palletNo =
-    getFactoryString(row.palletNo) || getFactoryString(row.palletNumber);
+    getFactoryString(row.palletNo) ||
+    getFactoryString(row.palletNumber) ||
+    `PAL-${getFactoryWarehouseCode(warehouseName)}-${rowSequence}`;
+  const noOfLeaves =
+    getFactoryString(row.noOfLeaves) ||
+    getFactoryString(row.noOfLeavesSheets) ||
+    getFactoryString(row.noOfSheets) ||
+    getFactoryString(row.totalNoOfSheets) ||
+    getFactoryString(row.availableSheets);
+  const sqm =
+    getFactoryString(row.sqm) ||
+    getFactoryString(row.totalSqm) ||
+    getFactoryString(row.availableSqm) ||
+    getFactoryString(row.avSqm) ||
+    getFactoryString(row.issuedSqm) ||
+    getFactoryString(row.outputSqm);
+  const sqf =
+    getFactoryString(row.sqf) ||
+    getFactoryString(row.totalSqf) ||
+    getFactoryString(row.availableSqf) ||
+    getFactoryString(row.avSqf) ||
+    getFactoryString(row.issuedSqf) ||
+    getFactoryString(row.outputSqf) ||
+    deriveFactorySqf(sqm);
+  const ratePerSqf =
+    getFactoryString(row.ratePerSqf) ||
+    getFactoryString(row.rate) ||
+    deriveFactoryRatePerSqf(row.amount, sqf);
 
   return {
     ...row,
     ...(bundleNumber ? { bundleNumber } : {}),
+    ...(color ? { color } : {}),
     ...(height || thickness ? { height: height || thickness } : {}),
     issuedFrom,
+    ...(itemName ? { itemName } : {}),
+    ...(itemSubCategory ? { itemSubCategory } : {}),
+    ...(logNo ? { logNo } : {}),
+    ...(noOfLeaves ? { noOfLeaves } : {}),
     ...(palletNo ? { palletNo } : {}),
+    ...(sqf ? { sqf } : {}),
+    ...(sqm ? { sqm } : {}),
+    ...(ratePerSqf ? { ratePerSqf } : {}),
     ...(thickness || height ? { thickness: thickness || height } : {}),
     warehouseName,
   } as Row;
@@ -1080,6 +1132,39 @@ function isFactoryWarehouseLabel(value: string) {
 
 function getFactoryString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+function deriveFactorySqf(sqm: string) {
+  const sqmValue = parseNumericValue(sqm);
+  return sqmValue && sqmValue > 0
+    ? (sqmValue * SQM_TO_SQF).toLocaleString("en-IN", {
+        maximumFractionDigits: 3,
+        minimumFractionDigits: 3,
+      })
+    : "";
+}
+
+function deriveFactoryRatePerSqf(amount: unknown, sqf: string) {
+  const amountValue = parseNumericValue(amount);
+  const sqfValue = parseNumericValue(sqf);
+
+  if (!amountValue || !sqfValue || sqfValue <= 0) {
+    return "";
+  }
+
+  return formatAmount(amountValue / sqfValue);
+}
+
+function getFactoryRowSequence<Row extends FactoryRecord>(row: Row) {
+  const id = String(row.id ?? "");
+  const numericPart = id.match(/\d+/g)?.at(-1);
+  const parsed = numericPart ? Number(numericPart) : 1;
+  return String(Number.isFinite(parsed) ? parsed : 1).padStart(3, "0");
+}
+
+function getFactoryWarehouseCode(warehouseName: string) {
+  const suffix = warehouseName.match(/\bWarehouse\s+([A-Z0-9]+)/i)?.[1];
+  return suffix ? `W${suffix.toUpperCase()}` : "WH";
 }
 
 function getPressingDoneIssuedForLabel(value: RowValue) {

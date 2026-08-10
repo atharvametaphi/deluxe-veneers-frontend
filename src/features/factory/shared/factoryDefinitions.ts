@@ -6,6 +6,7 @@ import type { MasterFieldDefinition } from "../../masters/shared";
 import {
   formatAmount,
   formatMeasurement,
+  SQM_TO_SQF,
   formatSQM,
   formatSqfFromSqm,
 } from "../../shared/numberFormat";
@@ -170,12 +171,15 @@ function toSqf(sqm: string) {
 
 function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") {
   const sequence = index + 1;
-  const sqm = formatSQM(95.25 + index * 8.4);
+  const sqmValue = 95.25 + index * 8.4;
+  const amountValue = 42000 + index * 8250;
+  const sqm = formatSQM(sqmValue);
   const consumedSqm = formatSQM(54.2 + index * 4.4);
   const consumeSqm = formatSQM(42.1 + index * 3.3);
   const issuedSqm = formatSQM(72.4 + index * 6.2);
   const outputSqm = formatSQM(64.8 + index * 5.8);
   const itemName = itemNames[index % itemNames.length];
+  const warehouseCode = warehouseName.endsWith("B") ? "WB" : "WC";
 
   return {
     warehouseName,
@@ -187,6 +191,8 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
     productName: itemName,
     itemSubCategory: itemSubCategories[index % itemSubCategories.length],
     color: colors[index % colors.length],
+    bundleNumber: `BDL-${warehouseCode}-${String(410 + sequence).padStart(3, "0")}`,
+    palletNo: `PAL-${warehouseCode}-${String(20 + sequence).padStart(2, "0")}`,
     length: `${2440 + index * 20} mm`,
     width: `${1220 + index * 10} mm`,
     height: `${4 + index} mm`,
@@ -194,7 +200,8 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
     sqm,
     sqf: toSqf(sqm),
     sqmSqf: sqm,
-    amount: amount(index),
+    ratePerSqf: formatAmount(amountValue / (sqmValue * SQM_TO_SQF)),
+    amount: formatAmount(amountValue),
     remark: [
       "Production batch aligned for next process.",
       "Priority lot for customer order.",
