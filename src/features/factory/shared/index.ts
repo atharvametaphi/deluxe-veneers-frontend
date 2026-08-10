@@ -1,7 +1,6 @@
 export * from "./FactoryForm";
 export * from "./FactoryListing";
 export * from "./FactoryPageShell";
-export * from "./FactoryProcessBalanceSummary";
 export * from "./FactoryProcessCreatePage";
 export * from "./FactorySourceOverviewPanel";
 export * from "./FactoryToolbar";

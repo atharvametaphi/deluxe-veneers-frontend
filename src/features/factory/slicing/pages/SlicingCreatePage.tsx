@@ -28,7 +28,6 @@ import {
   buildFactorySourceAllocationKey,
   computeProcessEntryBalance,
   FactoryPageShell,
-  FactoryProcessBalanceSummary,
   FactorySourceOverviewPanel,
   getFactoryPaths,
   getFactoryQuantityAllocationConfig,
@@ -335,9 +334,6 @@ export function SlicingCreatePage() {
   const rejectAvailableValidationErrors = getRejectAvailableValidationErrors(
     rejectAvailableValues,
     rejectAvailableAreaLimits,
-  );
-  const showBalanceSummary = Boolean(
-    quantityConfig && originalQuantity > 0 && lineItems.length > 0,
   );
   const draftProjectedOverflow = useMemo(() => {
     if (!quantityConfig || originalQuantity <= 0 || allLineItemValuesEmpty(draftValues)) {
@@ -732,20 +728,6 @@ export function SlicingCreatePage() {
               </Box>
             </Box>
             </Stack>
-          ) : null}
-
-          {showBalanceSummary && quantityConfig ? (
-            <FactoryProcessBalanceSummary
-              balanceQuantity={balanceSummary.balanceQuantity}
-              errorText={
-                hasSubmitted || draftSubmitAttempted
-                  ? quantityOverflowError
-                  : ""
-              }
-              processedQuantity={balanceSummary.processedQuantity}
-              sourceQuantity={balanceSummary.sourceQuantity}
-              unitLabel={quantityConfig.unitLabel}
-            />
           ) : null}
 
           <RejectAvailableDetailsTable

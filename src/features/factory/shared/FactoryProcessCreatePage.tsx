@@ -36,7 +36,6 @@ import {
   transactionTableHeaderCellSx,
 } from "../../shared/listingTableStyles";
 import { FactoryPageShell } from "./FactoryPageShell";
-import { FactoryProcessBalanceSummary } from "./FactoryProcessBalanceSummary";
 import { FactorySourceOverviewPanel } from "./FactorySourceOverviewPanel";
 import {
   appendFactoryProcessRun,
@@ -401,9 +400,6 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
   const rejectAvailableValidationErrors = getRejectAvailableValidationErrors(
     rejectAvailableValues,
     rejectAvailableAreaLimits,
-  );
-  const showBalanceSummary = Boolean(
-    quantityConfig && originalQuantity > 0 && lineItems.length > 0,
   );
   const draftProjectedOverflow = useMemo(() => {
     if (!quantityConfig || originalQuantity <= 0 || allValuesEmpty(draftValues)) {
@@ -786,20 +782,6 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
               </Box>
             </Box>
             </Stack>
-          ) : null}
-
-          {showBalanceSummary && quantityConfig ? (
-            <FactoryProcessBalanceSummary
-              balanceQuantity={balanceSummary.balanceQuantity}
-              errorText={
-                hasSubmitted || draftSubmitAttempted
-                  ? quantityOverflowError
-                  : ""
-              }
-              processedQuantity={balanceSummary.processedQuantity}
-              sourceQuantity={balanceSummary.sourceQuantity}
-              unitLabel={quantityConfig.unitLabel}
-            />
           ) : null}
 
         <RejectAvailableDetailsTable
