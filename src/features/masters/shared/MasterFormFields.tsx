@@ -23,11 +23,11 @@ import {
 
 import { ErpToggleSwitch } from "../../../components/inputs/ErpToggleSwitch";
 import {
-  getLocationByPincode,
   loadLocationCityOptions,
   loadLocationCountryOptions,
   loadLocationStateOptions,
   locationSearchVisibleOptionLimit,
+  resolveLocationByPincode,
 } from "../../shared/locationOptions";
 import { ErpDatePickerField, ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
 import {
@@ -165,6 +165,7 @@ export function MasterFormFields({
   );
   const createdPreviewUrlsRef = useRef<Set<string>>(new Set());
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const pincodeLookupRequestRef = useRef(0);
   const fields = getOrderedFormFields(definition.fields);
   const useSingleColumn = fields.length <= 1;
   /** Compact forms use the 36px portal control height (not table-dense 33px). */
@@ -191,11 +192,13 @@ export function MasterFormFields({
     onChange(field.key, value);
 
     if (isCountryField(field)) {
+      pincodeLookupRequestRef.current += 1;
       clearDependentLocationFields(definition.fields, onChange, ["state", "city"]);
       return;
     }
 
     if (isStateField(field)) {
+      pincodeLookupRequestRef.current += 1;
       clearDependentLocationFields(definition.fields, onChange, ["city"]);
       return;
     }
@@ -204,13 +207,22 @@ export function MasterFormFields({
       return;
     }
 
-    const location = getLocationByPincode(value);
+    const normalizedPincode = value.trim();
+    const lookupRequestId = pincodeLookupRequestRef.current + 1;
 
-    if (!location) {
+    pincodeLookupRequestRef.current = lookupRequestId;
+
+    if (!/^\d{6}$/.test(normalizedPincode)) {
       return;
     }
 
-    applyPincodeLocation(definition.fields, location, onChange);
+    void resolveLocationByPincode(normalizedPincode).then((location) => {
+      if (lookupRequestId !== pincodeLookupRequestRef.current || !location) {
+        return;
+      }
+
+      applyPincodeLocation(definition.fields, location, onChange);
+    });
   };
 
   useEffect(() => {

@@ -26,6 +26,7 @@ let locationModulePromise: Promise<typeof import("country-state-city")> | null =
   null;
 const stateOptionsByCountryCache = new Map<string, string[]>();
 const cityOptionsByScopeCache = new Map<string, string[]>();
+const pincodeLocationCache = new Map<string, PincodeLocation | null>();
 
 export interface PincodeLocation {
   city: string;
@@ -36,6 +37,7 @@ export interface PincodeLocation {
 const pincodeLocationMap: Record<string, PincodeLocation> = {
   "110001": { city: "New Delhi", country: "India", state: "Delhi" },
   "302018": { city: "Jaipur", country: "India", state: "Rajasthan" },
+  "380009": { city: "Ahmedabad", country: "India", state: "Gujarat" },
   "380015": { city: "Ahmedabad", country: "India", state: "Gujarat" },
   "380051": { city: "Ahmedabad", country: "India", state: "Gujarat" },
   "382110": { city: "Sanand", country: "India", state: "Gujarat" },
@@ -46,6 +48,16 @@ const pincodeLocationMap: Record<string, PincodeLocation> = {
   "400051": { city: "Mumbai", country: "India", state: "Maharashtra" },
   "700091": { city: "Kolkata", country: "India", state: "West Bengal" },
 };
+
+interface IndiaPostPincodeResponse {
+  PostOffice?: Array<{
+    Country?: string;
+    District?: string;
+    Name?: string;
+    State?: string;
+  }> | null;
+  Status?: string;
+}
 
 function sortUniqueOptions(values: string[]) {
   return Array.from(
@@ -199,6 +211,59 @@ export async function loadLocationCityOptions(
 
 export function getLocationByPincode(pincode: string) {
   return pincodeLocationMap[pincode.trim()] ?? null;
+}
+
+export async function resolveLocationByPincode(pincode: string) {
+  const normalizedPincode = pincode.trim();
+
+  if (!/^\d{6}$/.test(normalizedPincode)) {
+    return null;
+  }
+
+  const localLocation = getLocationByPincode(normalizedPincode);
+
+  if (localLocation) {
+    return localLocation;
+  }
+
+  if (pincodeLocationCache.has(normalizedPincode)) {
+    return pincodeLocationCache.get(normalizedPincode) ?? null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.postalpincode.in/pincode/${normalizedPincode}`,
+    );
+
+    if (!response.ok) {
+      pincodeLocationCache.set(normalizedPincode, null);
+      return null;
+    }
+
+    const payload = (await response.json()) as IndiaPostPincodeResponse[];
+    const postOffice = payload
+      .find((entry) => entry.Status === "Success" && entry.PostOffice?.length)
+      ?.PostOffice?.[0];
+
+    if (!postOffice?.District || !postOffice.State) {
+      pincodeLocationCache.set(normalizedPincode, null);
+      return null;
+    }
+
+    const location = {
+      city: postOffice.District,
+      country: postOffice.Country || defaultLocationCountryName,
+      state: postOffice.State,
+    };
+
+    pincodeLocationCache.set(normalizedPincode, location);
+    pincodeLocationMap[normalizedPincode] = location;
+
+    return location;
+  } catch {
+    pincodeLocationCache.set(normalizedPincode, null);
+    return null;
+  }
 }
 
 export const locationSearchVisibleOptionLimit = locationVisibleOptionLimit;
