@@ -5,12 +5,22 @@ import {
   DialogContent,
   DialogTitle,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   Typography,
 } from "@mui/material";
+import type { Theme } from "@mui/material/styles";
 import { Pencil } from "lucide-react";
 
 import { formatMasterValue } from "../../masters/shared";
 import { recordFormActionButtonSx } from "../../shared/buttonStyles";
+import {
+  transactionTableBodyCellSx,
+  transactionTableHeaderCellSx,
+} from "../../shared/listingTableStyles";
 import {
   getOrderLineItems,
   getOrderVariantFromType,
@@ -22,57 +32,64 @@ import {
 type DetailColumn<TRow> = {
   getValue: (row: TRow) => unknown;
   label: string;
+  minWidth?: number;
 };
 
 const orderDetailColumns: readonly DetailColumn<OrderRecord>[] = [
-  { label: "Order No", getValue: (row) => row.orderNo },
-  { label: "Order Date", getValue: (row) => row.orderDate },
-  { label: "Customer Name", getValue: (row) => row.customerName },
-  { label: "Order Type", getValue: (row) => row.orderType },
-  { label: "Priority", getValue: (row) => row.priority },
-  { label: "Status", getValue: (row) => row.status },
-  { label: "Remark", getValue: (row) => row.remark },
-  { label: "Created Date", getValue: (row) => row.createdDate },
-  { label: "Updated Date", getValue: (row) => row.updatedDate },
-  { label: "Created By", getValue: (row) => row.createdBy },
-  { label: "Updated By", getValue: (row) => row.updatedBy },
+  { label: "Order No", minWidth: 140, getValue: (row) => row.orderNo },
+  { label: "Order Date", minWidth: 130, getValue: (row) => row.orderDate },
+  { label: "Customer Name", minWidth: 220, getValue: (row) => row.customerName },
+  { label: "Order Type", minWidth: 150, getValue: (row) => row.orderType },
+  { label: "Priority", minWidth: 120, getValue: (row) => row.priority },
+  { label: "Status", minWidth: 130, getValue: (row) => row.status },
+  { label: "Remark", minWidth: 220, getValue: (row) => row.remark },
+  { label: "Created Date", minWidth: 130, getValue: (row) => row.createdDate },
+  { label: "Updated Date", minWidth: 130, getValue: (row) => row.updatedDate },
+  { label: "Created By", minWidth: 130, getValue: (row) => row.createdBy },
+  { label: "Updated By", minWidth: 130, getValue: (row) => row.updatedBy },
 ];
 
-const rawItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
-  { label: "Product Type", getValue: (row) => row.productCategory },
-  { label: "Item Name", getValue: (row) => row.itemName },
-  { label: "Sub Category", getValue: (row) => row.subCategory },
-  { label: "Series", getValue: (row) => row.series },
-  { label: "Grade", getValue: (row) => row.grade },
-  { label: "Length", getValue: (row) => row.length },
-  { label: "Width", getValue: (row) => row.width },
-  { label: "Thickness", getValue: (row) => row.thickness },
-  { label: "No. of Sheets", getValue: (row) => row.quantitySheets },
-  { label: "SQM", getValue: (row) => row.sqm },
-  { label: "SQF", getValue: (row) => row.totalSqm },
-  { label: "Rate per SQF", getValue: (row) => row.ratePerSqf },
-  { label: "Amount", getValue: (row) => row.amount },
-  { label: "Remark", getValue: (row) => row.remark },
+type OrderLineItemTableRow = OrderLineItem & {
+  orderItemNo: string;
+};
+
+const rawItemDetailColumns: readonly DetailColumn<OrderLineItemTableRow>[] = [
+  { label: "Order Item No", minWidth: 130, getValue: (row) => row.orderItemNo },
+  { label: "Product Type", minWidth: 150, getValue: (row) => row.productCategory },
+  { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
+  { label: "Sub Category", minWidth: 160, getValue: (row) => row.subCategory },
+  { label: "Series", minWidth: 130, getValue: (row) => row.series },
+  { label: "Grade", minWidth: 110, getValue: (row) => row.grade },
+  { label: "Length", minWidth: 120, getValue: (row) => row.length },
+  { label: "Width", minWidth: 120, getValue: (row) => row.width },
+  { label: "Thickness", minWidth: 120, getValue: (row) => row.thickness },
+  { label: "No. of Sheets", minWidth: 130, getValue: (row) => row.quantitySheets },
+  { label: "SQM", minWidth: 120, getValue: (row) => row.sqm },
+  { label: "SQF", minWidth: 130, getValue: (row) => row.totalSqm },
+  { label: "Rate per SQF", minWidth: 140, getValue: (row) => row.ratePerSqf },
+  { label: "Amount", minWidth: 130, getValue: (row) => row.amount },
+  { label: "Remark", minWidth: 220, getValue: (row) => row.remark },
 ];
 
-const finishedItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
-  { label: "Finished Type", getValue: (row) => row.finishedType },
-  { label: "Sales Item Name", getValue: (row) => row.salesItemName },
-  { label: "Item Name", getValue: (row) => row.itemName },
-  { label: "Length", getValue: (row) => row.length },
-  { label: "Width", getValue: (row) => row.width },
-  { label: "Thickness", getValue: (row) => row.thickness },
-  { label: "No. of Sheets", getValue: (row) => row.quantitySheets },
-  { label: "SQM", getValue: (row) => row.sqm },
-  { label: "SQF", getValue: (row) => row.totalSqm },
-  { label: "Rate per SQF", getValue: (row) => row.ratePerSqf },
-  { label: "Base Type", getValue: (row) => row.baseType },
-  { label: "Base Name", getValue: (row) => row.baseName },
-  { label: "Base Length", getValue: (row) => row.baseLength },
-  { label: "Base Width", getValue: (row) => row.baseWidth },
-  { label: "Base Thickness", getValue: (row) => row.baseThickness },
-  { label: "Amount", getValue: (row) => row.amount },
-  { label: "Remark", getValue: (row) => row.remark },
+const finishedItemDetailColumns: readonly DetailColumn<OrderLineItemTableRow>[] = [
+  { label: "Order Item No", minWidth: 130, getValue: (row) => row.orderItemNo },
+  { label: "Finished Type", minWidth: 150, getValue: (row) => row.finishedType },
+  { label: "Sales Item Name", minWidth: 190, getValue: (row) => row.salesItemName },
+  { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
+  { label: "Length", minWidth: 120, getValue: (row) => row.length },
+  { label: "Width", minWidth: 120, getValue: (row) => row.width },
+  { label: "Thickness", minWidth: 120, getValue: (row) => row.thickness },
+  { label: "No. of Sheets", minWidth: 130, getValue: (row) => row.quantitySheets },
+  { label: "SQM", minWidth: 120, getValue: (row) => row.sqm },
+  { label: "SQF", minWidth: 130, getValue: (row) => row.totalSqm },
+  { label: "Rate per SQF", minWidth: 140, getValue: (row) => row.ratePerSqf },
+  { label: "Base Type", minWidth: 130, getValue: (row) => row.baseType },
+  { label: "Base Name", minWidth: 160, getValue: (row) => row.baseName },
+  { label: "Base Length", minWidth: 130, getValue: (row) => row.baseLength },
+  { label: "Base Width", minWidth: 130, getValue: (row) => row.baseWidth },
+  { label: "Base Thickness", minWidth: 150, getValue: (row) => row.baseThickness },
+  { label: "Amount", minWidth: 130, getValue: (row) => row.amount },
+  { label: "Remark", minWidth: 220, getValue: (row) => row.remark },
 ];
 
 export function OrderViewDetailsDialog({
@@ -90,11 +107,15 @@ export function OrderViewDetailsDialog({
   const variant = getOrderVariantFromType(record?.orderType);
   const itemColumns = getItemDetailColumns(variant);
   const isFinished = variant === "finished";
+  const itemRows = lineItems.map((item, index) => ({
+    ...item,
+    orderItemNo: String(index + 1),
+  }));
 
   return (
     <Dialog
       fullWidth
-      maxWidth="md"
+      maxWidth={false}
       onClose={onClose}
       open={open}
       slotProps={{
@@ -102,9 +123,11 @@ export function OrderViewDetailsDialog({
           sx: (theme) => ({
             borderRadius: `${theme.customTokens.radius.md}px`,
             boxShadow: "0 16px 40px rgba(0, 0, 0, 0.18)",
-            maxHeight: "calc(100vh - 32px)",
+            maxHeight: "none",
+            maxWidth: "calc(100vw - 32px)",
             outline: "none",
-            width: "min(920px, calc(100vw - 32px))",
+            overflow: "visible",
+            width: "min(1760px, calc(100vw - 32px))",
             "&:focus, &:focus-visible": {
               outline: "none",
             },
@@ -127,6 +150,8 @@ export function OrderViewDetailsDialog({
 
       <DialogContent
         sx={(theme) => ({
+          maxHeight: "none",
+          overflow: "visible",
           px: theme.spacing(2),
           py: theme.spacing(2),
         })}
@@ -137,88 +162,18 @@ export function OrderViewDetailsDialog({
               gap: theme.spacing(2),
             })}
           >
-            <Box
-              sx={(theme) => ({
-                border: `1px solid ${
-                  isFinished
-                    ? theme.customTokens.brand.primaryScale[200]
-                    : theme.customTokens.borders.default
-                }`,
-                borderRadius: `${theme.customTokens.radius.md}px`,
-                backgroundColor: isFinished
-                  ? theme.customTokens.brand.primaryScale[50]
-                  : theme.customTokens.surfaces.alt,
-                px: theme.spacing(1.5),
-                py: theme.spacing(1),
-              })}
-            >
-              <Typography
-                sx={(theme) => ({
-                  color: isFinished
-                    ? theme.customTokens.brand.primary
-                    : theme.customTokens.text.primary,
-                  fontSize: "0.8125rem",
-                  fontWeight: 600,
-                })}
-              >
-                {isFinished
-                  ? "Finished Order — may require Factory processing linked to Order No + Order Item No."
-                  : "Raw Order — raw / non-finished material demand."}
-              </Typography>
-            </Box>
+            <OrderDetailTable
+              columns={orderDetailColumns}
+              rows={[record]}
+              title="Order Details"
+            />
 
-            <Stack spacing={1}>
-              <SectionLabel title="Order Summary" />
-              <LabelValueGrid
-                items={orderDetailColumns.map((column) => ({
-                  label: column.label,
-                  value: formatDialogValue(column.getValue(record)),
-                }))}
-              />
-            </Stack>
-
-            <Stack spacing={1.25}>
-              <SectionLabel
-                title={isFinished ? "Finished Order Items" : "Raw Order Items"}
-              />
-              {lineItems.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No order items are available.
-                </Typography>
-              ) : (
-                lineItems.map((item, index) => (
-                  <Box
-                    key={item.id}
-                    sx={(theme) => ({
-                      border: `1px solid ${theme.customTokens.borders.default}`,
-                      borderRadius: `${theme.customTokens.radius.md}px`,
-                      px: theme.spacing(1.5),
-                      py: theme.spacing(1.25),
-                    })}
-                  >
-                    <Typography
-                      sx={(theme) => ({
-                        color: theme.customTokens.brand.primary,
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        mb: 1,
-                      })}
-                      title={item.id}
-                    >
-                      {isFinished
-                        ? `Order Item No ${formatOrderItemNo(item.id, index)}`
-                        : `Item ${index + 1}`}
-                    </Typography>
-                    <LabelValueGrid
-                      items={itemColumns.map((column) => ({
-                        label: column.label,
-                        value: formatDialogValue(column.getValue(item)),
-                      }))}
-                    />
-                  </Box>
-                ))
-              )}
-            </Stack>
+            <OrderDetailTable
+              columns={itemColumns}
+              emptyLabel="No order items are available."
+              rows={itemRows}
+              title={isFinished ? "Finished Order Items" : "Raw Order Items"}
+            />
 
             <Box
               sx={(theme) => ({
@@ -275,64 +230,125 @@ function SectionLabel({ title }: { title: string }) {
   );
 }
 
-function LabelValueGrid({
-  items,
+function OrderDetailTable<TRow>({
+  columns,
+  emptyLabel = "No records are available.",
+  rows,
+  title,
 }: {
-  items: readonly { label: string; value: string }[];
+  columns: readonly DetailColumn<TRow>[];
+  emptyLabel?: string;
+  rows: readonly TRow[];
+  title: string;
 }) {
-  const visibleItems = items.filter((item) => {
-    const value = item.value.trim();
-    return value.length > 0 && value !== "-";
-  });
-
   return (
-    <Box
+    <Stack
       sx={(theme) => ({
-        display: "grid",
-        gap: theme.spacing(1.25),
-        gridTemplateColumns: {
-          xs: "1fr",
-          sm: "repeat(2, minmax(0, 1fr))",
-          md: "repeat(3, minmax(0, 1fr))",
-        },
+        gap: theme.spacing(1),
       })}
     >
-      {visibleItems.map((item) => (
-        <Stack key={item.label} spacing={0.35} sx={{ minWidth: 0 }}>
-          <Typography
+      <SectionLabel title={title} />
+
+      <Box
+        sx={(theme) => ({
+          border: `1px solid ${theme.customTokens.borders.default}`,
+          borderRadius: `${theme.customTokens.radius.sm}px`,
+          overflow: "hidden",
+          backgroundColor: theme.customTokens.surfaces.surface,
+        })}
+      >
+        <Box sx={(theme) => getDetailTableScrollSx(theme)}>
+          <Table
+            size="small"
             sx={(theme) => ({
-              color: theme.customTokens.text.secondary,
-              fontSize: "0.6875rem",
-              fontWeight: 600,
-              letterSpacing: "0.02em",
+              minWidth: getDetailTableMinWidth(columns),
+              tableLayout: "auto",
+              width: "100%",
             })}
           >
-            {item.label}
-          </Typography>
-          <Typography
-            sx={(theme) => ({
-              color: theme.customTokens.text.primary,
-              fontSize: "0.8125rem",
-              fontWeight: 600,
-              lineHeight: 1.35,
-              wordBreak: "break-word",
-            })}
-          >
-            {item.value}
-          </Typography>
-        </Stack>
-      ))}
-    </Box>
+            <TableHead>
+              <TableRow>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.label}
+                    sx={(theme) =>
+                      getDetailHeaderCellSx(theme, column.minWidth ?? 130)
+                    }
+                  >
+                    {column.label}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.length > 0 ? (
+                rows.map((row, rowIndex) => (
+                  <TableRow key={rowIndex}>
+                    {columns.map((column) => (
+                      <TableCell
+                        key={column.label}
+                        sx={(theme) => getDetailBodyCellSx(theme)}
+                      >
+                        {formatDialogValue(column.getValue(row))}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    sx={(theme) => getDetailBodyCellSx(theme)}
+                  >
+                    {emptyLabel}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Box>
+      </Box>
+    </Stack>
   );
 }
 
-function formatOrderItemNo(itemId: string, index: number) {
-  const numericTail = String(itemId).match(/(\d+)$/)?.[1];
-  const sequence = numericTail
-    ? Number.parseInt(numericTail, 10)
-    : index + 1;
+function getDetailTableMinWidth<TRow>(columns: readonly DetailColumn<TRow>[]) {
+  return columns.reduce((total, column) => total + (column.minWidth ?? 130), 0);
+}
 
-  return `OI-${String(Number.isFinite(sequence) ? sequence : index + 1).padStart(3, "0")}`;
+function getDetailHeaderCellSx(theme: Theme, minWidth: number) {
+  return {
+    ...transactionTableHeaderCellSx(theme, minWidth, "center"),
+    borderRight: `1px solid ${theme.customTokens.borders.divider}`,
+    lineHeight: 1.35,
+  } as const;
+}
+
+function getDetailBodyCellSx(theme: Theme) {
+  return {
+    ...transactionTableBodyCellSx(theme, "center"),
+    borderRight: `1px solid ${theme.customTokens.borders.divider}`,
+    color: theme.palette.text.primary,
+  } as const;
+}
+
+function getDetailTableScrollSx(theme: Theme) {
+  return {
+    overflowX: "auto",
+    overflowY: "hidden",
+    scrollbarWidth: "thin",
+    scrollbarColor: `${theme.customTokens.brand.primary} ${theme.customTokens.surfaces.alt}`,
+    "&::-webkit-scrollbar": {
+      height: 8,
+    },
+    "&::-webkit-scrollbar-track": {
+      backgroundColor: theme.customTokens.surfaces.alt,
+    },
+    "&::-webkit-scrollbar-thumb": {
+      borderRadius: 999,
+      backgroundColor: theme.customTokens.brand.primary,
+    },
+  } as const;
 }
 
 function getItemDetailColumns(variant: OrderCreateVariant | null) {

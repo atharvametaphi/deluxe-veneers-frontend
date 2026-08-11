@@ -54,6 +54,7 @@ type OrderListingRow = OrderRecord & {
   orderId: string;
   orderItemNumber: string;
   orderLineItemId: string;
+  rawMaterial: string;
 };
 
 export function OrdersListingPage({
@@ -350,6 +351,7 @@ function buildOrderListingRows(record: OrderRecord): OrderListingRow[] {
         orderId: record.id,
         orderItemNumber: "1",
         orderLineItemId: "",
+        rawMaterial: record.productCategory || record.orderType,
       },
     ];
   }
@@ -361,6 +363,11 @@ function buildOrderListingRows(record: OrderRecord): OrderListingRow[] {
     orderId: record.id,
     orderItemNumber: String(index + 1),
     orderLineItemId: lineItem.id,
+    rawMaterial:
+      lineItem.productCategory ||
+      lineItem.baseType ||
+      lineItem.finishedType ||
+      record.productCategory,
   }));
 }
 

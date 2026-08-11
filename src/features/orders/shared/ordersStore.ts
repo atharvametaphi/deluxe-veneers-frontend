@@ -7,7 +7,7 @@ import type {
 import { buildLocalMasterDefinition } from "../../masters/shared/localMasterStore";
 import {
   customerMasterDefinition,
-  itemSubCategoryMasterOptions,
+  itemMasterDefinition,
 } from "../../masters/shared/masterDefinitions";
 import type { MasterFieldDefinition, MasterRecord } from "../../masters/shared";
 import {
@@ -157,22 +157,16 @@ export const orderModuleConfig: OrderModuleConfig = {
 
 export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] =
   [
-    { key: "orderNo", label: "Order No" },
-    { key: "orderItemNumber", label: "Order Item Number" },
     { key: "orderDate", label: "Order Date" },
     { key: "customerName", label: "Customer Name", filterable: true },
+    { key: "orderNo", label: "Order No" },
+    { key: "orderItemNumber", label: "Order Item No" },
+    { key: "rawMaterial", label: "Raw Material", filterable: true },
     { key: "itemName", label: "Item Name", filterable: true },
-    { key: "subCategory", label: "Sub Category", filterable: true },
-    { key: "status", label: "Status", filterable: true },
-    { key: "priority", label: "Priority", filterable: true },
     { key: "quantitySheets", label: "No of Sheets" },
-    { key: "length", label: "Length" },
-    { key: "width", label: "Width" },
-    { key: "thickness", label: "Thickness" },
-    { key: "sqm", label: "SQM" },
-    { key: "totalSqm", label: "SQF" },
-    { key: "issuedQuantity", label: "Issued Quantity" },
+    { key: "priority", label: "Priority", filterable: true },
     { key: "dispatchQuantity", label: "Dispatch Quantity" },
+    { key: "issuedQuantity", label: "Issued Quantity" },
     { key: "remark", label: "Remark" },
     { key: "createdBy", label: "Created By" },
     { key: "createdDate", label: "Created Date" },
@@ -188,7 +182,7 @@ export const productCategoryOptions = [
   "MDF",
 ] as const;
 
-export const subCategoryOptions = itemSubCategoryMasterOptions;
+export const subCategoryOptions = getItemMasterSubCategoryOptions();
 export const priorityOptions = ["Standard", "Urgent"] as const;
 
 export const seriesOptions = [
@@ -284,6 +278,19 @@ export function getOrderCustomerOptions() {
           (row) => String(row.status ?? "Active").toLowerCase() !== "inactive",
         )
         .map((row) => String(row.customerName ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getItemMasterSubCategoryOptions() {
+  return Array.from(
+    new Set(
+      buildLocalMasterDefinition(itemMasterDefinition).rows
+        .filter(
+          (row) => String(row.status ?? "Active").toLowerCase() !== "inactive",
+        )
+        .map((row) => String(row.subCategory ?? "").trim())
         .filter(Boolean),
     ),
   );

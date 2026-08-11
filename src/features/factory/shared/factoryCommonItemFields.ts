@@ -1,7 +1,7 @@
 import type { MasterFieldDefinition, MasterRecord } from "../../masters/shared";
+import { buildLocalMasterDefinition } from "../../masters/shared/localMasterStore";
 import {
-  getItemMasterRecord,
-  itemMasterOptions,
+  itemMasterDefinition,
 } from "../../masters/shared/masterDefinitions";
 import {
   formatSQF,
@@ -167,7 +167,7 @@ export function getCommonFactoryItemFieldDefinitions(options?: {
   areaReadOnly?: boolean;
 }): MasterFieldDefinition[] {
   const areaReadOnly = options?.areaReadOnly ?? true;
-  const nameOptions = options?.itemNameOptions ?? itemMasterOptions;
+  const nameOptions = options?.itemNameOptions ?? getLiveItemMasterOptions();
 
   return commonFactoryItemFieldSpecs.map(([key, label]) => {
     if (key === "itemName") {
@@ -387,7 +387,7 @@ export function applyFactoryItemMasterDefaults(
   values: Record<string, string>,
   itemName: string,
 ): Record<string, string> {
-  const item = getItemMasterRecord(itemName);
+  const item = getLiveItemMasterRecord(itemName);
   if (!item) {
     return values;
   }
@@ -399,6 +399,39 @@ export function applyFactoryItemMasterDefaults(
   fillIfEmpty(nextValues, "remark", masterString(item, "remark"));
 
   return nextValues;
+}
+
+function getLiveItemMasterRows() {
+  return buildLocalMasterDefinition(itemMasterDefinition).rows;
+}
+
+function getLiveItemMasterOptions() {
+  return Array.from(
+    new Set(
+      getLiveItemMasterRows()
+        .filter(
+          (row) => String(row.status ?? "Active").toLowerCase() !== "inactive",
+        )
+        .map((row) => String(row.itemName ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getLiveItemMasterRecord(itemName: string) {
+  const normalizedName = itemName.trim().toLowerCase();
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  return (
+    getLiveItemMasterRows().find(
+      (row) =>
+        String(row.itemName ?? "").trim().toLowerCase() === normalizedName &&
+        String(row.status ?? "Active").toLowerCase() !== "inactive",
+    ) ?? null
+  );
 }
 
 function masterString(item: MasterRecord, key: string) {

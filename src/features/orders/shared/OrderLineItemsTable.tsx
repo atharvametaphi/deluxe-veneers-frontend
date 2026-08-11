@@ -32,7 +32,6 @@ import { formatAmount, formatSQM, SQM_TO_SQF } from "../../shared/numberFormat";
 import { buildLocalMasterDefinition } from "../../masters/shared/localMasterStore";
 import {
   itemMasterDefinition,
-  itemSubCategoryMasterOptions,
 } from "../../masters/shared/masterDefinitions";
 import { formatMasterValue } from "../../masters/shared";
 import { recordFormActionButtonSx } from "../../shared/buttonStyles";
@@ -109,7 +108,6 @@ const rawOrderLineItemColumns: readonly OrderLineItemColumn[] = [
     label: "Sub Category",
     controlWidth: 200,
     minWidth: 200,
-    options: itemSubCategoryMasterOptions,
     type: "select",
   },
   {
@@ -453,14 +451,20 @@ export const OrderLineItemsTable = forwardRef<
   const isFinishedOrder = variant === "finished";
   const itemRows = useMemo(() => getItemMasterRows(), []);
   const itemOptions = useMemo(() => getItemMasterOptions(itemRows), [itemRows]);
+  const subCategoryOptions = useMemo(
+    () => getItemMasterSubCategoryOptions(itemRows),
+    [itemRows],
+  );
   const columns = useMemo(
     () =>
       getOrderLineItemColumns(isFinishedOrder).map((column) =>
         column.key === "itemName" && column.type === "select"
           ? { ...column, options: itemOptions }
+          : column.key === "subCategory" && column.type === "select"
+            ? { ...column, options: subCategoryOptions }
           : column,
       ),
-    [isFinishedOrder, itemOptions],
+    [isFinishedOrder, itemOptions, subCategoryOptions],
   );
   const nextRowId = useRef(1);
   const [draftValues, setDraftValues] = useState<Record<string, string>>(() =>
@@ -556,7 +560,7 @@ export const OrderLineItemsTable = forwardRef<
 
   const updateDraftValue = (key: keyof Omit<OrderLineItem, "id">, value: string) => {
     setDraftValues((current) =>
-      getNextLineItemValues(current, key, value, isFinishedOrder),
+      getNextLineItemValues(current, key, value, isFinishedOrder, itemRows),
     );
   };
 
@@ -1085,15 +1089,25 @@ function getNextLineItemValues(
   key: keyof Omit<OrderLineItem, "id">,
   value: string,
   isFinishedOrder: boolean,
+  itemRows: readonly MasterRecord[],
 ) {
   const nextValue = isNumericLineItemKey(key) ? sanitizeDoubleInput(value) : value;
-  const nextValues = {
+  let nextValues = {
     ...currentValues,
     [key]: nextValue,
   };
 
   if (key === "baseType") {
     nextValues.baseName = "";
+  }
+
+  if (key === "itemName") {
+    nextValues = applyOrderItemMasterDefaults(
+      nextValues,
+      nextValue,
+      itemRows,
+      isFinishedOrder,
+    );
   }
 
   return applyLineItemCalculations(nextValues, isFinishedOrder, key);
@@ -1104,8 +1118,14 @@ function applyLineItemCalculations(
   isFinishedOrder: boolean,
   changedKey?: keyof Omit<OrderLineItem, "id">,
 ) {
-  const areaValues: Record<string, string> = isFinishedOrder
-    ? applyFinishedAreaCalculations(values)
+  const shouldCalculateFromDimensions =
+    isFinishedOrder ||
+    changedKey === "itemName" ||
+    changedKey === "length" ||
+    changedKey === "width" ||
+    changedKey === "quantitySheets";
+  const areaValues: Record<string, string> = shouldCalculateFromDimensions
+    ? applyDimensionAreaCalculations(values, { clearWhenIncomplete: isFinishedOrder })
     : { ...values };
   const sqm = parsePositiveNumber(areaValues.sqm);
   const nextValues: Record<string, string> =
@@ -1121,8 +1141,9 @@ function applyLineItemCalculations(
   };
 }
 
-function applyFinishedAreaCalculations(
+function applyDimensionAreaCalculations(
   values: Record<string, string>,
+  options: { clearWhenIncomplete: boolean },
 ): Record<string, string> {
   const length = parseDimensionToMeters(values.length);
   const width = parseDimensionToMeters(values.width);
@@ -1136,6 +1157,10 @@ function applyFinishedAreaCalculations(
       sqm: formatAreaValue(sqm),
       totalSqm: formatAreaValue(sqm * sqmToSqf),
     };
+  }
+
+  if (!options.clearWhenIncomplete) {
+    return values;
   }
 
   return {
@@ -1451,6 +1476,19 @@ function getItemMasterOptions(rows: readonly MasterRecord[]) {
   );
 }
 
+function getItemMasterSubCategoryOptions(rows: readonly MasterRecord[]) {
+  return Array.from(
+    new Set(
+      rows
+        .filter(
+          (row) => String(row.status ?? "Active").toLowerCase() !== "inactive",
+        )
+        .map((row) => String(row.subCategory ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
 function getColumnOptions(
   column: OrderLineItemColumn,
   itemRows: readonly MasterRecord[],
@@ -1497,6 +1535,118 @@ function getItemMasterRecord(rows: readonly MasterRecord[], itemName: string) {
   return rows.find(
     (row) => String(row.itemName ?? "").trim().toLowerCase() === normalizedName,
   );
+}
+
+function applyOrderItemMasterDefaults(
+  values: Record<string, string>,
+  itemName: string,
+  itemRows: readonly MasterRecord[],
+  isFinishedOrder: boolean,
+) {
+  const item = getItemMasterRecord(itemRows, itemName);
+
+  if (!item) {
+    return values;
+  }
+
+  const nextValues = { ...values };
+  const category = masterRecordString(item, "category");
+  const subCategory = masterRecordString(item, "subCategory");
+
+  if (isFinishedOrder) {
+    if (!nextValues.salesItemName?.trim()) {
+      nextValues.salesItemName = itemName;
+    }
+
+    applyOrderItemDimensionDefaults(nextValues, item);
+
+    return nextValues;
+  }
+
+  const productType = getRawProductTypeFromItem(item);
+
+  if (productType) {
+    nextValues.productCategory = productType;
+  } else if (category) {
+    nextValues.productCategory = category;
+  }
+
+  if (subCategory) {
+    nextValues.subCategory = subCategory;
+  }
+
+  applyOrderItemDimensionDefaults(nextValues, item);
+
+  return nextValues;
+}
+
+function applyOrderItemDimensionDefaults(
+  values: Record<string, string>,
+  item: MasterRecord,
+) {
+  const dimensionDefaults: Array<[string, keyof Omit<OrderLineItem, "id">]> = [
+    [getMasterValueFromKeys(item, ["length", "itemLength", "standardLength"]), "length"],
+    [getMasterValueFromKeys(item, ["width", "itemWidth", "standardWidth"]), "width"],
+    [
+      getMasterValueFromKeys(item, ["thickness", "itemThickness", "standardThickness"]),
+      "thickness",
+    ],
+    [
+      getMasterValueFromKeys(item, [
+        "quantitySheets",
+        "noOfSheets",
+        "numberOfSheets",
+        "sheets",
+      ]),
+      "quantitySheets",
+    ],
+    [getMasterValueFromKeys(item, ["sqm", "totalSqm"]), "sqm"],
+    [getMasterValueFromKeys(item, ["sqf", "totalSqf"]), "totalSqm"],
+    [getMasterValueFromKeys(item, ["ratePerSqf", "rate", "ratePerSQF"]), "ratePerSqf"],
+  ];
+
+  dimensionDefaults.forEach(([value, key]) => {
+    if (value) {
+      values[key] = value;
+    }
+  });
+}
+
+function getMasterValueFromKeys(record: MasterRecord, keys: readonly string[]) {
+  const value = keys
+    .map((key) => record[key])
+    .find((fieldValue) => String(fieldValue ?? "").trim().length > 0);
+
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getRawProductTypeFromItem(item: MasterRecord) {
+  const source = [
+    masterRecordString(item, "category"),
+    masterRecordString(item, "subCategory"),
+    masterRecordString(item, "itemName"),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (source.includes("mdf")) {
+    return "MDF";
+  }
+
+  if (source.includes("plywood")) {
+    return "Plywood";
+  }
+
+  if (source.includes("veneer")) {
+    return "Veneer";
+  }
+
+  return "";
+}
+
+function masterRecordString(record: MasterRecord, key: string) {
+  const value = record[key];
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function getHeaderCellSx(

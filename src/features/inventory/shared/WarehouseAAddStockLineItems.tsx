@@ -25,13 +25,13 @@ import {
 import type { Theme } from "@mui/material/styles";
 import { Plus, Trash2 } from "lucide-react";
 
+import type { MasterRecord } from "../../masters/shared";
+import { buildLocalMasterDefinition } from "../../masters/shared/localMasterStore";
 import {
   getHsnGstPercentage,
-  getItemMasterRecord,
   gstMasterOptions,
   hsnMasterOptions,
-  itemMasterOptions,
-  itemSubCategoryMasterOptions,
+  itemMasterDefinition,
   unitMasterOptions,
 } from "../../masters/shared/masterDefinitions";
 import { ErpSelectField } from "../../../pages/ComponentLibrary/shared/ErpFieldControls";
@@ -96,7 +96,7 @@ const warehouseAAddStockTableConfigs: Record<
 > = {
   "veneer-blocks": [
     { key: "itemName", label: "Item Name", minWidth: 260, placeholder: "Search or enter item", type: "item-name", required: true },
-    { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
+    { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: getLiveItemSubCategoryOptions(), placeholder: "Sub Category", type: "select", required: true },
     { key: "hsn", label: "HSN Code", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
     { key: "logCode", label: "Log Code", minWidth: 110, placeholder: "Log Code", type: "text" },
     { key: "bundleNumber", label: "Bundle Number", minWidth: 110, placeholder: "Bundle No.", type: "text" },
@@ -115,7 +115,7 @@ const warehouseAAddStockTableConfigs: Record<
   ],
   "raw-veneer": [
     { key: "itemName", label: "Item Name", minWidth: 260, placeholder: "Search or enter item", type: "item-name", required: true },
-    { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
+    { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: getLiveItemSubCategoryOptions(), placeholder: "Sub Category", type: "select", required: true },
     { key: "hsn", label: "HSN Code", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
     { key: "logCode", label: "Log Code", minWidth: 110, placeholder: "Log Code", type: "text" },
     { key: "bundleNumber", label: "Bundle Number", minWidth: 110, placeholder: "Bundle No.", type: "text" },
@@ -135,7 +135,7 @@ const warehouseAAddStockTableConfigs: Record<
   ],
   plywood: [
     { key: "itemName", label: "Item Name", minWidth: 260, placeholder: "Search or enter item", type: "item-name", required: true },
-    { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
+    { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: getLiveItemSubCategoryOptions(), placeholder: "Sub Category", type: "select", required: true },
     { key: "hsn", label: "HSN Code", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
     { key: "color", label: "Color", minWidth: 160, options: ["Natural Oak", "Walnut Brown", "Teak Gold", "Ash Grey"], placeholder: "Color", type: "select" },
     { key: "palletNo", label: "Pallet No", minWidth: 110, placeholder: "Pallet No", type: "text" },
@@ -154,7 +154,7 @@ const warehouseAAddStockTableConfigs: Record<
   ],
   mdf: [
     { key: "itemName", label: "Item Name", minWidth: 260, placeholder: "Search or enter item", type: "item-name", required: true },
-    { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: itemSubCategoryMasterOptions, placeholder: "Sub Category", type: "select", required: true },
+    { key: "itemSubCategory", label: "Item Sub Category", minWidth: 200, options: getLiveItemSubCategoryOptions(), placeholder: "Sub Category", type: "select", required: true },
     { key: "hsn", label: "HSN Code", minWidth: 140, options: hsnMasterOptions, placeholder: "HSN", type: "hsn", required: true },
     { key: "palletNo", label: "Pallet No", minWidth: 110, placeholder: "Pallet No", type: "text" },
     { key: "length", label: "Length", minWidth: 90, placeholder: "Length", type: "text", required: true },
@@ -536,7 +536,7 @@ function applyItemMasterDefaults(
   values: Record<string, string>,
   itemName: string,
 ) {
-  const item = getItemMasterRecord(itemName);
+  const item = getLiveItemMasterRecord(itemName);
 
   if (!item) {
     return values;
@@ -565,6 +565,52 @@ function applyItemMasterDefaults(
   }
 
   return nextValues;
+}
+
+function getLiveItemMasterRows() {
+  return buildLocalMasterDefinition(itemMasterDefinition).rows;
+}
+
+function getLiveItemMasterOptions() {
+  return Array.from(
+    new Set(
+      getLiveItemMasterRows()
+        .filter(isActiveMasterRecord)
+        .map((row) => String(row.itemName ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getLiveItemSubCategoryOptions() {
+  return Array.from(
+    new Set(
+      getLiveItemMasterRows()
+        .filter(isActiveMasterRecord)
+        .map((row) => String(row.subCategory ?? "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getLiveItemMasterRecord(itemName: string) {
+  const normalizedName = itemName.trim().toLowerCase();
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  return (
+    getLiveItemMasterRows().find(
+      (row) =>
+        isActiveMasterRecord(row) &&
+        String(row.itemName ?? "").trim().toLowerCase() === normalizedName,
+    ) ?? null
+  );
+}
+
+function isActiveMasterRecord(row: MasterRecord) {
+  return String(row.status ?? "Active").toLowerCase() !== "inactive";
 }
 
 function applyTaxCalculations(
@@ -907,7 +953,7 @@ function renderEditableField({
     return (
       <Autocomplete
         freeSolo
-        options={[...itemMasterOptions]}
+        options={getLiveItemMasterOptions()}
         value={value}
         onChange={(_, nextValue) =>
           onChange(typeof nextValue === "string" ? nextValue : nextValue ?? "")
@@ -1022,11 +1068,16 @@ function renderEditableField({
   }
 
   if (column.type === "gst" || column.type === "select") {
+    const selectOptions =
+      column.key === "itemSubCategory"
+        ? getLiveItemSubCategoryOptions()
+        : column.options ?? [];
+
     return (
       <ErpSelectField
         helperText={errorText || undefined}
         onChange={onChange}
-        options={column.options ?? []}
+        options={selectOptions}
         size="dense"
         state={errorText ? "error" : "default"}
         value={value}
