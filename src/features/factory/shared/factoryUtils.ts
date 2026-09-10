@@ -40,7 +40,7 @@ export function createFactoryRows<Row extends FactoryRecord>(
 export function expandFactoryRowsForTabs<Row extends FactoryRecord>(
   prefix: string,
   rows: readonly Row[],
-  targetPerTab = 2,
+  targetPerTab = 12,
 ) {
   return factoryTabOrder.flatMap((tab, tabIndex) =>
     Array.from({ length: targetPerTab }, (_, index) => {
@@ -121,9 +121,16 @@ export function getFactoryPaths(slug: string) {
 }
 
 export function getFactoryProcessTabs(title: string) {
+  if (title === "Inspection") {
+    return [
+      { label: "Inspection Pending", value: "issued" },
+      { label: "Inspection Done", value: "done" },
+    ] as const satisfies readonly { label: string; value: FactoryProcessTab }[];
+  }
+
   return [
     {
-      label: `Issued for ${title}`,
+      label: title === "Marquetry" ? "Marquetry Warehouse" : `Issued for ${title}`,
       value: "issued",
     },
     {

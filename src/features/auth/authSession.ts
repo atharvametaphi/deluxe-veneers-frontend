@@ -73,7 +73,7 @@ export const demoUserProfile: AuthenticatedUserProfile = {
   remarks: "System administrator profile for the Deluxe Veneers ERP.",
   role: "System Administrator",
   state: "Gujarat",
-  userName: "Atharva Patil",
+  userName: "Deluxe Veneers",
   userType: "Admin",
 };
 
@@ -360,8 +360,10 @@ const defaultPermissionRoutes = [
     permissionKey: "warehouseLocationMaster",
     path: "/masters/warehouse-location-master",
   },
+  { permissionKey: "sawing", path: "/factory/sawing" },
   { permissionKey: "slicing", path: "/factory/slicing" },
   { permissionKey: "drying", path: "/factory/drying" },
+  { permissionKey: "inspection", path: "/factory/inspection" },
   { permissionKey: "grouping", path: "/factory/grouping" },
   { permissionKey: "marquetry", path: "/factory/marquetry" },
   { permissionKey: "splicing", path: "/factory/splicing" },

@@ -12,6 +12,7 @@ import {
   EditDryingPage,
   ViewDryingPage,
 } from "./drying";
+import { InspectionListPage } from "./inspection";
 import {
   AddEmbossingPage,
   EditEmbossingPage,
@@ -49,6 +50,12 @@ import {
   ViewSlicingPage,
 } from "./slicing";
 import {
+  AddSawingPage,
+  EditSawingPage,
+  SawingListPage,
+  ViewSawingPage,
+} from "./sawing";
+import {
   AddSplicingPage,
   EditSplicingPage,
   SplicingListPage,
@@ -56,6 +63,11 @@ import {
 } from "./splicing";
 
 export const factoryRoutes: RouteObject[] = [
+  { path: "factory/sawing", Component: SawingListPage },
+  { path: "factory/sawing/add", Component: AddSawingPage },
+  { path: "factory/sawing/edit/:id", Component: EditSawingPage },
+  { path: "factory/sawing/view/:id", Component: ViewSawingPage },
+
   { path: "factory/slicing", Component: SlicingListPage },
   { path: "factory/slicing/add", Component: AddSlicingPage },
   { path: "factory/slicing/edit/:id", Component: EditSlicingPage },
@@ -65,6 +77,8 @@ export const factoryRoutes: RouteObject[] = [
   { path: "factory/drying/add", Component: AddDryingPage },
   { path: "factory/drying/edit/:id", Component: EditDryingPage },
   { path: "factory/drying/view/:id", Component: ViewDryingPage },
+
+  { path: "factory/inspection", Component: InspectionListPage },
 
   { path: "factory/grouping", Component: GroupingListPage },
   { path: "factory/grouping/add", Component: AddGroupingPage },

@@ -536,6 +536,18 @@ export function InventoryForm<Row extends InventoryRecord>({
                             typeof values.currency === "string"
                               ? values.currency
                               : "INR",
+                          attachment:
+                            typeof values.attachment === "string"
+                              ? values.attachment
+                              : values.attachment &&
+                                  typeof values.attachment === "object" &&
+                                  "name" in values.attachment
+                                ? values.attachment.name
+                                : "",
+                          eta:
+                            values.eta instanceof Date ? values.eta : null,
+                          etd:
+                            values.etd instanceof Date ? values.etd : null,
                           invoiceNo:
                             typeof values.invoiceNo === "string"
                               ? values.invoiceNo
@@ -548,6 +560,8 @@ export function InventoryForm<Row extends InventoryRecord>({
                             typeof values.inwardType === "string"
                               ? values.inwardType
                               : "",
+                          mode:
+                            typeof values.mode === "string" ? values.mode : "",
                           supplierName:
                             typeof values.supplierName === "string"
                               ? values.supplierName
@@ -631,11 +645,14 @@ const warehouseAInvoiceDetailFieldKeys = new Set([
 ]);
 
 const warehouseAInwardDetailFieldOrder = [
-  "inwardSrNo",
   "inwardDate",
   "supplierName",
   "invoiceNo",
   "currency",
+  "mode",
+  "eta",
+  "etd",
+  "attachment",
   "exchangeRate",
 ];
 

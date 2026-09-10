@@ -1,9 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Award,
-  Blocks,
   Building2,
   CircleDollarSign,
+  ClipboardCheck,
   Cog,
   Factory,
   Folder,
@@ -29,7 +29,6 @@ import {
   UsersRound,
   Warehouse,
   Wind,
-  Wrench,
 } from "lucide-react";
 
 export type SidebarMatchLocation = {
@@ -334,6 +333,13 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
     icon: Factory,
     items: [
       {
+        id: "factory-sawing",
+        label: "Sawing",
+        icon: Scissors,
+        to: "/factory/sawing",
+        match: (location) => matchesPath(location, "/factory/sawing"),
+      },
+      {
         id: "factory-slicing",
         label: "Slicing",
         icon: Slice,
@@ -346,6 +352,13 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
         icon: Wind,
         to: "/factory/drying",
         match: (location) => matchesPath(location, "/factory/drying"),
+      },
+      {
+        id: "factory-inspection",
+        label: "Inspection",
+        icon: ClipboardCheck,
+        to: "/factory/inspection",
+        match: (location) => matchesPath(location, "/factory/inspection"),
       },
       {
         id: "factory-grouping",
@@ -418,22 +431,6 @@ const staticSidebarNavigation: SidebarNavigationEntry[] = [
     icon: Truck,
     to: "/dispatch",
     match: (location) => matchesPath(location, "/dispatch"),
-  },
-  {
-    id: "tools",
-    label: "Tools",
-    icon: Wrench,
-    items: [
-      {
-        id: "component-library",
-        label: "Component Library",
-        icon: Blocks,
-        to: "/tools/component-library",
-        match: (location) =>
-          matchesPath(location, "/tools/component-library") ||
-          matchesPath(location, "/component-library"),
-      },
-    ],
   },
 ];
 

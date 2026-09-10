@@ -34,7 +34,8 @@ const warehouseASlugByInwardType: Record<
   MDF: "mdf",
 };
 
-export const warehouseACurrencyOptions = ["INR", "USD", "EUR"] as const;
+export const warehouseACurrencyOptions = ["INR", "USD", "Euro"] as const;
+export const warehouseAInwardModeOptions = ["Road", "Rail", "Sea", "Air"] as const;
 
 export function getWarehouseAInwardTypeLabel(
   slug: WarehouseAAddStockSlug,
@@ -68,6 +69,7 @@ export function createWarehouseAAddStockHeaderFields(
       key: "inwardDate",
       label: "Inward Date",
       type: "date",
+      readOnly: true,
       required: true,
     },
     {
@@ -90,6 +92,27 @@ export function createWarehouseAAddStockHeaderFields(
       options: [...warehouseACurrencyOptions],
       required: true,
     },
+    {
+      key: "mode",
+      label: "Mode",
+      type: "select",
+      options: [...warehouseAInwardModeOptions],
+    },
+    {
+      key: "eta",
+      label: "ETA",
+      type: "date",
+    },
+    {
+      key: "etd",
+      label: "ETD",
+      type: "date",
+    },
+    {
+      key: "attachment",
+      label: "Attachment",
+      type: "file",
+    },
   ];
 
   if (!isInrCurrency(currency)) {
@@ -110,9 +133,13 @@ export function buildWarehouseAAddStockInitialValues(
   return {
     currency: "INR",
     exchangeRate: "",
+    eta: null,
+    etd: null,
     inwardDate: new Date(),
     inwardType: getWarehouseAInwardTypeLabel(slug),
     invoiceNo: "",
+    mode: "",
+    attachment: "",
     supplierName: "",
   };
 }

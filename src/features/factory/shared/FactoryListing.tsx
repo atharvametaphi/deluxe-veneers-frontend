@@ -17,7 +17,6 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  CheckCircle2,
   Eye,
   Pencil,
   Plus,
@@ -70,6 +69,7 @@ import {
 } from "./groupedStockIssueStore";
 import {
   factoryIssuedWorkToRow,
+  completeFactoryIssuedWork,
   getFactoryIssuedWorkForListing,
   issueFactoryWork,
   resolveFactoryProcessLabel,
@@ -84,6 +84,7 @@ import {
   type SampleNextProcess,
 } from "./sampleSheetIdentityStore";
 import type { FactoryDefinition, FactoryRecord } from "./types";
+import { moveFactoryRowToWarehouseC } from "../../warehouses/shared/warehouseCTransferStore";
 
 type ListingTab = FactoryProcessTab;
 
@@ -105,13 +106,7 @@ export function FactoryListing<Row extends FactoryRecord>({
   const [searchValue, setSearchValue] = useState("");
   const [revertedRowIds, setRevertedRowIds] = useState<string[]>([]);
   const [rejectedDoneRows, setRejectedDoneRows] = useState<Row[]>([]);
-  const [inspectionDoneRowIds, setInspectionDoneRowIds] = useState<string[]>(
-    () =>
-      definition.slug === "drying"
-        ? ["drying-done-2", "drying-done-5", "drying-done-8"]
-        : [],
-  );
-  const [inspectionFailRowIds, setInspectionFailRowIds] = useState<string[]>([]);
+  const [inspectionCompletedRows, setInspectionCompletedRows] = useState<Row[]>([]);
   const [splicingOrderIssue, setSplicingOrderIssue] =
     useState<SplicingOrderIssueState<Row> | null>(null);
   const [groupingSampleIssue, setGroupingSampleIssue] =
@@ -123,6 +118,7 @@ export function FactoryListing<Row extends FactoryRecord>({
   const factoryIssuedWorkItems = useFactoryIssuedWorkItems();
   const isGroupingModule = definition.slug === "grouping";
   const isGroupingDoneTab = isGroupingModule && activeTab === "done";
+  const isInspectionModule = definition.slug === "inspection";
   const supportsSamplePurposeColumn =
     definition.slug === "marquetry" ||
     definition.slug === "splicing" ||
@@ -143,10 +139,24 @@ export function FactoryListing<Row extends FactoryRecord>({
     [rejectedDoneRows],
   );
   const tabRows = useMemo(() => {
+    const movedSourceRowIds = new Set(
+      factoryIssuedWorkItems
+        .filter((item) => item.sourceSlug === definition.slug)
+        .map((item) => item.sourceRowId),
+    );
+    const baseRowsForTab = getFactoryRowsForTab(definition.rows, activeTab).filter(
+      (row) => !movedSourceRowIds.has(String(row.id)),
+    );
     const rowsForTab =
       activeTab === "rejected"
-        ? [...getFactoryRowsForTab(definition.rows, activeTab), ...rejectedDoneRows]
-        : getFactoryRowsForTab(definition.rows, activeTab);
+        ? [...baseRowsForTab, ...rejectedDoneRows]
+        : isInspectionModule && activeTab === "issued"
+          ? baseRowsForTab.filter(
+              (row) => !inspectionCompletedRows.some((completed) => completed.id === row.id),
+            )
+          : isInspectionModule && activeTab === "done"
+            ? [...baseRowsForTab, ...inspectionCompletedRows]
+            : baseRowsForTab;
 
     const issuedWorkRows = getFactoryIssuedWorkForListing(
       definition.slug,
@@ -160,10 +170,12 @@ export function FactoryListing<Row extends FactoryRecord>({
           !(activeTab === "done" && rejectedDoneRowIds.has(row.id)),
       )
       .map((row) => {
-        const sourceNormalizedRow = normalizeFactorySourceColumns(
-          row,
-          definition.slug,
-        ) as Row;
+        const sourceNormalizedRow = {
+          ...normalizeFactorySourceColumns(row, definition.slug),
+          ...(definition.slug === "marquetry"
+            ? { issuedFrom: "Inventory" }
+            : {}),
+        } as Row;
 
         if (isGroupingDoneTab) {
           const available = getAvailableGroupedSheets(sourceNormalizedRow);
@@ -204,6 +216,8 @@ export function FactoryListing<Row extends FactoryRecord>({
     factoryIssuedWorkItems,
     groupedStockIssues,
     isGroupingDoneTab,
+    inspectionCompletedRows,
+    isInspectionModule,
     rejectedDoneRowIds,
     rejectedDoneRows,
     revertedRowIds,
@@ -244,6 +258,10 @@ export function FactoryListing<Row extends FactoryRecord>({
 
     let columns = definition.listColumns;
 
+    if (definition.slug === "marquetry") {
+      columns = columns.filter((column) => column.key !== "groupNo");
+    }
+
     if (isGroupingModule && activeTab === "issued") {
       columns = columns.filter((column) => column.key !== "groupNo");
     }
@@ -266,14 +284,7 @@ export function FactoryListing<Row extends FactoryRecord>({
       });
     }
 
-    if (!isDryingDoneTab) {
-      return columns;
-    }
-
-    return withOptionalColumn(columns, {
-      key: "inspectionStatus",
-      label: "Inspection Status",
-    });
+    return columns;
   }, [
     activeTab,
     definition.listColumns,
@@ -293,26 +304,9 @@ export function FactoryListing<Row extends FactoryRecord>({
       );
     }
 
-    if (!isDryingDoneTab) {
-      return filteredRows;
-    }
-
-    return filteredRows.map(
-      (row) =>
-        ({
-          ...row,
-          inspectionStatus: inspectionDoneRowIds.includes(row.id)
-            ? "Inspection Pass"
-            : inspectionFailRowIds.includes(row.id)
-              ? "Inspection Fail"
-            : "Inspection Pending",
-        }) as Row,
-    );
+    return filteredRows;
   }, [
     filteredRows,
-    inspectionDoneRowIds,
-    inspectionFailRowIds,
-    isDryingDoneTab,
     shouldUsePressingIssuedForLabels,
   ]);
 
@@ -341,7 +335,7 @@ export function FactoryListing<Row extends FactoryRecord>({
           : []),
       ];
 
-      if (activeTab === "issued" && canCreate) {
+      if (activeTab === "issued" && canCreate && !isInspectionModule) {
         baseActions.unshift({
           id: "create-process",
           label: `Create ${definition.title}`,
@@ -403,62 +397,87 @@ export function FactoryListing<Row extends FactoryRecord>({
 
     if (isDryingDoneTab) {
       return (row) => {
-        const isInspectionDone = inspectionDoneRowIds.includes(row.id);
-        const isInspectionFail = inspectionFailRowIds.includes(row.id);
-
-        if (isInspectionDone) {
-          return [
-            ...doneActions,
-            {
-              id: "move-to-warehouse-c",
-              label: "Move to Warehouse C",
-              onSelect: () =>
-                navigate("/warehouse-c?section=inventory&inventory=raw-veneer"),
-            },
-          ];
-        }
-
-        const markInspectionPassAction: EnterpriseTableAction<Row> = {
-          id: "mark-inspection-pass",
-          label: "Inspection Pass",
-          icon: CheckCircle2,
-          onSelect: (selectedRow) => {
-            setInspectionFailRowIds((current) =>
-              current.filter((rowId) => rowId !== selectedRow.id),
-            );
-            setInspectionDoneRowIds((current) =>
-              current.includes(selectedRow.id)
-                ? current
-                : [...current, selectedRow.id],
-            );
-          },
-        };
-
-        if (isInspectionFail) {
-          return [...doneActions, markInspectionPassAction];
-        }
-
         return [
           ...doneActions,
-          markInspectionPassAction,
-          {
-            id: "mark-inspection-fail",
-            label: "Inspection Fail",
-            icon: XCircle,
-            tone: "danger",
-            onSelect: (selectedRow) => {
-              setInspectionDoneRowIds((current) =>
-                current.filter((rowId) => rowId !== selectedRow.id),
-              );
-              setInspectionFailRowIds((current) =>
-                current.includes(selectedRow.id)
-                  ? current
-                  : [...current, selectedRow.id],
-              );
-            },
-          },
+          ...(canCreate
+            ? [
+                {
+                  id: "proceed-for-inspection",
+                  label: "Proceed for Inspection",
+                  icon: Plus,
+                  tone: "primary" as const,
+                  onSelect: (selectedRow: Row) => {
+                    issueFactoryWork({
+                      destinationProcess: "Inspection",
+                      sourceSlug: definition.slug,
+                      sourceProcess: "Drying",
+                      sourceWarehouseName: getFactoryString(selectedRow.warehouseName),
+                      sourceRow: selectedRow,
+                    });
+                    setRevertedRowIds((current) =>
+                      current.includes(selectedRow.id)
+                        ? current
+                        : [...current, selectedRow.id],
+                    );
+                  },
+                },
+              ]
+            : []),
         ];
       };
+    }
+
+    if (isInspectionModule && activeTab === "issued") {
+      return (row) => [
+        ...rowActions,
+        ...(canCreate
+          ? [
+              {
+                id: "inspection-done",
+                label: "Inspection Done",
+                icon: Plus,
+                tone: "primary" as const,
+                onSelect: (selectedRow: Row) => {
+                  const workItemId = getFactoryString(selectedRow.workItemId);
+
+                  if (workItemId) {
+                    completeFactoryIssuedWork(workItemId);
+                  } else {
+                    setInspectionCompletedRows((current) =>
+                      current.some((entry) => entry.id === selectedRow.id)
+                        ? current
+                        : [...current, { ...selectedRow, listingState: "done" }],
+                    );
+                  }
+                },
+              },
+            ]
+          : []),
+      ];
+    }
+
+    if (isInspectionModule && activeTab === "done") {
+      return (row) => [
+        ...doneActions,
+        ...(canCreate
+          ? [
+              {
+                id: "move-to-warehouse-c",
+                label: "Move to Warehouse C",
+                icon: Plus,
+                tone: "primary" as const,
+                onSelect: (selectedRow: Row) => {
+                  moveFactoryRowToWarehouseC(selectedRow);
+                  setRevertedRowIds((current) =>
+                    current.includes(selectedRow.id)
+                      ? current
+                      : [...current, selectedRow.id],
+                  );
+                },
+              },
+            ]
+          : []),
+      ];
     }
 
     if (definition.slug === "finishing" && activeTab === "done") {
@@ -658,8 +677,8 @@ export function FactoryListing<Row extends FactoryRecord>({
     canView,
     definition.slug,
     definition.title,
-    inspectionDoneRowIds,
-    inspectionFailRowIds,
+    inspectionCompletedRows,
+    isInspectionModule,
     isDryingDoneTab,
     isGroupingDoneTab,
     navigate,
@@ -683,8 +702,7 @@ export function FactoryListing<Row extends FactoryRecord>({
       Number.isInteger(issueSheets) &&
       issueSheets > 0 &&
       issueSheets <= availableSheets;
-    const hasValidNextProcess =
-      nextProcess === "Marquetry" || nextProcess === "Splicing";
+    const hasValidNextProcess = nextProcess === "Splicing";
 
     if (!hasValidIssueSheets || !hasValidNextProcess) {
       setGroupingSampleIssue((current) =>
@@ -1220,6 +1238,7 @@ function getPressingNextProcessActions<Row extends FactoryRecord>(
   sourceSlug: string,
 ) {
   const issuedFor = typeof row.issuedFor === "string" ? row.issuedFor.trim() : "";
+  const normalizedIssuedFor = issuedFor.toLowerCase();
   const nextProcessesByOrderType: Record<string, readonly string[]> = {
     "CNC / Fluting": ["Fluting"],
     "CNC/Fluting": ["Fluting"],
@@ -1231,9 +1250,11 @@ function getPressingNextProcessActions<Row extends FactoryRecord>(
     Marquetry: [],
   };
   const nextProcesses =
-    issuedFor in nextProcessesByOrderType
-      ? nextProcessesByOrderType[issuedFor]!
-      : ["Fluting", "Embossing"];
+    normalizedIssuedFor === "embossed" || normalizedIssuedFor === "embossing"
+      ? ["Embossing"]
+      : issuedFor in nextProcessesByOrderType
+        ? nextProcessesByOrderType[issuedFor]!
+        : ["Fluting", "Embossing"];
 
   return nextProcesses
     .map((process) => createFactoryIssueAction<Row>(process, sourceSlug))
@@ -1572,7 +1593,7 @@ function GroupingSampleIssueDialog<Row extends FactoryRecord>({
                       : current,
                   )
                 }
-                options={["Marquetry", "Splicing"]}
+                options={["Splicing"]}
                 size="dense"
                 state={hasNextProcessError ? "error" : "default"}
                 value={state?.nextProcess ?? ""}
@@ -1822,7 +1843,7 @@ function GroupingOrderIssueDialog<Row extends FactoryRecord>({
                       : current,
                   )
                 }
-                options={splicingOrderTypeOptions}
+                options={groupingOrderTypeOptions}
                 size="dense"
                 state="default"
                 value={state?.orderType ?? ""}
@@ -2312,6 +2333,12 @@ function DialogFieldLabel({
 
 const splicingOrderTypeOptions = [
   "Marquetry",
+  "Decorative",
+  "Fluted",
+  "Embossed",
+] as const;
+
+const groupingOrderTypeOptions = [
   "Decorative",
   "Fluted",
   "Embossed",

@@ -42,6 +42,10 @@ interface UserManagementSeedRow {
   dateOfBirth: Date;
   age: string;
   phoneNo: string;
+  aadhaarNo?: string;
+  aadhaarUpload?: string;
+  panNo?: string;
+  panUpload?: string;
   remarks: string;
   createdBy: string;
   createdDate: Date;
@@ -172,8 +176,10 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
     id: "factory",
     label: "Factory",
     items: [
+      { key: "sawing", label: "Sawing" },
       { key: "slicing", label: "Slicing" },
       { key: "drying", label: "Drying" },
+      { key: "inspection", label: "Inspection" },
       { key: "grouping", label: "Grouping" },
       { key: "marquetry", label: "Marquetry" },
       { key: "splicing", label: "Splicing" },
@@ -352,6 +358,8 @@ const userManagementSeedRows: UserManagementSeedRow[] = [
       warehouseB: { view: true },
       slicing: { view: true, edit: true },
       drying: { view: true, edit: true },
+      inspection: { view: true, edit: true },
+      sawing: { view: true, edit: true },
       pressing: { view: true, edit: true },
       finishing: { view: true, edit: true },
       cncFluting: { view: true, edit: true },
@@ -642,6 +650,30 @@ export const userManagementFormFields: readonly MasterFieldDefinition[] = [
     label: "City",
     type: "select",
     placeholder: "Select City",
+  },
+  {
+    key: "aadhaarNo",
+    label: "Aadhaar No",
+    type: "text",
+    placeholder: "Enter Aadhaar No",
+  },
+  {
+    key: "aadhaarUpload",
+    label: "Aadhaar Upload",
+    type: "file",
+    placeholder: "Upload Aadhaar",
+  },
+  {
+    key: "panNo",
+    label: "PAN No",
+    type: "text",
+    placeholder: "Enter PAN No",
+  },
+  {
+    key: "panUpload",
+    label: "PAN Upload",
+    type: "file",
+    placeholder: "Upload PAN",
   },
   {
     key: "remarks",

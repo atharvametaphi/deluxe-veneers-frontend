@@ -8,7 +8,7 @@ import {
 } from "./rolesPermissionsConfig";
 
 const ROLE_PERMISSIONS_STORAGE_KEY = "deluxe-veneers-role-permissions-records-v2";
-const SYSTEM_USER_NAME = "Atharva Patil";
+const SYSTEM_USER_NAME = "Deluxe Veneers";
 
 type StoredRolePermissionDetail = Omit<
   RolePermissionDetail,

@@ -3,6 +3,8 @@ export type WarehouseQcStatus = "pending" | "pass" | "fail";
 const warehouseQcStatusStorageKey = "deluxe-veneers-warehouse-qc-statuses";
 const warehouseQcTransferStorageKey =
   "deluxe-veneers-warehouse-qc-transferred-ids";
+const warehouseQcDetailsStorageKey =
+  "deluxe-veneers-warehouse-qc-pass-details";
 const warehouseQcStatusChangedEvent =
   "deluxe-veneers-warehouse-qc-status-changed";
 
@@ -14,6 +16,11 @@ type WarehouseQcRow = {
 };
 
 type WarehouseQcStatusMap = Record<string, WarehouseQcStatus>;
+
+export interface WarehouseQcPassDetails {
+  remark: string;
+  fileName: string;
+}
 
 export function getWarehouseQcStatus(row: WarehouseQcRow): WarehouseQcStatus {
   const statusMap = getWarehouseQcStatusMap();
@@ -52,7 +59,10 @@ export function markWarehouseQcDone(row: WarehouseQcRow | string) {
   markWarehouseQcPass(row);
 }
 
-export function markWarehouseQcPass(row: WarehouseQcRow | string) {
+export function markWarehouseQcPass(
+  row: WarehouseQcRow | string,
+  details: WarehouseQcPassDetails = { remark: "", fileName: "" },
+) {
   const rowId = typeof row === "string" ? row : row.id;
   const inventoryRecordId =
     typeof row === "string" ? undefined : row.inventoryRecordId;
@@ -88,9 +98,48 @@ export function markWarehouseQcPass(row: WarehouseQcRow | string) {
     transferredIds.add(inventoryRecordId);
   }
 
+  const detailsMap = getWarehouseQcDetailsMap();
+  detailsMap[rowId] = details;
+
+  if (inventoryRecordId) {
+    detailsMap[inventoryRecordId] = details;
+  }
+
+  updateWarehouseQcDetailsMap(detailsMap);
   updateWarehouseQcStatusMap(nextStatusMap);
   updateWarehouseQcTransferredIds(transferredIds);
   return true;
+}
+
+function getWarehouseQcDetailsMap() {
+  if (typeof window === "undefined") {
+    return {} as Record<string, WarehouseQcPassDetails>;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(warehouseQcDetailsStorageKey);
+
+    if (!rawValue) {
+      return {};
+    }
+
+    return JSON.parse(rawValue) as Record<string, WarehouseQcPassDetails>;
+  } catch {
+    return {};
+  }
+}
+
+function updateWarehouseQcDetailsMap(
+  detailsMap: Record<string, WarehouseQcPassDetails>,
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    warehouseQcDetailsStorageKey,
+    JSON.stringify(detailsMap),
+  );
 }
 
 export function markWarehouseQcFail(row: WarehouseQcRow | string) {

@@ -72,6 +72,8 @@ const factoryListingColumnOrder = [
   "groupNo",
   "itemName",
   "itemSubCategory",
+  "fluteCode",
+  "structureCode",
   "logNo",
   "bundleNumber",
   "palletNo",

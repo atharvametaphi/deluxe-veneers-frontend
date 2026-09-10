@@ -409,6 +409,20 @@ export function UserManagementViewPage() {
                   />
                 </DetailCard>
 
+                <DetailCard title="Identity Documents">
+                  <DetailGrid
+                    items={[
+                      { label: "Aadhaar No", value: row.aadhaarNo ?? "" },
+                      {
+                        label: "Aadhaar Upload",
+                        value: row.aadhaarUpload ?? "",
+                      },
+                      { label: "PAN No", value: row.panNo ?? "" },
+                      { label: "PAN Upload", value: row.panUpload ?? "" },
+                    ]}
+                  />
+                </DetailCard>
+
                 <DetailCard title="Additional Information">
                   <DetailField
                     label="Remarks"

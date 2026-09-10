@@ -1,9 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type { Theme } from "@mui/material/styles";
 import {
   Box,
   Button,
   IconButton,
+  InputAdornment,
   Stack,
   Table,
   TableBody,
@@ -14,7 +22,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Save, Trash2, Upload, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 
 import { getCompactFieldSx } from "../../../pages/ComponentLibrary/sections/inputs/components/inputFieldStyles";
@@ -51,7 +59,11 @@ import {
   resolveOriginalQuantity,
   sumProcessedLineItemQuantity,
 } from "./factoryQuantityAllocation";
-import { markSampleProcessDone } from "./sampleSheetIdentityStore";
+import {
+  markSampleProcessDone,
+  useSampleSheetRecords,
+  type SampleSheetRecord,
+} from "./sampleSheetIdentityStore";
 import {
   createEmptyRejectAvailableValues,
   getNextRejectAvailableValues,
@@ -74,6 +86,11 @@ import {
   mergeCommonFactoryItemFields,
 } from "./factoryCommonItemFields";
 import type { FactoryDefinition, FactoryRecord } from "./types";
+import {
+  getOrderLineItems,
+  useOrderRecords,
+  type OrderRecord,
+} from "../../orders/shared/ordersStore";
 
 type SourceRow = FactoryRecord;
 
@@ -102,13 +119,30 @@ type LineItemColumnDefinition = {
   options?: readonly string[];
   placeholder: string;
   readOnly?: boolean;
-  type: "text" | "select";
+  type: "file" | "text" | "select";
 };
 
 type LineItemRecord = {
   id: string;
   values: Record<string, string>;
 };
+
+type MarquetryOrderDetailsValue = {
+  orderItemNo: string;
+  orderNo: string;
+  purpose: "" | "Order" | "Sample Sheets";
+  sampleNo: string;
+};
+
+const groupPhotoPreviewUrls = new Map<string, string>();
+
+function isSupportedGroupPhoto(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  return (
+    ["png", "jpg", "jpeg"].includes(extension ?? "") &&
+    ["image/png", "image/jpeg"].includes(file.type)
+  );
+}
 
 const groupingHiddenSourceKeys = new Set([
   "orderNo",
@@ -221,6 +255,8 @@ const fieldValueAliases: Record<string, readonly string[]> = {
   itemSubCategory: ["itemSubCategory", "subCategory"],
   noOfSheets: ["noOfSheets", "sampleSheets", "finishedSheets", "issuedLeaves", "noOfLeaves"],
   thickness: ["thickness", "thickess"],
+  cbm: ["cbm", "totalCbm", "volumeCbm"],
+  cbf: ["cbf", "totalCbf", "volumeCbf"],
   ...commonFactoryItemFieldAliases,
 };
 
@@ -252,6 +288,8 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
   const paths = getFactoryPaths(definition.slug);
   const nextRowId = useRef(1);
   const locationState = location.state as FactoryCreateLocationState | null;
+  const orderRecords = useOrderRecords();
+  const sampleSheetRecords = useSampleSheetRecords();
   const sourceRow =
     (locationState?.sourceRow as Row | undefined) ??
     (locationState?.sourceRows?.[0] as Row | undefined) ??
@@ -332,6 +370,29 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
   const [draftSubmitAttempted, setDraftSubmitAttempted] = useState(false);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [marquetryOrderDetails, setMarquetryOrderDetails] =
+    useState<MarquetryOrderDetailsValue>(() => ({
+      orderItemNo:
+        typeof locationState?.sourceRow?.orderItemNo === "string"
+          ? locationState.sourceRow.orderItemNo
+          : "",
+      orderNo:
+        typeof locationState?.sourceRow?.orderNo === "string"
+          ? locationState.sourceRow.orderNo
+          : "",
+      purpose:
+        locationState?.sourceRow?.for === "Sample" ||
+        typeof locationState?.sourceRow?.sampleNo === "string"
+          ? "Sample Sheets"
+          : typeof locationState?.sourceRow?.orderNo === "string" &&
+              locationState.sourceRow.orderNo
+            ? "Order"
+            : "",
+      sampleNo:
+        typeof locationState?.sourceRow?.sampleNo === "string"
+          ? locationState.sourceRow.sampleNo
+          : "",
+    }));
   const [editingValues, setEditingValues] = useState<Record<string, string>>(() =>
     createEmptyLineItemValues(lineItemFields),
   );
@@ -545,6 +606,16 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
       >
         <FactorySourceOverviewPanel items={sourceOverviewItems} />
 
+        {definition.slug === "marquetry" ? (
+          <MarquetryOrderDetails
+            hasSubmitted={hasSubmitted}
+            onChange={setMarquetryOrderDetails}
+            orderRecords={orderRecords}
+            sampleSheetRecords={sampleSheetRecords}
+            value={marquetryOrderDetails}
+          />
+        ) : null}
+
         <Box
           sx={(currentTheme) => ({
             width: {
@@ -614,10 +685,13 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                           column,
                           onChange: (value) =>
                             setDraftValues((current) =>
-                              applyFactoryLineItemValueChange(
-                                current,
-                                column.key,
-                                value,
+                              applySawingVolumeCalculation(
+                                definition.slug,
+                                applyFactoryLineItemValueChange(
+                                  current,
+                                  column.key,
+                                  value,
+                                ),
                               ),
                             ),
                           theme,
@@ -725,11 +799,14 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                                 ? renderEditableField({
                                     column,
                                     onChange: (value) =>
-                                      setEditingValues((current) =>
-                                        applyFactoryLineItemValueChange(
-                                          current,
-                                          column.key,
-                                          value,
+                                        setEditingValues((current) =>
+                                        applySawingVolumeCalculation(
+                                          definition.slug,
+                                          applyFactoryLineItemValueChange(
+                                            current,
+                                            column.key,
+                                            value,
+                                          ),
                                         ),
                                       ),
                                     theme,
@@ -784,18 +861,20 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
             </Stack>
           ) : null}
 
-        <RejectAvailableDetailsTable
-          fieldIssues={getVisibleRejectAvailableValidationIssues(
-            rejectAvailableValidationErrors,
-            rejectAvailableSubmitAttempted,
-          )}
-          onChange={(key, value) =>
-            setRejectAvailableValues((current) =>
-              getNextRejectAvailableValues(current, key, value),
-            )
-          }
-          values={rejectAvailableValues}
-        />
+        {definition.slug !== "cnc-fluting" && definition.slug !== "embossing" ? (
+          <RejectAvailableDetailsTable
+            fieldIssues={getVisibleRejectAvailableValidationIssues(
+              rejectAvailableValidationErrors,
+              rejectAvailableSubmitAttempted,
+            )}
+            onChange={(key, value) =>
+              setRejectAvailableValues((current) =>
+                getNextRejectAvailableValues(current, key, value),
+              )
+            }
+            values={rejectAvailableValues}
+          />
+        ) : null}
 
         <Box
           sx={{
@@ -838,6 +917,14 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
               const rejectAvailableInvalid = hasRejectAvailableValidationErrors(
                 rejectAvailableValidationErrors,
               );
+              const marquetryOrderDetailsInvalid =
+                definition.slug === "marquetry" &&
+                (marquetryOrderDetails.purpose === "" ||
+                  (marquetryOrderDetails.purpose === "Order" &&
+                    (!marquetryOrderDetails.orderNo ||
+                      !marquetryOrderDetails.orderItemNo)) ||
+                  (marquetryOrderDetails.purpose === "Sample Sheets" &&
+                    !marquetryOrderDetails.sampleNo));
 
               if (lineItemsInvalid) {
                 setDraftSubmitAttempted(lineItems.length === 0 || draftHasValues);
@@ -852,7 +939,8 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                 hasRequiredFieldErrors(metadataFields, formValues) ||
                 lineItemsInvalid ||
                 quantityInvalid ||
-                rejectAvailableInvalid
+                rejectAvailableInvalid ||
+                marquetryOrderDetailsInvalid
               ) {
                 return;
               }
@@ -879,6 +967,9 @@ export function FactoryProcessCreatePage<Row extends FactoryRecord>({
                 const resultSnapshot: Record<string, unknown> = {
                   ...(sourceRow ?? {}),
                   ...formValues,
+                  ...(definition.slug === "marquetry"
+                    ? marquetryOrderDetails
+                    : {}),
                   ...(primaryLineItem
                     ? Object.fromEntries(
                         Object.entries(primaryLineItem).filter(
@@ -978,7 +1069,10 @@ function resolveProcessHeaderDateFields(
       type: "text",
       readOnly: true,
     });
-  } else if (getExistingGroupNo(sourceRow as Record<string, unknown> | undefined)) {
+  } else if (
+    slug !== "marquetry" &&
+    getExistingGroupNo(sourceRow as Record<string, unknown> | undefined)
+  ) {
     headerFields.unshift({
       key: "groupNo",
       label: "Group No.",
@@ -997,6 +1091,10 @@ function buildSourceColumns(sourceRow?: SourceRow, slug?: string) {
     }
 
     if (slug === "grouping" && groupingHiddenSourceKeys.has(column.key)) {
+      return false;
+    }
+
+    if (slug === "marquetry" && column.key === "groupNo") {
       return false;
     }
 
@@ -1045,11 +1143,153 @@ function buildSourceOverviewItems(
   return items;
 }
 
+function MarquetryOrderDetails({
+  hasSubmitted,
+  onChange,
+  orderRecords,
+  sampleSheetRecords,
+  value,
+}: {
+  hasSubmitted: boolean;
+  onChange: Dispatch<SetStateAction<MarquetryOrderDetailsValue>>;
+  orderRecords: readonly OrderRecord[];
+  sampleSheetRecords: readonly SampleSheetRecord[];
+  value: MarquetryOrderDetailsValue;
+}) {
+  const selectedOrder = orderRecords.find((order) => order.orderNo === value.orderNo);
+  const orderItemOptions = selectedOrder
+    ? getOrderLineItems(selectedOrder.id).map((_, index) => String(index + 1))
+    : [];
+  const purposeError = hasSubmitted && !value.purpose;
+  const orderNoError =
+    hasSubmitted && value.purpose === "Order" && !value.orderNo;
+  const orderItemError =
+    hasSubmitted && value.purpose === "Order" && !value.orderItemNo;
+  const sampleNoError =
+    hasSubmitted && value.purpose === "Sample Sheets" && !value.sampleNo;
+
+  const update = (key: keyof MarquetryOrderDetailsValue, nextValue: string) => {
+    onChange((current) => ({
+      ...current,
+      [key]: nextValue,
+      ...(key === "purpose"
+        ? {
+            orderNo: nextValue === "Order" ? current.orderNo : "",
+            orderItemNo: nextValue === "Order" ? current.orderItemNo : "",
+            sampleNo: nextValue === "Sample Sheets" ? current.sampleNo : "",
+          }
+        : {}),
+      ...(key === "orderNo" ? { orderItemNo: "" } : {}),
+    }));
+  };
+
+  return (
+    <Stack
+      sx={(theme) => ({
+        ...formSectionCardSx(theme),
+        gap: theme.spacing(1.5),
+      })}
+    >
+      <FormSectionHeader title="Order Details" />
+      <Box
+        sx={(theme) => ({
+          display: "grid",
+          gap: theme.spacing(1.5),
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+          },
+        })}
+      >
+        <MarquetrySelectField
+          error={purposeError}
+          label="For"
+          onChange={(nextValue) => update("purpose", nextValue)}
+          options={["Order", "Sample Sheets"]}
+          value={value.purpose}
+        />
+
+        {value.purpose === "Order" ? (
+          <>
+            <MarquetrySelectField
+              error={orderNoError}
+              label="Order No"
+              onChange={(nextValue) => update("orderNo", nextValue)}
+              options={orderRecords.map((order) => order.orderNo)}
+              value={value.orderNo}
+            />
+            <MarquetrySelectField
+              error={orderItemError}
+              label="Order Item No"
+              onChange={(nextValue) => update("orderItemNo", nextValue)}
+              options={orderItemOptions}
+              value={value.orderItemNo}
+            />
+          </>
+        ) : null}
+
+        {value.purpose === "Sample Sheets" ? (
+          <MarquetrySelectField
+            error={sampleNoError}
+            label="Sample Sheet No"
+            onChange={(nextValue) => update("sampleNo", nextValue)}
+            options={sampleSheetRecords.map((sample) => sample.sampleNo)}
+            value={value.sampleNo}
+          />
+        ) : null}
+      </Box>
+    </Stack>
+  );
+}
+
+function MarquetrySelectField({
+  error,
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  error: boolean;
+  label: string;
+  onChange: (value: string) => void;
+  options: readonly string[];
+  value: string;
+}) {
+  return (
+    <Stack spacing={0.5}>
+      <Typography
+        component="label"
+        sx={(theme) => ({
+          color: theme.customTokens.text.primary,
+          fontSize: theme.typography.caption.fontSize,
+          fontWeight: 700,
+        })}
+      >
+        {label} *
+      </Typography>
+      <ErpSelectField
+        helperText={error ? `${label} is required.` : " "}
+        onChange={onChange}
+        options={options}
+        searchable={options.length > 6}
+        size="regular"
+        state={error ? "error" : "default"}
+        value={value}
+      />
+    </Stack>
+  );
+}
+
 function buildLineItemFields(
   slug: string,
   fields: readonly MasterFieldDefinition[],
   sourceRow?: SourceRow,
 ) {
+  if (slug === "sawing") {
+    return dedupeFields(fields.filter((field) => !metadataKeys.has(field.key)));
+  }
+
   const presetFields = factoryCreateLineItemPresets[slug];
 
   if (presetFields) {
@@ -1079,7 +1319,10 @@ function buildLineItemFields(
   );
 
   if (relevantFields.length > 0) {
-    return mergeCommonFactoryItemFields(relevantFields);
+    return orderProcessSpecificFields(
+      slug,
+      mergeCommonFactoryItemFields(relevantFields),
+    );
   }
 
   const fallbackFields: MasterFieldDefinition[] = [
@@ -1098,12 +1341,56 @@ function buildLineItemFields(
     return typeof value === "string" && value.trim().length > 0;
   });
 
-  return mergeCommonFactoryItemFields(
-    appendPresentOptionalLineItemFields(
-      withSourceFallback.length > 0 ? withSourceFallback : fallbackFields,
-      sourceRow,
+  return orderProcessSpecificFields(
+    slug,
+    mergeCommonFactoryItemFields(
+      appendPresentOptionalLineItemFields(
+        withSourceFallback.length > 0 ? withSourceFallback : fallbackFields,
+        sourceRow,
+      ),
     ),
   );
+}
+
+function orderProcessSpecificFields(
+  slug: string,
+  fields: readonly MasterFieldDefinition[],
+) {
+  const specialFieldKey =
+    slug === "cnc-fluting"
+      ? "fluteCode"
+      : slug === "embossing"
+        ? "structureCode"
+        : slug === "grouping"
+          ? "groupPhoto"
+        : "";
+
+  if (!specialFieldKey) {
+    return [...fields];
+  }
+
+  const specialField = fields.find((field) => field.key === specialFieldKey);
+  if (!specialField) {
+    return [...fields];
+  }
+
+  const withoutSpecialField = fields.filter(
+    (field) => field.key !== specialFieldKey,
+  );
+  const insertionIndex =
+    specialFieldKey === "groupPhoto"
+      ? withoutSpecialField.findIndex((field) => field.key === "remark")
+      : withoutSpecialField.findIndex(
+          (field) => field.key === "itemSubCategory",
+        ) + 1;
+
+  withoutSpecialField.splice(
+    insertionIndex >= 0 ? insertionIndex : withoutSpecialField.length,
+    0,
+    specialField,
+  );
+
+  return withoutSpecialField;
 }
 
 function appendPresentOptionalLineItemFields(
@@ -1147,10 +1434,40 @@ function buildDefaultLineItemValues(
   fields: readonly MasterFieldDefinition[],
   sourceRow?: SourceRow,
 ) {
-  return buildFactoryItemPrefillValues(fields, sourceRow, (key) => {
-    const value = getPreferredFieldValue(sourceRow, key);
-    return typeof value === "string" ? value : "";
-  });
+  return calculateSawingVolumeValues(
+    buildFactoryItemPrefillValues(fields, sourceRow, (key) => {
+      const value = getPreferredFieldValue(sourceRow, key);
+      return typeof value === "string" ? value : "";
+    }),
+  );
+}
+
+function applySawingVolumeCalculation(
+  slug: string,
+  values: Record<string, string>,
+) {
+  return slug === "sawing" ? calculateSawingVolumeValues(values) : values;
+}
+
+function calculateSawingVolumeValues(values: Record<string, string>) {
+  if (!("cbm" in values) || !("cbf" in values)) {
+    return values;
+  }
+
+  const length = Number.parseFloat(values.length ?? "");
+  const width = Number.parseFloat(values.width ?? "");
+  const thickness = Number.parseFloat(values.thickness ?? values.height ?? "");
+
+  if (![length, width, thickness].every(Number.isFinite)) {
+    return { ...values, cbm: "", cbf: "" };
+  }
+
+  const cbm = length * width * thickness;
+  return {
+    ...values,
+    cbm: cbm.toFixed(3),
+    cbf: (cbm * 35.315).toFixed(3),
+  };
 }
 
 function createEmptyLineItemValues(fields: readonly MasterFieldDefinition[]) {
@@ -1273,9 +1590,17 @@ function mapFieldToColumn(field: MasterFieldDefinition): LineItemColumnDefinitio
   return {
     key: field.key,
     label: field.label,
-    minWidth: Math.max(120, Math.min(220, field.label.length * 10 + 48)),
+    minWidth:
+      field.key === "groupPhoto"
+        ? 260
+        : Math.max(120, Math.min(220, field.label.length * 10 + 48)),
     placeholder: field.placeholder ?? getDefaultPlaceholder(field),
-    type: field.type === "select" ? "select" : "text",
+    type:
+      field.type === "select"
+        ? "select"
+        : field.type === "file"
+          ? "file"
+          : "text",
     readOnly: Boolean(field.readOnly),
     ...(field.options ? { options: field.options } : {}),
   };
@@ -1310,6 +1635,86 @@ function renderEditableField({
         options={column.options ?? []}
         state={errorText ? "error" : "default"}
         value={value}
+      />
+    );
+  }
+
+  if (column.type === "file") {
+    return (
+      <TextField
+        error={Boolean(errorText)}
+        fullWidth
+        helperText={errorText}
+        placeholder={column.placeholder}
+        slotProps={{
+          input: {
+            readOnly: true,
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label={`Upload ${column.label.toLowerCase()}`}
+                  component="label"
+                  size="small"
+                >
+                  <Upload size={14} />
+                  <input
+                    accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                    hidden
+                    type="file"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file && isSupportedGroupPhoto(file)) {
+                        const previousPreviewUrl = groupPhotoPreviewUrls.get(
+                          file.name,
+                        );
+                        if (previousPreviewUrl) {
+                          URL.revokeObjectURL(previousPreviewUrl);
+                        }
+                        groupPhotoPreviewUrls.set(
+                          file.name,
+                          URL.createObjectURL(file),
+                        );
+                        onChange(file.name);
+                      }
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </IconButton>
+                <IconButton
+                  aria-label={`Preview ${column.label.toLowerCase()}`}
+                  disabled={!groupPhotoPreviewUrls.has(value)}
+                  onClick={() => {
+                    const previewUrl = groupPhotoPreviewUrls.get(value);
+                    if (previewUrl) {
+                      window.open(previewUrl, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                  size="small"
+                >
+                  <Eye size={14} />
+                </IconButton>
+                {value ? (
+                  <IconButton
+                    aria-label={`Remove ${column.label.toLowerCase()}`}
+                    onClick={() => {
+                      const previewUrl = groupPhotoPreviewUrls.get(value);
+                      if (previewUrl) {
+                        URL.revokeObjectURL(previewUrl);
+                        groupPhotoPreviewUrls.delete(value);
+                      }
+                      onChange("");
+                    }}
+                    size="small"
+                  >
+                    <X size={14} />
+                  </IconButton>
+                ) : null}
+              </InputAdornment>
+            ),
+          },
+        }}
+        value={value}
+        sx={getCompactFieldSx(theme, errorText ? "error" : "default")}
       />
     );
   }

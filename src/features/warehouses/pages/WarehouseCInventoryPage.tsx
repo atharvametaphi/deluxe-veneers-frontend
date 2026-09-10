@@ -26,7 +26,18 @@ import {
   useSampleSheetRecords,
   type SampleSheetRecord,
 } from "../../factory/shared/sampleSheetIdentityStore";
+import {
+  issueFactoryWork,
+  useFactoryIssuedWorkItems,
+} from "../../factory/shared/factoryIssuedWorkStore";
+import type { FactoryRecord } from "../../factory/shared/types";
+import { useWarehouseCMovedRows } from "../shared/warehouseCTransferStore";
 import { getInventoryPaths } from "../../inventory/shared";
+import {
+  getOrderLineItems,
+  useOrderRecords,
+  type OrderRecord,
+} from "../../orders/shared/ordersStore";
 import { MasterPageShell } from "../../masters/shared";
 import { canAccessPermission } from "../../permissions";
 import {
@@ -40,6 +51,10 @@ import {
   type WarehouseCInventorySlug,
   type WarehouseInventoryRow,
 } from "../shared/warehouseTableData";
+import {
+  IssueOrderDialog,
+  type IssueOrderValues,
+} from "../shared/IssueOrderDialog";
 
 type WarehouseCTabSlug = WarehouseCInventorySlug | "sample-sheets";
 
@@ -97,10 +112,20 @@ export function WarehouseCInventoryModulePage({
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchValue, setSearchValue] = useState("");
+  const [issueOrderDialogOpen, setIssueOrderDialogOpen] = useState(false);
+  const [marquetryIssuedRowIds, setMarquetryIssuedRowIds] = useState<string[]>(
+    [],
+  );
+  const [issueOrderValues, setIssueOrderValues] = useState<IssueOrderValues>({
+    orderItemNo: "",
+    orderNo: "",
+  });
   const [journeySample, setJourneySample] = useState<SampleSheetRecord | null>(
     null,
   );
   const sampleRecords = useSampleSheetRecords();
+  const movedWarehouseCRows = useWarehouseCMovedRows();
+  const factoryIssuedWorkItems = useFactoryIssuedWorkItems();
   const activeInventory = getActiveWarehouseCInventory(
     searchParams.get("inventory"),
   );
@@ -108,8 +133,69 @@ export function WarehouseCInventoryModulePage({
   const activeInventoryConfig = isSampleSheetsTab
     ? null
     : warehouseCInventoryConfigs[activeInventory];
+  const activeInventoryRows = useMemo(
+    () =>
+      activeInventory === "raw-veneer"
+        ? [...(activeInventoryConfig?.rows ?? []), ...movedWarehouseCRows]
+        : activeInventoryConfig?.rows ?? [],
+    [activeInventory, activeInventoryConfig, movedWarehouseCRows],
+  );
+  const movedWarehouseRowIds = useMemo(
+    () =>
+      new Set(
+        factoryIssuedWorkItems
+          .filter((item) => item.sourceSlug === warehouseName)
+          .map((item) => item.sourceRowId),
+      ),
+    [factoryIssuedWorkItems, warehouseName],
+  );
   const canEditWarehouseC = canAccessPermission("warehouseC", "edit");
   const canViewWarehouseC = canAccessPermission("warehouseC", "view");
+  const orderRecords = useOrderRecords();
+  const rawOrderRecords = useMemo(
+    () => orderRecords.filter(isRawOrderRecord),
+    [orderRecords],
+  );
+  const issueOrderNoOptions = useMemo(
+    () =>
+      rawOrderRecords
+        .filter((record) => getOrderLineItems(record.id).length > 0)
+        .map((record) => record.orderNo),
+    [rawOrderRecords],
+  );
+  const selectedIssueOrder = useMemo(
+    () =>
+      rawOrderRecords.find(
+        (record) => record.orderNo === issueOrderValues.orderNo,
+      ) ?? null,
+    [issueOrderValues.orderNo, rawOrderRecords],
+  );
+  const issueOrderItemNoOptions = useMemo(
+    () =>
+      selectedIssueOrder
+        ? getOrderLineItems(selectedIssueOrder.id).map((_, index) =>
+            String(index + 1),
+          )
+        : [],
+    [selectedIssueOrder],
+  );
+  const showIssueOrderButton =
+    !isSampleSheetsTab &&
+    Boolean(activeInventoryConfig) &&
+    canEditWarehouseC;
+
+  const handleOpenIssueOrderDialog = () => {
+    setIssueOrderValues({ orderItemNo: "", orderNo: "" });
+    setIssueOrderDialogOpen(true);
+  };
+
+  const handleSubmitIssueOrder = () => {
+    if (!issueOrderValues.orderNo || !issueOrderValues.orderItemNo) {
+      return;
+    }
+
+    setIssueOrderDialogOpen(false);
+  };
 
   const sampleRows = useMemo<readonly SampleSheetTableRow[]>(
     () =>
@@ -138,15 +224,32 @@ export function WarehouseCInventoryModulePage({
 
     const normalizedSearch = searchValue.trim().toLowerCase();
     if (!normalizedSearch) {
-      return activeInventoryConfig.rows;
+      return activeInventoryRows.filter(
+        (row) =>
+          !marquetryIssuedRowIds.includes(row.id) &&
+          !movedWarehouseRowIds.has(String(row.id)),
+      );
     }
 
-    return activeInventoryConfig.rows.filter((row) =>
-      Object.values(row).some((value) =>
-        String(value ?? "").toLowerCase().includes(normalizedSearch),
-      ),
-    );
-  }, [activeInventoryConfig, isSampleSheetsTab, searchValue]);
+    return activeInventoryRows
+      .filter(
+        (row) =>
+          !marquetryIssuedRowIds.includes(row.id) &&
+          !movedWarehouseRowIds.has(String(row.id)),
+      )
+      .filter((row) =>
+        Object.values(row).some((value) =>
+          String(value ?? "").toLowerCase().includes(normalizedSearch),
+        ),
+      );
+  }, [
+    activeInventoryRows,
+    activeInventoryConfig,
+    isSampleSheetsTab,
+    marquetryIssuedRowIds,
+    movedWarehouseRowIds,
+    searchValue,
+  ]);
 
   const filteredSampleRows = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
@@ -197,8 +300,41 @@ export function WarehouseCInventoryModulePage({
         : []),
     ];
 
+    if (activeInventory === "raw-veneer" && canEditWarehouseC) {
+      actions.push({
+        id: "issue-for-marquetry",
+        label: "Issue for Marquetry",
+        icon: Plus,
+        tone: "primary",
+        onSelect: (row) => {
+          issueFactoryWork({
+            destinationProcess: "Marquetry",
+            sourceSlug: warehouseName,
+            sourceProcess: "Inventory",
+            sourceWarehouseName: warehouseName,
+            sourceRow: {
+              ...row,
+              issuedFrom: "Inventory",
+              issuedFor: "Marquetry",
+              issuedDate: new Date(),
+              warehouseName,
+            } as FactoryRecord,
+          });
+          setMarquetryIssuedRowIds((current) =>
+            current.includes(row.id) ? current : [...current, row.id],
+          );
+        },
+      });
+    }
+
     return actions;
-  }, [canEditWarehouseC, canViewWarehouseC, navigate]);
+  }, [
+    activeInventory,
+    canEditWarehouseC,
+    canViewWarehouseC,
+    navigate,
+    warehouseName,
+  ]);
 
   const sampleRowActions = useMemo<
     ReadonlyArray<EnterpriseTableAction<SampleSheetTableRow>>
@@ -311,41 +447,58 @@ export function WarehouseCInventoryModulePage({
             }}
           />
 
-          <Button
-            variant="outlined"
-            startIcon={<FileOutput size={15} />}
-            disabled={
-              isSampleSheetsTab
-                ? filteredSampleRows.length === 0
-                : filteredInventoryRows.length === 0
-            }
-            onClick={() => {
-              if (isSampleSheetsTab) {
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            {showIssueOrderButton ? (
+              <Button
+                variant="contained"
+                startIcon={<Plus size={15} />}
+                onClick={handleOpenIssueOrderDialog}
+                sx={(theme) => ({
+                  ...getListingToolbarOutlinedButtonSx(theme),
+                  backgroundColor: theme.palette.primary.main,
+                  color: theme.palette.primary.contrastText,
+                })}
+              >
+                Issue Order
+              </Button>
+            ) : null}
+
+            <Button
+              variant="outlined"
+              startIcon={<FileOutput size={15} />}
+              disabled={
+                isSampleSheetsTab
+                  ? filteredSampleRows.length === 0
+                  : filteredInventoryRows.length === 0
+              }
+              onClick={() => {
+                if (isSampleSheetsTab) {
+                  exportRowsToCsv(
+                    filteredSampleRows,
+                    sampleSheetColumns,
+                    `warehouse-c-${activeInventory}`,
+                  );
+                  return;
+                }
+
+                if (!activeInventoryConfig) {
+                  return;
+                }
+
                 exportRowsToCsv(
-                  filteredSampleRows,
-                  sampleSheetColumns,
+                  filteredInventoryRows,
+                  activeInventoryConfig.columns,
                   `warehouse-c-${activeInventory}`,
                 );
-                return;
-              }
-
-              if (!activeInventoryConfig) {
-                return;
-              }
-
-              exportRowsToCsv(
-                filteredInventoryRows,
-                activeInventoryConfig.columns,
-                `warehouse-c-${activeInventory}`,
-              );
-            }}
-            sx={(theme) => ({
-              ...getListingToolbarOutlinedButtonSx(theme),
-              alignSelf: "center",
-            })}
-          >
-            Export
-          </Button>
+              }}
+              sx={(theme) => ({
+                ...getListingToolbarOutlinedButtonSx(theme),
+                alignSelf: "center",
+              })}
+            >
+              Export
+            </Button>
+          </Stack>
         </Stack>
 
         {isSampleSheetsTab ? (
@@ -382,6 +535,15 @@ export function WarehouseCInventoryModulePage({
       <SampleJourneyDialog
         onClose={() => setJourneySample(null)}
         sample={journeySample}
+      />
+      <IssueOrderDialog
+        itemNoOptions={issueOrderItemNoOptions}
+        onChange={setIssueOrderValues}
+        onClose={() => setIssueOrderDialogOpen(false)}
+        onSubmit={handleSubmitIssueOrder}
+        open={issueOrderDialogOpen}
+        orderNoOptions={issueOrderNoOptions}
+        values={issueOrderValues}
       />
     </MasterPageShell>
   );
@@ -469,4 +631,8 @@ function getActiveWarehouseCInventory(value: string | null): WarehouseCTabSlug {
   return value && value in warehouseCInventoryConfigs
     ? (value as WarehouseCInventorySlug)
     : "raw-veneer";
+}
+
+function isRawOrderRecord(record: OrderRecord) {
+  return record.orderType.trim().toLowerCase().includes("raw");
 }

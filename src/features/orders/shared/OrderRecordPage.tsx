@@ -61,7 +61,6 @@ import {
   getOrderRecord,
   getOrdersPaths,
   getOrderCreateVariant,
-  getOrderVariantFromType,
   getOrderVariantLabel,
   ordersModuleConfig,
   orderViewFields,
@@ -112,25 +111,8 @@ const orderDetailColumns: readonly DetailColumn<OrderRecord>[] = [
   { label: "Updated By", minWidth: 130, getValue: (row) => row.updatedBy },
 ];
 
-const rawItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
-  { label: "Product Type", minWidth: 150, getValue: (row) => row.productCategory },
-  { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
-  { label: "Sub Category", minWidth: 160, getValue: (row) => row.subCategory },
-  { label: "Series", minWidth: 130, getValue: (row) => row.series },
-  { label: "Grade", minWidth: 110, getValue: (row) => row.grade },
-  { label: "Length", minWidth: 120, getValue: (row) => row.length },
-  { label: "Width", minWidth: 120, getValue: (row) => row.width },
-  { label: "Thickness", minWidth: 120, getValue: (row) => row.thickness },
-  { label: "No. of Sheets", minWidth: 130, getValue: (row) => row.quantitySheets },
-  { label: "SQM", minWidth: 120, getValue: (row) => row.sqm },
-  { label: "SQF", minWidth: 130, getValue: (row) => row.totalSqm },
-  { label: "Rate per SQF", minWidth: 140, getValue: (row) => row.ratePerSqf },
-  { label: "Amount", minWidth: 130, getValue: (row) => row.amount },
-  { label: "Remark", minWidth: 200, getValue: (row) => row.remark },
-];
-
-const finishedItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
-  { label: "Finished Type", minWidth: 150, getValue: (row) => row.finishedType },
+const unifiedItemDetailColumns: readonly DetailColumn<OrderLineItem>[] = [
+  { label: "Product Type", minWidth: 150, getValue: (row) => row.productCategory || row.finishedType },
   { label: "Sales Item Name", minWidth: 190, getValue: (row) => row.salesItemName },
   { label: "Item Name", minWidth: 180, getValue: (row) => row.itemName },
   { label: "Length", minWidth: 120, getValue: (row) => row.length },
@@ -183,9 +165,9 @@ export function OrderRecordPage({
     () => getOrderCreateVariant(searchParams.get("type")),
     [searchParams],
   );
-  const recordVariant = useMemo(
-    () => getOrderVariantFromType(record?.orderType),
-    [record?.orderType],
+  const recordVariant = useMemo<OrderCreateVariant | null>(
+    () => (record ? "order" : null),
+    [record],
   );
   const activeVariant = mode === "add" ? createVariant : recordVariant;
   const activeFields = useMemo(
@@ -1025,8 +1007,8 @@ function OrderTypeBanner(_props: { variant: OrderCreateVariant | null }) {
   return null;
 }
 
-function getItemDetailColumns(variant: OrderCreateVariant | null) {
-  return variant === "finished" ? finishedItemDetailColumns : rawItemDetailColumns;
+function getItemDetailColumns(_variant: OrderCreateVariant | null) {
+  return unifiedItemDetailColumns;
 }
 
 function getDetailTableMinWidth<TRow>(columns: readonly DetailColumn<TRow>[]) {

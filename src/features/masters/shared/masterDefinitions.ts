@@ -3,9 +3,119 @@ import { createMasterRows } from "./utils";
 
 const asDate = (value: string) => new Date(value);
 
-/** UI demo listings keep 2 seed rows only. */
-function limitDemoListingRows<T>(rows: ReadonlyArray<T>) {
-  return rows.slice(0, 2);
+const demoListingRowCount = 12;
+
+function limitDemoListingRows<T extends MasterRecord>(
+  rows: ReadonlyArray<T>,
+  options: { count?: number; uniqueKey?: string } = {},
+) {
+  if (rows.length === 0) {
+    return [] as T[];
+  }
+
+  const count = options.count ?? demoListingRowCount;
+  const usedUniqueValues = new Set(
+    options.uniqueKey
+      ? rows
+          .map((row) => row[options.uniqueKey!])
+          .filter((value): value is string => typeof value === "string")
+      : [],
+  );
+
+  return Array.from({ length: count }, (_, index) => {
+    const sourceRow = rows[index % rows.length]!;
+
+    if (index < rows.length) {
+      return sourceRow;
+    }
+
+    return createMasterDemoRow(
+      sourceRow,
+      index,
+      options.uniqueKey,
+      usedUniqueValues,
+    );
+  });
+}
+
+function createMasterDemoRow<T extends MasterRecord>(
+  row: T,
+  index: number,
+  uniqueKey?: string,
+  usedUniqueValues?: Set<string>,
+) {
+  const sequence = String(index + 1).padStart(2, "0");
+  const clonedRow = {
+    ...row,
+    id: `${row.id}-demo-${sequence}`,
+  } as MasterRecord;
+  const identityKeys = [
+    "itemName",
+    "itemCode",
+    "categoryName",
+    "itemSubCategory",
+    "colorName",
+    "cutName",
+    "gradeName",
+    "customerName",
+    "companyName",
+    "unitName",
+    "symbolicName",
+    "supplierName",
+    "transporterName",
+    "branchName",
+    "warehouseName",
+    "warehouseCode",
+    "currencyName",
+    "currencyCode",
+    "hsnCodeDescription",
+  ] as const;
+
+  identityKeys.forEach((key) => {
+    const value = clonedRow[key];
+
+    if (typeof value === "string" && value.trim()) {
+      clonedRow[key] = `${value} ${sequence}`;
+    }
+  });
+
+  if (uniqueKey && usedUniqueValues) {
+    const uniqueValue = getNextUniqueMasterValue(
+      uniqueKey,
+      index,
+      usedUniqueValues,
+    );
+    clonedRow[uniqueKey] = uniqueValue;
+    usedUniqueValues.add(uniqueValue);
+  }
+
+  if (typeof clonedRow.remark === "string" && clonedRow.remark.trim()) {
+    clonedRow.remark = `${clonedRow.remark} Demo entry ${sequence}.`;
+  }
+
+  return clonedRow as T;
+}
+
+function getNextUniqueMasterValue(
+  key: string,
+  index: number,
+  usedValues: Set<string>,
+) {
+  let sequence = index;
+  let candidate =
+    key === "hsnCode"
+      ? String(4400 + sequence)
+      : `${key.toUpperCase()}-${String(sequence + 1).padStart(2, "0")}`;
+
+  while (usedValues.has(candidate)) {
+    sequence += 1;
+    candidate =
+      key === "hsnCode"
+        ? String(4400 + sequence)
+        : `${key.toUpperCase()}-${String(sequence + 1).padStart(2, "0")}`;
+  }
+
+  return candidate;
 }
 
 function withAuditFields<T extends MasterRecord>(rows: ReadonlyArray<T>) {
@@ -739,7 +849,7 @@ const warehouseRows = withAuditFields(createMasterRows("warehouse-location-maste
 
 const currencyRows = withAuditFields(createMasterRows("currency-master", [
   {
-    currencyName: "Indian Rupee",
+    currencyName: "INR",
     remark: "Default local transaction currency",
     createdEditedBy: "Atharva Patil",
     updatedBy: "Neha Shah",
@@ -748,7 +858,7 @@ const currencyRows = withAuditFields(createMasterRows("currency-master", [
     updatedAt: asDate("2026-05-02"),
   },
   {
-    currencyName: "US Dollar",
+    currencyName: "USD",
     remark: "Used for veneer import billing",
     createdEditedBy: "Neha Shah",
     updatedBy: "Rohit Jain",
@@ -764,15 +874,6 @@ const currencyRows = withAuditFields(createMasterRows("currency-master", [
     status: "Active",
     createdEditedAt: asDate("2026-05-03"),
     updatedAt: asDate("2026-05-24"),
-  },
-  {
-    currencyName: "Pound Sterling",
-    remark: "Reserved for legacy procurement mapping",
-    createdEditedBy: "Aditi Desai",
-    updatedBy: "Atharva Patil",
-    status: "Inactive",
-    createdEditedAt: asDate("2026-05-17"),
-    updatedAt: asDate("2026-06-04"),
   },
 ]));
 
@@ -808,7 +909,7 @@ export const itemMasterDefinition: MasterDefinition = {
   columns: [
     { key: "srNo", label: "Sr No" },
     { key: "itemName", label: "Item Name" },
-    { key: "itemCode", label: "Item Code" },
+    { key: "itemCode", label: "Factory Item Code" },
     { key: "category", label: "Category" },
     { key: "subCategory", label: "Sub Category" },
     { key: "remark", label: "Remark" },
@@ -825,7 +926,7 @@ export const itemMasterDefinition: MasterDefinition = {
   ],
   fields: [
     { key: "itemName", label: "Item Name", type: "text" },
-    { key: "itemCode", label: "Item Code", type: "text" },
+    { key: "itemCode", label: "Factory Item Code", type: "text" },
     { key: "category", label: "Category", type: "select", options: activeOptions(itemCategoryRows, "categoryName") },
     { key: "subCategory", label: "Sub Category", type: "select", options: activeOptions(itemSubCategoryRows, "itemSubCategory") },
     { key: "color", label: "Color", type: "select", options: activeOptions(colorRows, "colorName") },
@@ -1094,7 +1195,12 @@ export const customerMasterDefinition: MasterDefinition = {
   fields: [
     { key: "customerName", label: "Customer Name", type: "text" },
     { key: "companyName", label: "Company Name", type: "text" },
-    { key: "customerType", label: "Customer Type", type: "select", options: uniqueOptions(customerRows, "customerType") },
+    {
+      key: "customerType",
+      label: "Customer Type",
+      type: "select",
+      options: ["Platinum", "Gold", "Silver"],
+    },
     { key: "dob", label: "Date of Birth", type: "date" },
     { key: "email", label: "Email", type: "text" },
     { key: "phoneNumber", label: "Phone Number", type: "text" },
@@ -1168,6 +1274,7 @@ export const supplierMasterDefinition: MasterDefinition = {
     { key: "msmeType", label: "MSME Type", type: "text" },
     { key: "msmeNo", label: "MSME No", type: "text" },
     { key: "gstNo", label: "GST No", type: "text" },
+    { key: "fscCode", label: "FSC Code", type: "text" },
     { key: "gstUpload", label: "GST Upload", type: "file" },
     { key: "panNo", label: "PAN No", type: "text" },
     { key: "panUpload", label: "PAN Upload", type: "file" },
@@ -1200,7 +1307,7 @@ export const gstMasterDefinition: MasterDefinition = {
     { key: "status", label: "Status", type: "select", options: statusOptions },
     { key: "remark", label: "Remark", type: "text" },
   ],
-  rows: limitDemoListingRows(gstRows),
+  rows: gstRows,
 };
 
 export const hsnMasterDefinition: MasterDefinition = {
@@ -1229,7 +1336,7 @@ export const hsnMasterDefinition: MasterDefinition = {
     { key: "gstPercentage", label: "GST%", type: "select", options: activeOptions(gstRows, "gstPercentage") },
     { key: "status", label: "Status", type: "select", options: statusOptions },
   ],
-  rows: limitDemoListingRows(hsnRows),
+  rows: limitDemoListingRows(hsnRows, { uniqueKey: "hsnCode" }),
 };
 
 export const warehouseLocationMasterDefinition: MasterDefinition = {
@@ -1300,7 +1407,7 @@ export const currencyMasterDefinition: MasterDefinition = {
     { key: "status", label: "Status", type: "select", options: statusOptions },
     { key: "remark", label: "Remark", type: "text" },
   ],
-  rows: limitDemoListingRows(currencyRows),
+  rows: currencyRows,
 };
 
 export const unitMasterOptions = uniqueOptions(unitRows, "unitName");

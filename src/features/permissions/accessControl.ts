@@ -28,8 +28,10 @@ export const factoryPermissionKeyBySlug: Record<string, string> = {
   embossing: "embossing",
   finishing: "finishing",
   grouping: "grouping",
+  inspection: "inspection",
   marquetry: "marquetry",
   pressing: "pressing",
+  sawing: "sawing",
   slicing: "slicing",
   splicing: "splicing",
 };

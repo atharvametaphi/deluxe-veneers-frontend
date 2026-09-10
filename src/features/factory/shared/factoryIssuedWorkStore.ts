@@ -12,7 +12,8 @@ export type FactoryIssuedWorkRecord = {
   createdAt: string;
   destinationSlug: string;
   id: string;
-  listingState: "issued" | "done";
+  listingState: "issued" | "done" | "moved";
+  movedAt?: string;
   orderItemNo?: string;
   orderNo?: string;
   purpose: FactoryWorkPurpose;
@@ -34,8 +35,10 @@ const processLabelToSlug: Record<string, string> = {
   Finishing: "finishing",
   Fluting: "cnc-fluting",
   Grouping: "grouping",
+  Inspection: "inspection",
   Marquetry: "marquetry",
   Pressing: "pressing",
+  Sawing: "sawing",
   Splicing: "splicing",
   "CNC / Fluting": "cnc-fluting",
   "CNC/Fluting": "cnc-fluting",
@@ -47,8 +50,10 @@ const slugToProcessLabel: Record<string, string> = {
   finishing: "Finishing",
   "cnc-fluting": "Fluting",
   grouping: "Grouping",
+  inspection: "Inspection",
   marquetry: "Marquetry",
   pressing: "Pressing",
+  sawing: "Sawing",
   splicing: "Splicing",
 };
 
@@ -158,6 +163,10 @@ export function issueFactoryWork(input: {
 }): FactoryIssuedWorkRecord {
   const store = readStore();
   const destinationSlug = resolveFactoryProcessSlug(input.destinationProcess);
+  const sourceWorkItemId =
+    typeof input.sourceRow.workItemId === "string"
+      ? input.sourceRow.workItemId
+      : "";
   const purpose: FactoryWorkPurpose =
     input.purpose ??
     (input.sampleNo ||
@@ -185,8 +194,15 @@ export function issueFactoryWork(input: {
       : {}),
   };
 
+  const movedAt = new Date().toISOString();
+  const existingItems = store.items.map((item) =>
+    sourceWorkItemId && item.id === sourceWorkItemId
+      ? { ...item, listingState: "moved" as const, movedAt }
+      : item,
+  );
+
   writeStore({
-    items: [nextItem, ...store.items],
+    items: [nextItem, ...existingItems],
   });
 
   return nextItem;

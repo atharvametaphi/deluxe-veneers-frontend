@@ -10,10 +10,14 @@ const warehouseAInwardChangedEvent =
   "deluxe-veneers-warehouse-a-inward-changed";
 
 export type WarehouseAInwardHeaderValues = {
+  attachment: string;
   currency: string;
+  eta: Date | null;
+  etd: Date | null;
   invoiceNo: string;
   inwardDate: Date | null;
   inwardType: string;
+  mode: string;
   supplierName: string;
 };
 
@@ -130,7 +134,11 @@ function buildWarehouseAInwardRow(input: {
     amount: String(
       input.lineValues.productAmount ?? input.lineValues.amount ?? "",
     ),
+    attachment: input.header.attachment,
     consumables: "",
+    eta: input.header.eta,
+    etd: input.header.etd,
+    mode: input.header.mode,
     qcStatus: "pending",
     remark,
     status: "QC Pending",

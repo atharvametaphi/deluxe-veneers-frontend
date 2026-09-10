@@ -68,6 +68,13 @@ const ADDRESS_FIELD_KEYS = [
   "city",
 ] as const;
 
+const IDENTITY_DOCUMENT_FIELD_KEYS = [
+  "aadhaarNo",
+  "aadhaarUpload",
+  "panNo",
+  "panUpload",
+] as const;
+
 const ADDITIONAL_FIELD_KEYS = ["remarks"] as const;
 
 const STEPPER_STEPS: { id: WorkflowStep; label: string }[] = [
@@ -114,6 +121,10 @@ export function UserManagementFormPage({
   );
   const addressFields = useMemo(
     () => filterFieldsByKeys(activeFields, ADDRESS_FIELD_KEYS),
+    [activeFields],
+  );
+  const identityDocumentFields = useMemo(
+    () => filterFieldsByKeys(activeFields, IDENTITY_DOCUMENT_FIELD_KEYS),
     [activeFields],
   );
   const additionalFields = useMemo(
@@ -560,6 +571,26 @@ export function UserManagementFormPage({
                           definition={{
                             fields: addressFields,
                             gridColumns: 3,
+                          }}
+                          onChange={handleFieldChange}
+                          readOnly={mode === "view"}
+                          showRequiredErrors={mode !== "view" && hasSubmitted}
+                          values={values}
+                        />
+                      </Box>
+                    </InlineFormSection>
+
+                    <InlineFormSection title="Identity Documents">
+                      <Box
+                        sx={{
+                          ...compactFieldChromeSx,
+                          ...getCompactFieldGridSx([220, 300, 220, 300]),
+                        }}
+                      >
+                        <MasterFormFields
+                          definition={{
+                            fields: identityDocumentFields,
+                            gridColumns: 4,
                           }}
                           onChange={handleFieldChange}
                           readOnly={mode === "view"}

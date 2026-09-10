@@ -543,7 +543,13 @@ export function MasterFormFields({
                         normalizeTextInputValue(field, event.target.value),
                       )
                     }
-                    sx={resolveFieldSx(fieldState)}
+                    sx={{
+                      ...resolveFieldSx(fieldState),
+                      "& .MuiOutlinedInput-root": {
+                        height: theme.spacing(4.5),
+                        minHeight: theme.spacing(4.5),
+                      },
+                    }}
                     slotProps={{
                       input: {
                         readOnly: fieldIsReadOnly,
@@ -574,7 +580,13 @@ export function MasterFormFields({
 
                     handleFieldChange(field, nextValue);
                   }}
-                  sx={resolveFieldSx(fieldState)}
+                  sx={{
+                    ...resolveFieldSx(fieldState),
+                    "& .MuiOutlinedInput-root": {
+                      height: theme.spacing(4.5),
+                      minHeight: theme.spacing(4.5),
+                    },
+                  }}
                   slotProps={getTextFieldSlotProps(field, fieldIsReadOnly)}
                 />
               ) : null}
@@ -667,7 +679,13 @@ export function MasterFormFields({
                     <TextField
                       fullWidth
                       value={fileName}
-                      sx={resolveFieldSx(fieldHasRequiredError ? "error" : "readOnly")}
+                      sx={{
+                        ...resolveFieldSx(fieldHasRequiredError ? "error" : "readOnly"),
+                        "& .MuiOutlinedInput-root": {
+                          height: theme.spacing(4.5),
+                          minHeight: theme.spacing(4.5),
+                        },
+                      }}
                       slotProps={{
                         input: {
                           readOnly: true,
@@ -733,7 +751,13 @@ export function MasterFormFields({
                     <TextField
                       fullWidth
                       value={fileName}
-                      sx={resolveFieldSx(fieldHasRequiredError ? "error" : "readOnly")}
+                      sx={{
+                        ...resolveFieldSx(fieldHasRequiredError ? "error" : "readOnly"),
+                        "& .MuiOutlinedInput-root": {
+                          height: theme.spacing(4.5),
+                          minHeight: theme.spacing(4.5),
+                        },
+                      }}
                       slotProps={{
                         input: {
                           readOnly: true,
@@ -1055,6 +1079,18 @@ function getFieldValidationError(
     }
   }
 
+  if (isAadhaarField(field) && !/^\d{12}$/.test(textValue)) {
+    return "Aadhaar No should be exactly 12 digits.";
+  }
+
+  if (isPanField(field) && !/^[A-Z]{5}\d{4}[A-Z]$/.test(textValue)) {
+    return "PAN No should be 10 characters in the format AAAAA9999A.";
+  }
+
+  if (isFscCodeField(field) && !/^FSC-[CNP]\d{6}$/.test(textValue)) {
+    return "FSC Code should match FSC-C123456, FSC-N123456, or FSC-P123456.";
+  }
+
   return "";
 }
 
@@ -1116,6 +1152,18 @@ function normalizeTextInputValue(field: MasterFieldDefinition, value: string) {
     return String(Math.min(Number(integerValue), 100));
   }
 
+  if (isAadhaarField(field)) {
+    return value.replace(/\D/g, "").slice(0, 12);
+  }
+
+  if (isPanField(field)) {
+    return value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10);
+  }
+
+  if (isFscCodeField(field)) {
+    return value.replace(/[^A-Za-z0-9-]/g, "").toUpperCase().slice(0, 11);
+  }
+
   return value;
 }
 
@@ -1152,6 +1200,18 @@ function isPincodeField(field: MasterFieldDefinition) {
 
 function isAgeField(field: MasterFieldDefinition) {
   return getNormalizedFieldKey(field) === "age" || getNormalizedFieldLabel(field) === "age";
+}
+
+function isAadhaarField(field: MasterFieldDefinition) {
+  return getNormalizedFieldKey(field) === "aadhaarno";
+}
+
+function isPanField(field: MasterFieldDefinition) {
+  return getNormalizedFieldKey(field) === "panno";
+}
+
+function isFscCodeField(field: MasterFieldDefinition) {
+  return getNormalizedFieldKey(field) === "fsccode";
 }
 
 function isGstOrHsnNumericField(field: MasterFieldDefinition) {
@@ -1320,6 +1380,28 @@ function getSelectOptions(
 }
 
 function getTextInputHtmlProps(field: MasterFieldDefinition) {
+  if (isAadhaarField(field)) {
+    return {
+      inputMode: "numeric" as const,
+      maxLength: 12,
+      pattern: "[0-9]{12}",
+    };
+  }
+
+  if (isPanField(field)) {
+    return {
+      maxLength: 10,
+      pattern: "[A-Z]{5}[0-9]{4}[A-Z]",
+    };
+  }
+
+  if (isFscCodeField(field)) {
+    return {
+      maxLength: 11,
+      pattern: "FSC-[CNP][0-9]{6}",
+    };
+  }
+
   if (isGstOrHsnNumericField(field) || isPincodeField(field) || isAgeField(field)) {
     return {
       inputMode: "numeric" as const,

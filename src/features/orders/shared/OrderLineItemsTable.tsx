@@ -86,6 +86,32 @@ const finishedTypeOptions = [
 
 const baseTypeOptions = ["Plywood", "MDF"] as const;
 
+const unifiedOrderLineItemColumns: readonly OrderLineItemColumn[] = [
+  { key: "productCategory", label: "Product Type", controlWidth: 170, minWidth: 170, options: [...productCategoryOptions], type: "select" },
+  { key: "salesItemName", label: "Sales Item Name", controlWidth: 240, minWidth: 200, type: "text" },
+  { key: "itemName", label: "Item Name", controlWidth: 260, dropdownWidth: 340, minWidth: 240, showItemDetails: true, type: "select" },
+  { key: "length", label: "Length", controlWidth: 130, minWidth: 110, numeric: true, type: "text" },
+  { key: "width", label: "Width", controlWidth: 130, minWidth: 110, numeric: true, type: "text" },
+  { key: "thickness", label: "Thickness", controlWidth: 120, minWidth: 110, numeric: true, type: "text" },
+  { key: "quantitySheets", label: "No. of Sheets", controlWidth: 130, minWidth: 120, numeric: true, type: "text" },
+  { key: "sqm", label: "SQM", controlWidth: 130, minWidth: 120, numeric: true, readOnly: true, type: "text" },
+  { key: "totalSqm", label: "SQF", controlWidth: 130, minWidth: 120, numeric: true, readOnly: true, type: "text" },
+  { key: "ratePerSqf", label: "Rate / SQF", controlWidth: 140, minWidth: 130, numeric: true, type: "text" },
+  { key: "amount", label: "Amount", controlWidth: 150, minWidth: 120, numeric: true, readOnly: true, type: "text" },
+  { key: "baseType", label: "Base Type", controlWidth: 160, minWidth: 140, options: baseTypeOptions, type: "select" },
+  { key: "baseName", label: "Base Name", controlWidth: 220, dropdownWidth: 300, minWidth: 200, type: "select" },
+  { key: "baseLength", label: "Base Length", controlWidth: 130, minWidth: 110, numeric: true, type: "text" },
+  { key: "baseWidth", label: "Base Width", controlWidth: 130, minWidth: 110, numeric: true, type: "text" },
+  { key: "baseThickness", label: "Base Thickness", controlWidth: 130, minWidth: 120, numeric: true, type: "text" },
+  { key: "remark", label: "Remark", controlWidth: 300, minWidth: 220, type: "text" },
+];
+
+const unifiedEntryRows: readonly EntryRowConfig[] = [
+  { keys: ["productCategory", "salesItemName", "itemName"], template: { xs: "1fr", sm: "1fr 1fr", md: "minmax(150px, 1.1fr) minmax(200px, 1.5fr) minmax(220px, 1.8fr)" } },
+  { keys: ["length", "width", "thickness", "quantitySheets", "sqm", "totalSqm", "ratePerSqf", "amount"], template: { xs: "1fr 1fr", sm: "repeat(4, minmax(120px, 1fr))", md: "repeat(8, minmax(105px, 1fr))" } },
+  { keys: ["baseType", "baseName", "baseLength", "baseWidth", "baseThickness", "remark"], template: { xs: "1fr", sm: "1fr 1fr", md: "minmax(130px, 1fr) minmax(180px, 1.5fr) repeat(3, minmax(110px, 0.8fr)) minmax(200px, 1.5fr)" } },
+];
+
 const rawOrderLineItemColumns: readonly OrderLineItemColumn[] = [
   {
     key: "productCategory",
@@ -448,6 +474,7 @@ export const OrderLineItemsTable = forwardRef<
   readOnly = false,
   variant,
 }, ref) {
+  const isUnifiedOrder = variant === "order";
   const isFinishedOrder = variant === "finished";
   const itemRows = useMemo(() => getItemMasterRows(), []);
   const itemOptions = useMemo(() => getItemMasterOptions(itemRows), [itemRows]);
@@ -457,14 +484,14 @@ export const OrderLineItemsTable = forwardRef<
   );
   const columns = useMemo(
     () =>
-      getOrderLineItemColumns(isFinishedOrder).map((column) =>
+      getOrderLineItemColumns(isFinishedOrder, isUnifiedOrder).map((column) =>
         column.key === "itemName" && column.type === "select"
           ? { ...column, options: itemOptions }
           : column.key === "subCategory" && column.type === "select"
             ? { ...column, options: subCategoryOptions }
           : column,
       ),
-    [isFinishedOrder, itemOptions, subCategoryOptions],
+    [isFinishedOrder, isUnifiedOrder, itemOptions, subCategoryOptions],
   );
   const nextRowId = useRef(1);
   const [draftValues, setDraftValues] = useState<Record<string, string>>(() =>
@@ -610,7 +637,11 @@ export const OrderLineItemsTable = forwardRef<
     ],
   );
 
-  const entryRows = isFinishedOrder ? finishedEntryRows : rawEntryRows;
+  const entryRows = isUnifiedOrder
+    ? unifiedEntryRows
+    : isFinishedOrder
+      ? finishedEntryRows
+      : rawEntryRows;
   const columnsByKey = useMemo(() => {
     const map = new Map<string, OrderLineItemColumn>();
     columns.forEach((column) => map.set(column.key, column));
@@ -652,7 +683,7 @@ export const OrderLineItemsTable = forwardRef<
                   {rowConfig.keys.map((key) => {
                     const column = columnsByKey.get(key);
 
-                    if (!column) {
+                    if (!column || (isUnifiedOrder && isBaseField(column.key) && !isFinishedProductType(draftValues.productCategory))) {
                       return null;
                     }
 
@@ -742,11 +773,13 @@ export const OrderLineItemsTable = forwardRef<
           <Box sx={(theme) => ({ ...getScrollableTableSx(theme), mx: -1.75, mt: 1.15 })}>
               <Table
                 size="medium"
-                sx={{ minWidth: isFinishedOrder ? 1080 : 1020 }}
+                sx={{ minWidth: isUnifiedOrder ? 1500 : isFinishedOrder ? 1080 : 1020 }}
               >
                 <TableHead>
                   <TableRow>
-                    {(isFinishedOrder
+                    {(isUnifiedOrder
+                      ? unifiedListingHeaders
+                      : isFinishedOrder
                       ? finishedListingHeaders
                       : rawListingHeaders
                     ).map((header) => (
@@ -783,7 +816,9 @@ export const OrderLineItemsTable = forwardRef<
                               : theme.customTokens.surfaces.alt,
                         })}
                       >
-                        {(isFinishedOrder
+                        {(isUnifiedOrder
+                          ? getUnifiedListingValues(row, index)
+                          : isFinishedOrder
                           ? getFinishedListingValues(row, index)
                           : getRawListingValues(row, index)
                         ).map((cell) => (
@@ -850,7 +885,11 @@ export const OrderLineItemsTable = forwardRef<
   );
 });
 
-function getOrderLineItemColumns(isFinishedOrder: boolean) {
+function getOrderLineItemColumns(isFinishedOrder: boolean, isUnifiedOrder = false) {
+  if (isUnifiedOrder) {
+    return unifiedOrderLineItemColumns;
+  }
+
   return isFinishedOrder
     ? finishedOrderLineItemColumns
     : rawOrderLineItemColumns;
@@ -950,6 +989,71 @@ const rawListingHeaders = [
   { label: "Rate/SQF", minWidth: 100, align: "right" as const },
   { label: "Amount", minWidth: 110, align: "right" as const },
 ];
+
+const unifiedListingHeaders = [
+  { label: "#", minWidth: 56, align: "left" as const },
+  { label: "Product Type", minWidth: 140, align: "left" as const },
+  { label: "Sales Item Name", minWidth: 160, align: "left" as const },
+  { label: "Item Name", minWidth: 180, align: "left" as const },
+  { label: "Length", minWidth: 100, align: "left" as const },
+  { label: "Width", minWidth: 100, align: "left" as const },
+  { label: "Thickness", minWidth: 100, align: "left" as const },
+  { label: "Sheets", minWidth: 80, align: "right" as const },
+  { label: "SQM", minWidth: 90, align: "right" as const },
+  { label: "SQF", minWidth: 90, align: "right" as const },
+  { label: "Rate/SQF", minWidth: 100, align: "right" as const },
+  { label: "Amount", minWidth: 110, align: "right" as const },
+  { label: "Base Type", minWidth: 120, align: "left" as const },
+  { label: "Base Name", minWidth: 150, align: "left" as const },
+  { label: "Base Length", minWidth: 110, align: "left" as const },
+  { label: "Base Width", minWidth: 110, align: "left" as const },
+  { label: "Base Thickness", minWidth: 120, align: "left" as const },
+  { label: "Remark", minWidth: 180, align: "left" as const },
+];
+
+function getUnifiedListingValues(row: OrderLineItem, index: number) {
+  const values = [
+    { label: "#", value: formatOrderItemNo(row.id, index), align: "left" as const, emphasize: true },
+    { label: "Product Type", value: getUnifiedProductType(row), align: "left" as const },
+    { label: "Sales Item Name", value: row.salesItemName, align: "left" as const },
+    { label: "Item Name", value: row.itemName, align: "left" as const },
+    { label: "Length", value: row.length, align: "left" as const },
+    { label: "Width", value: row.width, align: "left" as const },
+    { label: "Thickness", value: row.thickness, align: "left" as const },
+    { label: "Sheets", value: row.quantitySheets, align: "right" as const },
+    { label: "SQM", value: row.sqm, align: "right" as const },
+    { label: "SQF", value: row.totalSqm, align: "right" as const },
+    { label: "Rate/SQF", value: row.ratePerSqf, align: "right" as const },
+    { label: "Amount", value: row.amount, align: "right" as const, emphasize: true },
+  ];
+
+  if (isFinishedProductType(getUnifiedProductType(row))) {
+    values.push(
+      { label: "Base Type", value: row.baseType, align: "left" as const },
+      { label: "Base Name", value: row.baseName, align: "left" as const },
+      { label: "Base Length", value: row.baseLength, align: "left" as const },
+      { label: "Base Width", value: row.baseWidth, align: "left" as const },
+      { label: "Base Thickness", value: row.baseThickness, align: "left" as const },
+    );
+  }
+
+  values.push({ label: "Remark", value: row.remark, align: "left" as const });
+  return values;
+}
+
+function getUnifiedProductType(row: OrderLineItem) {
+  return row.productCategory === "Finished"
+    ? row.finishedType
+    : row.productCategory || row.finishedType;
+}
+
+function isFinishedProductType(value: string | undefined) {
+  return ["Decorative", "Marquetry", "Fluted", "Embossed"].includes(value ?? "");
+}
+
+function isBaseField(key: keyof Omit<OrderLineItem, "id">) {
+  return ["baseType", "baseName", "baseLength", "baseWidth", "baseThickness"].includes(key);
+}
 
 function getFinishedListingValues(row: OrderLineItem, index: number) {
   return [
@@ -1060,7 +1164,10 @@ function mapValuesToLineItem(values: Record<string, string>): Omit<OrderLineItem
 
 function mapLineItemToValues(lineItem: OrderLineItem) {
   return {
-    productCategory: lineItem.productCategory,
+    productCategory:
+      lineItem.productCategory === "Finished"
+        ? lineItem.finishedType
+        : lineItem.productCategory || lineItem.finishedType,
     finishedType: lineItem.finishedType,
     salesItemName: lineItem.salesItemName,
     itemName: lineItem.itemName,
@@ -1099,6 +1206,14 @@ function getNextLineItemValues(
 
   if (key === "baseType") {
     nextValues.baseName = "";
+  }
+
+  if (key === "productCategory" && !isFinishedProductType(nextValue)) {
+    nextValues.baseType = "";
+    nextValues.baseName = "";
+    nextValues.baseLength = "";
+    nextValues.baseWidth = "";
+    nextValues.baseThickness = "";
   }
 
   if (key === "itemName") {

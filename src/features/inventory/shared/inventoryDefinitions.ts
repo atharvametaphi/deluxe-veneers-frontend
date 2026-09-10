@@ -9,9 +9,54 @@ import type { InventoryDefinition, InventoryRecord } from "./types";
 
 const asDate = (value: string) => new Date(value);
 
-/** UI demo listings keep 2 seed rows only. */
-function limitDemoListingRows<T>(rows: ReadonlyArray<T>) {
-  return rows.slice(0, 2);
+const demoListingRowCount = 12;
+
+function limitDemoListingRows<T extends InventoryRecord>(rows: ReadonlyArray<T>) {
+  if (rows.length === 0) {
+    return [] as T[];
+  }
+
+  return Array.from({ length: demoListingRowCount }, (_, index) => {
+    const sourceRow = rows[index % rows.length]!;
+
+    if (index < rows.length) {
+      return sourceRow;
+    }
+
+    return createInventoryDemoRow(sourceRow, index);
+  });
+}
+
+function createInventoryDemoRow<T extends InventoryRecord>(row: T, index: number) {
+  const sequence = String(index + 1).padStart(2, "0");
+  const clonedRow = {
+    ...row,
+    id: `${row.id}-demo-${sequence}`,
+    srNo: String(index + 1),
+  } as InventoryRecord;
+  const identityKeys = [
+    "inwardSrNo",
+    "invoiceNo",
+    "itemSrNo",
+    "veneerSrNo",
+    "palletNo",
+    "bundleNumber",
+    "batchNo",
+  ] as const;
+
+  identityKeys.forEach((key) => {
+    const value = clonedRow[key];
+
+    if (typeof value === "string" && value.trim()) {
+      clonedRow[key] = `${value}-D${sequence}`;
+    }
+  });
+
+  if (typeof clonedRow.remark === "string" && clonedRow.remark.trim()) {
+    clonedRow.remark = `${clonedRow.remark} Demo entry ${sequence}.`;
+  }
+
+  return clonedRow as T;
 }
 
 type RawVeneerRecord = InventoryRecord & {

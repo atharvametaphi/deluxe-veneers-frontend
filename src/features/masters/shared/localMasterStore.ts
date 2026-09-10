@@ -179,6 +179,14 @@ function buildLocalMasterRecord(
     nextRecord[field.key] = nextValue;
   });
 
+  Object.entries(values).forEach(([key, value]) => {
+    if (definition.fields.some((field) => field.key === key)) {
+      return;
+    }
+
+    nextRecord[key] = toTextValue(value);
+  });
+
   return nextRecord;
 }
 

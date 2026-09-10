@@ -1,19 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  ClickAwayListener,
-  Dialog,
-  DialogContent,
-  MenuList,
-  MenuItem,
-  Paper,
-  Popper,
-  Stack,
-  Typography,
-} from "@mui/material";
-import { ChevronDown, CircleAlert, Eye, Pencil, Plus, XCircle } from "lucide-react";
-import type { MouseEvent } from "react";
+import { Box, Button, Dialog, DialogContent, Stack, Typography } from "@mui/material";
+import { CircleAlert, Eye, Pencil, Plus, XCircle } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
@@ -69,20 +56,13 @@ export function OrdersListingPage({
   const rows = useOrderRecords();
   const requestedTab = getLocationOrderTab(location.state);
   const orderTabs = useMemo(
-    () =>
-      moduleConfig.createOptions.map((option) => ({
-        label: option.label.replace(/ Order$/, " Orders"),
-        value: option.value,
-      })),
-    [moduleConfig.createOptions],
+    () => [{ label: "Orders", value: "order" as OrderListingTab }],
+    [],
   );
   const [activeTab, setActiveTab] = useState<OrderListingTab>(
-    getDefaultOrderListingTab(moduleConfig, requestedTab),
+    "order",
   );
   const [searchValue, setSearchValue] = useState("");
-  const [createMenuAnchor, setCreateMenuAnchor] = useState<HTMLElement | null>(
-    null,
-  );
   const [cancelDialogOrder, setCancelDialogOrder] =
     useState<OrderListingRow | null>(null);
   const canCreate = canAccessPermission(moduleConfig.permissionKey, "create");
@@ -90,7 +70,7 @@ export function OrdersListingPage({
   const canView = canAccessPermission(moduleConfig.permissionKey, "view");
 
   useEffect(() => {
-    setActiveTab(getDefaultOrderListingTab(moduleConfig, requestedTab));
+    setActiveTab("order");
   }, [moduleConfig, requestedTab]);
 
   const listingRows = useMemo(
@@ -100,7 +80,6 @@ export function OrdersListingPage({
 
   const filteredRows = useMemo(() => {
     return listingRows
-      .filter((row) => getOrderVariantFromType(row.orderType) === activeTab)
       .filter((row) => {
       if (searchValue.trim().length === 0) {
         return true;
@@ -120,15 +99,8 @@ export function OrdersListingPage({
   );
 
   useEffect(() => {
-    const viewRecordVariant = getOrderVariantFromType(viewRecord?.orderType);
-
-    if (
-      viewRecordVariant &&
-      moduleConfig.createOptions.some((option) => option.value === viewRecordVariant)
-    ) {
-      setActiveTab(viewRecordVariant);
-    }
-  }, [moduleConfig.createOptions, viewRecord?.orderType]);
+    setActiveTab("order");
+  }, [viewRecord?.id]);
 
   const rowActions = useMemo<readonly EnterpriseTableAction<OrderListingRow>[]>(
     () => [
@@ -179,15 +151,6 @@ export function OrdersListingPage({
           },
         ];
 
-  const handleCloseCreateMenu = () => {
-    setCreateMenuAnchor(null);
-  };
-
-  const handleCreateVariantSelect = (variant: OrderCreateVariant) => {
-    handleCloseCreateMenu();
-    navigate(`${paths.add}?type=${variant}`);
-  };
-
   const handleCloseCancelDialog = () => {
     setCancelDialogOrder(null);
   };
@@ -229,11 +192,7 @@ export function OrdersListingPage({
         <ClearableSearchField
           value={searchValue}
           onChange={setSearchValue}
-          placeholder={
-            activeTab === "finished"
-              ? "Search finished orders..."
-              : "Search raw orders..."
-          }
+          placeholder="Search orders..."
           sx={{
             width: { xs: "100%", sm: 300 },
             maxWidth: "100%",
@@ -242,11 +201,8 @@ export function OrdersListingPage({
 
         {canCreate ? (
           <Button
-            endIcon={<ChevronDown size={16} />}
             startIcon={<Plus size={14} />}
-            onClick={(event: MouseEvent<HTMLElement>) =>
-              setCreateMenuAnchor(event.currentTarget)
-            }
+            onClick={() => navigate(paths.add)}
             sx={(currentTheme) => getListingToolbarButtonSx(currentTheme)}
             variant="contained"
           >
@@ -254,40 +210,6 @@ export function OrdersListingPage({
           </Button>
         ) : null}
 
-        {canCreate ? (
-          <Popper
-            anchorEl={createMenuAnchor}
-            open={Boolean(createMenuAnchor)}
-            placement="bottom-start"
-            sx={(theme) => ({
-              zIndex: theme.zIndex.modal,
-            })}
-          >
-            <ClickAwayListener onClickAway={handleCloseCreateMenu}>
-              <Paper
-                sx={(theme) => ({
-                  mt: theme.spacing(1),
-                  minWidth: 200,
-                  border: `1px solid ${theme.customTokens.borders.default}`,
-                  borderRadius: `${theme.customTokens.radius.md}px`,
-                  boxShadow: theme.shadows[0],
-                  overflow: "hidden",
-                })}
-              >
-                <MenuList autoFocusItem dense>
-                  {moduleConfig.createOptions.map((option) => (
-                    <MenuItem
-                      key={option.value}
-                      onClick={() => handleCreateVariantSelect(option.value)}
-                    >
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </MenuList>
-              </Paper>
-            </ClickAwayListener>
-          </Popper>
-        ) : null}
       </Stack>
 
       <EnterpriseDataTable
@@ -295,9 +217,7 @@ export function OrdersListingPage({
         columns={listingColumns}
         defaultRowsPerPage={10}
         emptyStateLabel={
-          activeTab === "finished"
-            ? "No finished orders are available."
-            : "No raw orders are available."
+          "No orders are available."
         }
         getRowActions={getRowActions}
         initialSort={{ key: "updatedDate", direction: "desc" }}
@@ -364,10 +284,9 @@ function buildOrderListingRows(record: OrderRecord): OrderListingRow[] {
     orderItemNumber: String(index + 1),
     orderLineItemId: lineItem.id,
     rawMaterial:
-      lineItem.productCategory ||
-      lineItem.baseType ||
-      lineItem.finishedType ||
-      record.productCategory,
+      lineItem.productCategory === "Finished"
+        ? lineItem.finishedType
+        : lineItem.productCategory || lineItem.finishedType || record.productCategory,
   }));
 }
 
@@ -491,16 +410,3 @@ function getLocationOrderTab(state: unknown) {
   return (state as OrderListingLocationState)?.orderListingTab ?? null;
 }
 
-function getDefaultOrderListingTab(
-  moduleConfig: OrderModuleConfig,
-  requestedTab: OrderListingTab | null,
-) {
-  if (
-    requestedTab &&
-    moduleConfig.createOptions.some((option) => option.value === requestedTab)
-  ) {
-    return requestedTab;
-  }
-
-  return moduleConfig.createOptions[0]?.value ?? "raw";
-}

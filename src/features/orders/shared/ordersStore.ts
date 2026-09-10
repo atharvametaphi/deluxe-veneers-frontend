@@ -99,6 +99,7 @@ export interface OrderDraft {
 }
 
 export type OrderCreateVariant =
+  | "order"
   | "raw"
   | "marquetry"
   | "decorative"
@@ -119,8 +120,7 @@ export type OrderModuleConfig = {
 };
 
 export const ordersCreateOptions: readonly OrderCreateOption[] = [
-  { label: "Raw Order", value: "raw" },
-  { label: "Finished Order", value: "finished" },
+  { label: "Order", value: "order" },
 ];
 
 export const orderModuleCreateOptions: readonly OrderCreateOption[] =
@@ -161,7 +161,7 @@ export const orderListingColumns: readonly EnterpriseTableColumn<OrderRecord>[] 
     { key: "customerName", label: "Customer Name", filterable: true },
     { key: "orderNo", label: "Order No" },
     { key: "orderItemNumber", label: "Order Item No" },
-    { key: "rawMaterial", label: "Raw Material", filterable: true },
+    { key: "rawMaterial", label: "Product Type", filterable: true },
     { key: "itemName", label: "Item Name", filterable: true },
     { key: "quantitySheets", label: "No of Sheets" },
     { key: "priority", label: "Priority", filterable: true },
@@ -180,6 +180,10 @@ export const productCategoryOptions = [
   "Veneer",
   "Plywood",
   "MDF",
+  "Decorative",
+  "Marquetry",
+  "Fluted",
+  "Embossed",
 ] as const;
 
 export const subCategoryOptions = getItemMasterSubCategoryOptions();
@@ -323,7 +327,7 @@ export const orderViewFields: readonly MasterFieldDefinition[] = [
 export function getOrderVariantLabel(variant: OrderCreateVariant) {
   return (
     allOrderCreateOptions.find((option) => option.value === variant)?.label ??
-    "Raw Order"
+    "Order"
   );
 }
 
@@ -335,6 +339,10 @@ export function getOrderVariantFromType(
   }
 
   const normalizedType = orderType.trim().toLowerCase();
+
+  if (normalizedType === "order") {
+    return "order";
+  }
 
   if (normalizedType.includes("marquetry")) {
     return "marquetry";
@@ -368,7 +376,7 @@ export function getOrderCreateVariant(
 ): OrderCreateVariant {
   return (
     allOrderCreateOptions.find((option) => option.value === value)?.value ??
-    "raw"
+    "order"
   );
 }
 

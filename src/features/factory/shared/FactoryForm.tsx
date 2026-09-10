@@ -142,7 +142,9 @@ export function FactoryForm<Row extends FactoryRecord>({
     if (definition.slug === "grouping") {
       sections = sanitizeGroupingFormSections(sections);
     }
-    return withGroupNoField(sections, row);
+    return definition.slug === "marquetry"
+      ? sections
+      : withGroupNoField(sections, row);
   }, [definition.formSections, definition.slug, row]);
 
   const [values, setValues] = useState<Record<string, MasterFieldValue>>(() =>
@@ -156,7 +158,11 @@ export function FactoryForm<Row extends FactoryRecord>({
 
   const shouldShowItemTable =
     (mode === "view" || mode === "edit") && definition.slug !== "slicing";
-  const itemTableFields = shouldShowItemTable ? factoryItemTableFields : [];
+  const itemTableFields = shouldShowItemTable
+    ? definition.slug === "sawing"
+      ? sawingItemTableFields
+      : factoryItemTableFields
+    : [];
   const visibleFormSections =
     shouldShowItemTable
       ? formSections.filter((section) => !isFactoryItemSection(section))
@@ -343,6 +349,21 @@ export function FactoryForm<Row extends FactoryRecord>({
 
 const factoryItemTableFields: readonly MasterFieldDefinition[] =
   getCommonFactoryItemFieldDefinitions();
+
+const sawingItemTableFields: readonly MasterFieldDefinition[] = [
+  { key: "itemName", label: "Item Name", type: "text" },
+  { key: "itemSubCategory", label: "Sub Category", type: "text" },
+  { key: "color", label: "Color", type: "text" },
+  { key: "logNo", label: "Batch No", type: "text" },
+  { key: "length", label: "Length", type: "text" },
+  { key: "width", label: "Width", type: "text" },
+  { key: "height", label: "Thickness", type: "text" },
+  { key: "cbm", label: "CBM", type: "text" },
+  { key: "cbf", label: "CBF", type: "text" },
+  { key: "ratePerSqf", label: "Rate per CBF", type: "text" },
+  { key: "amount", label: "Amount", type: "text" },
+  { key: "remark", label: "Remark", type: "text" },
+];
 
 function isFactoryItemSection(section: FactoryFormSection) {
   return section.title.toLowerCase().includes("item");

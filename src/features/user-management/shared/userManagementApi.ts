@@ -9,7 +9,7 @@ import {
 
 const USER_MANAGEMENT_STORAGE_KEY = "deluxe-veneers-user-management-records-v2";
 const USER_PASSWORD_STORAGE_KEY = "deluxe-veneers-user-management-passwords-v2";
-const SYSTEM_USER_NAME = "Atharva Patil";
+const SYSTEM_USER_NAME = "Deluxe Veneers";
 const DEFAULT_USER_PASSWORD = "admin";
 
 type StoredUserManagementDetail = Omit<
@@ -177,6 +177,11 @@ function buildUserDetailFromValues(
 
   return {
     address: getStringValue(values.address, existingRecord?.address),
+    aadhaarNo: getStringValue(values.aadhaarNo, existingRecord?.aadhaarNo),
+    aadhaarUpload: getStringValue(
+      values.aadhaarUpload,
+      existingRecord?.aadhaarUpload,
+    ),
     age: getStringValue(values.age, existingRecord?.age),
     approver: getStringValue(values.approver, existingRecord?.approver),
     bloodGroup: getStringValue(values.bloodGroup, existingRecord?.bloodGroup),
@@ -195,6 +200,8 @@ function buildUserDetailFromValues(
     permissions:
       permissions ?? existingRecord?.permissions ?? buildDefaultUserPermissions(),
     phoneNo: getStringValue(values.phoneNo, existingRecord?.phoneNo),
+    panNo: getStringValue(values.panNo, existingRecord?.panNo),
+    panUpload: getStringValue(values.panUpload, existingRecord?.panUpload),
     pincode: getStringValue(values.pincode, existingRecord?.pincode),
     remarks: getStringValue(values.remarks, existingRecord?.remarks),
     role: getStringValue(values.role, existingRecord?.role),
@@ -314,7 +321,15 @@ function savePasswordStore(passwords: Record<string, string>) {
 }
 
 function getStringValue(value: MasterFieldValue | undefined, fallback = "") {
-  return typeof value === "string" ? value.trim() : fallback;
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (value && typeof value === "object" && "name" in value) {
+    return value.name.trim();
+  }
+
+  return fallback;
 }
 
 function getBooleanValue(value: MasterFieldValue | undefined, fallback: boolean) {

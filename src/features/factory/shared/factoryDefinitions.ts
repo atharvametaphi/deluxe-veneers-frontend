@@ -67,6 +67,10 @@ const field = (
   label: string,
   rows: readonly FactoryRecord[],
 ): MasterFieldDefinition => {
+  if (key === "groupPhoto") {
+    return { key, label, type: "file" };
+  }
+
   if (key.toLowerCase().endsWith("date")) {
     return dateField(key, label);
   }
@@ -180,6 +184,8 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
   const outputSqm = formatSQM(64.8 + index * 5.8);
   const itemName = itemNames[index % itemNames.length];
   const warehouseCode = warehouseName.endsWith("B") ? "WB" : "WC";
+  const pick = <Value,>(values: readonly Value[]) =>
+    values[index % values.length]!;
 
   return {
     warehouseName,
@@ -202,25 +208,25 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
     sqmSqf: sqm,
     ratePerSqf: formatAmount(amountValue / (sqmValue * SQM_TO_SQF)),
     amount: formatAmount(amountValue),
-    remark: [
+    remark: pick([
       "Production batch aligned for next process.",
       "Priority lot for customer order.",
       "Checked and released by supervisor.",
       "Held for dimensional verification.",
       "Processed under standard workflow.",
       "Ready for downstream planning.",
-    ][index],
+    ]),
     createdBy: names[index % names.length],
     createdAt: day(4 + index),
     updatedBy: names[(index + 1) % names.length],
     updatedAt: day(5 + index),
-    issuedFor: [
+    issuedFor: pick([
       "Drying",
       "Pressing",
       "Splicing",
       "Fluting",
       "Finishing",
-    ][index],
+    ]),
     customerName: customers[index % customers.length],
     orderNo: `ORD-2026-${String(1200 + sequence)}`,
     orderItemNo: `ITEM-${String(sequence).padStart(3, "0")}`,
@@ -240,13 +246,34 @@ function commonRow(index: number, warehouseName: "Warehouse B" | "Warehouse C") 
     pressingDate: day(8 + index),
     cncDate: day(9 + index),
     finishingDate: day(10 + index),
-    productType: ["Raw", "Marquetry", "Decorative", "Fluted", "Embossed", "Raw"][index],
+    productType: pick([
+      "Raw",
+      "Marquetry",
+      "Decorative",
+      "Fluted",
+      "Embossed",
+      "Raw",
+    ]),
     instructions: "Follow production tolerance sheet.",
     pressingId: `PRS-${String(900 + sequence)}`,
     baseThickness: `${12 + index} mm`,
     veneerThickness: `${0.6 + index * 0.1}`,
-    baseType: ["Plywood", "MDF", "Veneer Block", "Plywood", "MDF", "Plywood"][index],
-    consumedFrom: ["Warehouse C", "Pressing Stock", "Raw Veneer", "MDF", "Plywood", "Warehouse C"][index],
+    baseType: pick([
+      "Plywood",
+      "MDF",
+      "Veneer Block",
+      "Plywood",
+      "MDF",
+      "Plywood",
+    ]),
+    consumedFrom: pick([
+      "Warehouse C",
+      "Pressing Stock",
+      "Raw Veneer",
+      "MDF",
+      "Plywood",
+      "Warehouse C",
+    ]),
     consumedLength: `${2400 + index * 20} mm`,
     consumedWidth: `${1200 + index * 10} mm`,
     consumedThickness: `${10 + index} mm`,
@@ -279,7 +306,7 @@ function factoryRows(
 ) {
   return createFactoryRows<FactoryRecord>(
     prefix,
-    Array.from({ length: 2 }, (_, index) => {
+    Array.from({ length: 12 }, (_, index) => {
       const row = {
         ...commonRow(index, warehouseName),
         issuedFrom: getDefaultIssuedFromProcess(prefix, index),
@@ -376,11 +403,13 @@ const pressingRows = factoryRows("pressing", "Warehouse C", (row, index) => ({
 const cncFlutingRows = factoryRows("cnc-fluting", "Warehouse C", (row, index) => ({
   ...withCarriedGroupNo(row, index),
   issuedFor: "Finishing",
+  fluteCode: `FLT-${String(index + 1).padStart(3, "0")}`,
 }));
 
 const embossingRows = factoryRows("embossing", "Warehouse C", (row, index) => ({
   ...withCarriedGroupNo(row, index),
   issuedFor: "Finishing",
+  structureCode: `STR-${String(index + 1).padStart(3, "0")}`,
 }));
 
 const finishingRows = factoryRows("finishing", "Warehouse C", (row, index) => ({
@@ -433,6 +462,24 @@ const slicingListingColumns = listingColumns([
   ["noOfLeaves", "No. of Leaves"],
   ["sqm", "SQM"],
   ["sqf", "SQF"],
+  ["amount", "Amount"],
+  ["remark", "Remark"],
+] as const);
+
+const sawingListingColumns = columns([
+  ["warehouseName", "Warehouses"],
+  ["issuedFrom", "Issued From"],
+  ["issuedDate", "Issued Date"],
+  ["itemName", "Item Name"],
+  ["itemSubCategory", "Sub Category"],
+  ["color", "Color"],
+  ["logNo", "Batch No"],
+  ["length", "Length"],
+  ["width", "Width"],
+  ["height", "Thickness"],
+  ["cbm", "CBM"],
+  ["cbf", "CBF"],
+  ["ratePerSqf", "Rate per CBF"],
   ["amount", "Amount"],
   ["remark", "Remark"],
 ] as const);
@@ -545,6 +592,60 @@ const cncListingColumns = listingColumns([
   ["updatedAt", "Updated At"],
 ] as const);
 
+const flutingListingColumns = listingColumns([
+  ["warehouseName", "Warehouses"],
+  ["issuedFrom", "Issued From"],
+  ["issuedFor", "Issued For"],
+  ["groupNo", "Group No."],
+  ["orderDate", "Order Date"],
+  ["issuedDate", "Issued Date"],
+  ["customerName", "Customer Name"],
+  ["orderNo", "Order No"],
+  ["orderItemNo", "Order Item No"],
+  ["itemName", "Item Name"],
+  ["itemSubCategory", "Item Sub Category"],
+  ["fluteCode", "Flute Code"],
+  ["length", "Length"],
+  ["width", "Width"],
+  ["thickness", "Thickness"],
+  ["noOfSheets", "No of Sheets"],
+  ["sqm", "SQM"],
+  ["sqf", "SQF"],
+  ["amount", "Amount"],
+  ["remark", "Remarks"],
+  ["createdBy", "Created By"],
+  ["createdAt", "Created At"],
+  ["updatedBy", "Updated By"],
+  ["updatedAt", "Updated At"],
+] as const);
+
+const embossingListingColumns = listingColumns([
+  ["warehouseName", "Warehouses"],
+  ["issuedFrom", "Issued From"],
+  ["issuedFor", "Issued For"],
+  ["groupNo", "Group No."],
+  ["orderDate", "Order Date"],
+  ["issuedDate", "Issued Date"],
+  ["customerName", "Customer Name"],
+  ["orderNo", "Order No"],
+  ["orderItemNo", "Order Item No"],
+  ["itemName", "Item Name"],
+  ["itemSubCategory", "Item Sub Category"],
+  ["structureCode", "Structure Code"],
+  ["length", "Length"],
+  ["width", "Width"],
+  ["thickness", "Thickness"],
+  ["noOfSheets", "No of Sheets"],
+  ["sqm", "SQM"],
+  ["sqf", "SQF"],
+  ["amount", "Amount"],
+  ["remark", "Remarks"],
+  ["createdBy", "Created By"],
+  ["createdAt", "Created At"],
+  ["updatedBy", "Updated By"],
+  ["updatedAt", "Updated At"],
+] as const);
+
 const finishingListingColumns = listingColumns([
   ["warehouseName", "Warehouses"],
   ["issuedFrom", "Issued From"],
@@ -612,6 +713,21 @@ const slicingProcessDetailFields = [
   ["remark", "Remark"],
 ] as const;
 
+const sawingProcessDetailFields = [
+  ["itemName", "Item Name"],
+  ["itemSubCategory", "Sub Category"],
+  ["color", "Color"],
+  ["logNo", "Batch No"],
+  ["length", "Length"],
+  ["width", "Width"],
+  ["height", "Thickness"],
+  ["cbm", "CBM"],
+  ["cbf", "CBF"],
+  ["ratePerSqf", "Rate per CBF"],
+  ["amount", "Amount"],
+  ["remark", "Remark"],
+] as const;
+
 
 const slicingDerivedAreaKeys = new Set(["sqm", "sqf"]);
 
@@ -628,13 +744,32 @@ function buildSlicingFormSections(rows: readonly FactoryRecord[]) {
   ] as const;
 }
 
+function buildSawingFormSections(rows: readonly FactoryRecord[]) {
+  return [
+    createSection(
+      "Process Details",
+      fields(sawingProcessDetailFields, rows).map((fieldDefinition) =>
+        fieldDefinition.key === "cbm" || fieldDefinition.key === "cbf"
+          ? { ...fieldDefinition, readOnly: true }
+          : fieldDefinition,
+      ),
+    ),
+  ] as const;
+}
+
 const groupingCreateFields = [
   ["groupNo", "Group No."],
   ["groupingDate", "Grouping Date"],
 ] as const;
 
+const marquetryCreateFields = groupingCreateFields.filter(
+  ([key]) => key !== "groupNo",
+);
+
 const groupingAddItemFields = [
-  ...commonFactoryItemFieldSpecs,
+  ...commonFactoryItemFieldSpecs.filter(([key]) => key !== "remark"),
+  ["groupPhoto", "Group Photo"],
+  ["remark", "Remark"],
 ] as const;
 
 const splicingCreateFields = [
@@ -715,6 +850,51 @@ const cncCreateFields = [
   ["remark", "Remark"],
 ] as const;
 
+const flutingCreateFields = [
+  ["issuedFor", "Issued For"],
+  ["customerName", "Customer Name"],
+  ["orderNo", "Order No"],
+  ["itemName", "Item Name"],
+  ["itemSubCategory", "Item Sub Category"],
+  ["fluteCode", "Flute Code"],
+  ["length", "Length"],
+  ["width", "Width"],
+  ["thickness", "Thickness"],
+  ["issuedNoOfSheets", "No of Sheets"],
+  ["issuedSqm", "SQM"],
+  ["issuedSqf", "SQF"],
+  ["issueRemark", "Remark"],
+  ["cncDate", "Fluting Date"],
+  ["outputNoOfSheets", "No of Sheets"],
+  ["outputSqm", "SQM"],
+  ["outputSqf", "SQF"],
+  ["amount", "Amount"],
+  ["remark", "Remark"],
+] as const;
+
+const embossingCreateFields = [
+  ["issuedFor", "Issued For"],
+  ["customerName", "Customer Name"],
+  ["orderNo", "Order No"],
+  ["itemName", "Item Name"],
+  ["itemSubCategory", "Item Sub Category"],
+  ["structureCode", "Structure Code"],
+  ["logNo", "Log No."],
+  ["length", "Length"],
+  ["width", "Width"],
+  ["thickness", "Thickness"],
+  ["issuedNoOfSheets", "No of Sheets"],
+  ["issuedSqm", "SQM"],
+  ["issuedSqf", "SQF"],
+  ["issueRemark", "Remark"],
+  ["cncDate", "Embossing Date"],
+  ["outputNoOfSheets", "No of Sheets"],
+  ["outputSqm", "SQM"],
+  ["outputSqf", "SQF"],
+  ["amount", "Amount"],
+  ["remark", "Remark"],
+] as const;
+
 const finishingCreateFields = [
   ["issuedFor", "Issued For"],
   ["customerName", "Customer Name"],
@@ -756,12 +936,30 @@ export const slicingDefinition: FactoryDefinition = {
   initialSort: { key: "issuedDate", direction: "desc" },
 };
 
+export const sawingDefinition: FactoryDefinition = {
+  slug: "sawing",
+  title: "Sawing",
+  listColumns: sawingListingColumns,
+  formSections: buildSawingFormSections(slicingRows),
+  rows: expandFactoryRowsForTabs("sawing", slicingRows),
+  initialSort: { key: "issuedDate", direction: "desc" },
+};
+
 export const dryingDefinition: FactoryDefinition = {
   slug: "drying",
   title: "Drying",
   listColumns: dryingListingColumns,
   formSections: sectionSet(dryingRows, dryingCreateFields, dryingAddItemFields),
   rows: expandFactoryRowsForTabs("drying", dryingRows),
+  initialSort: { key: "issuedDate", direction: "desc" },
+};
+
+export const inspectionDefinition: FactoryDefinition = {
+  slug: "inspection",
+  title: "Inspection",
+  listColumns: dryingListingColumns,
+  formSections: sectionSet(dryingRows, dryingCreateFields, dryingAddItemFields),
+  rows: expandFactoryRowsForTabs("inspection", dryingRows),
   initialSort: { key: "issuedDate", direction: "desc" },
 };
 
@@ -825,8 +1023,8 @@ export const pressingDefinition: FactoryDefinition = {
 export const cncFlutingDefinition: FactoryDefinition = {
   slug: "cnc-fluting",
   title: "Fluting",
-  listColumns: cncListingColumns,
-  formSections: sectionSet(cncFlutingRows, cncCreateFields),
+  listColumns: flutingListingColumns,
+  formSections: sectionSet(cncFlutingRows, flutingCreateFields),
   rows: expandFactoryRowsForTabs("cnc-fluting", cncFlutingRows),
   initialSort: { key: "issuedDate", direction: "desc" },
 };
@@ -834,8 +1032,8 @@ export const cncFlutingDefinition: FactoryDefinition = {
 export const embossingDefinition: FactoryDefinition = {
   slug: "embossing",
   title: "Embossing",
-  listColumns: cncListingColumns,
-  formSections: sectionSet(embossingRows, cncCreateFields),
+  listColumns: embossingListingColumns,
+  formSections: sectionSet(embossingRows, embossingCreateFields),
   rows: expandFactoryRowsForTabs("embossing", embossingRows),
   initialSort: { key: "issuedDate", direction: "desc" },
 };
@@ -862,7 +1060,7 @@ export const marquetryDefinition: FactoryDefinition = {
   slug: "marquetry",
   title: "Marquetry",
   listColumns: productionListingColumns,
-  formSections: sectionSet(marquetryRows, groupingCreateFields, groupingAddItemFields),
+  formSections: sectionSet(marquetryRows, marquetryCreateFields, groupingAddItemFields),
   rows: expandFactoryRowsForTabs("marquetry", marquetryRows),
   initialSort: { key: "issuedDate", direction: "desc" },
 };
