@@ -11,8 +11,14 @@ import { Check } from "lucide-react";
 import {
   type UserPermissionAction,
   type UserPermissionFlags,
+  buildUserPermissionSections,
   userPermissionSections,
 } from "./userManagementConfig";
+import {
+  getDynamicSidebarWarehouses,
+  LOCAL_WAREHOUSES_UPDATED_EVENT,
+} from "../../warehouses/shared/localWarehouseStore";
+import type { UserPermissionItem } from "./userManagementConfig";
 
 export type PermissionBulkUpdate = {
   itemKey: string;
@@ -37,7 +43,7 @@ const permissionActions: readonly UserPermissionAction[] = [
   "create",
 ];
 
-type PermissionItem = (typeof userPermissionSections)[number]["items"][number];
+type PermissionItem = UserPermissionItem;
 
 export function UserPermissionMatrix({
   onToggle,
@@ -46,6 +52,13 @@ export function UserPermissionMatrix({
   readOnly = false,
 }: UserPermissionMatrixProps) {
   const theme = useTheme();
+  const [dynamicWarehouses, setDynamicWarehouses] = useState(() =>
+    getDynamicSidebarWarehouses(),
+  );
+  const permissionSections = useMemo(
+    () => buildUserPermissionSections(dynamicWarehouses),
+    [dynamicWarehouses],
+  );
   const [selectedSectionId, setSelectedSectionId] = useState(
     userPermissionSections[0]?.id ?? "",
   );
@@ -57,8 +70,8 @@ export function UserPermissionMatrix({
   );
 
   const selectedSection =
-    userPermissionSections.find((section) => section.id === selectedSectionId) ??
-    userPermissionSections[0];
+    permissionSections.find((section) => section.id === selectedSectionId) ??
+    permissionSections[0];
 
   const filteredItems = useMemo(() => {
     if (!selectedSection) {
@@ -79,14 +92,34 @@ export function UserPermissionMatrix({
 
   useEffect(() => {
     if (
-      !userPermissionSections.some((section) => section.id === selectedSectionId)
+      !permissionSections.some((section) => section.id === selectedSectionId)
     ) {
-      const first = userPermissionSections[0];
+      const first = permissionSections[0];
       if (first) {
         setSelectedSectionId(first.id);
       }
     }
-  }, [selectedSectionId]);
+  }, [permissionSections, selectedSectionId]);
+
+  useEffect(() => {
+    const handleWarehousesUpdate = () => {
+      setDynamicWarehouses(getDynamicSidebarWarehouses());
+    };
+
+    window.addEventListener(
+      LOCAL_WAREHOUSES_UPDATED_EVENT,
+      handleWarehousesUpdate,
+    );
+    window.addEventListener("storage", handleWarehousesUpdate);
+
+    return () => {
+      window.removeEventListener(
+        LOCAL_WAREHOUSES_UPDATED_EVENT,
+        handleWarehousesUpdate,
+      );
+      window.removeEventListener("storage", handleWarehousesUpdate);
+    };
+  }, []);
 
   const applyUpdates = (updates: PermissionBulkUpdate[]) => {
     if (updates.length === 0 || readOnly) {
@@ -199,7 +232,7 @@ export function UserPermissionMatrix({
           spacing={0.75}
           sx={{ mt: 1.5 }}
         >
-          {userPermissionSections.map((section) => {
+          {permissionSections.map((section) => {
             const selected = section.id === selectedSection?.id;
             const enabled = countEnabledModules(section.items, permissions);
 

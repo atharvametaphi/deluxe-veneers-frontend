@@ -31,6 +31,8 @@ import {
   Wind,
 } from "lucide-react";
 
+import { getDynamicWarehousePermissionKey } from "../features/shared/warehousePermission";
+
 export type SidebarMatchLocation = {
   pathname: string;
   search: string;
@@ -158,30 +160,12 @@ const buildWarehouseNavigationItems = (
       id: `dynamic-warehouse-${warehouse.slug}`,
       label: warehouse.label,
       icon: Warehouse,
-      permissionKey: getWarehousePermissionKeyByType(warehouse.warehouseType),
+      permissionKey: getDynamicWarehousePermissionKey(warehouse.slug),
       to: `/warehouses/${warehouse.slug}`,
       match: (location: SidebarMatchLocation) =>
         matchesPath(location, `/warehouses/${warehouse.slug}`),
     })),
   ];
-
-function getWarehousePermissionKeyByType(warehouseType: string) {
-  const normalizedType = warehouseType.trim().toLowerCase();
-
-  if (normalizedType === "inward") {
-    return "warehouseA";
-  }
-
-  if (normalizedType === "production") {
-    return "warehouseB";
-  }
-
-  if (normalizedType === "finished") {
-    return "warehouseC";
-  }
-
-  return "warehouseA";
-}
 
 const buildWarehousesNavigationEntry = (
   dynamicWarehouses: readonly DynamicWarehouseSidebarItem[] = [],

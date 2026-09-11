@@ -3,6 +3,10 @@ import type {
   EnterpriseTableRow,
 } from "../../../components/data-display/EnterpriseDataTable";
 import type { MasterFieldDefinition, MasterFieldValue } from "../../masters/shared";
+import {
+  getDynamicWarehousePermissionKey,
+  type DynamicWarehousePermissionItem,
+} from "../../shared/warehousePermission";
 
 export type UserPermissionAction = "view" | "edit" | "create";
 
@@ -206,26 +210,51 @@ export const userPermissionSections: readonly UserPermissionSection[] = [
   },
 ];
 
-function getAllPermissionItems() {
-  return userPermissionSections.flatMap((section) => section.items);
+export function buildUserPermissionSections(
+  dynamicWarehouses: readonly DynamicWarehousePermissionItem[] = [],
+) {
+  return userPermissionSections.map((section) => {
+    if (section.id !== "warehouses" || dynamicWarehouses.length === 0) {
+      return section;
+    }
+
+    return {
+      ...section,
+      items: [
+        ...section.items,
+        ...dynamicWarehouses.map((warehouse) => ({
+          key: getDynamicWarehousePermissionKey(warehouse.slug),
+          label: warehouse.label,
+        })),
+      ],
+    };
+  });
+}
+
+function getAllPermissionItems(
+  dynamicWarehouses: readonly DynamicWarehousePermissionItem[] = [],
+) {
+  return buildUserPermissionSections(dynamicWarehouses).flatMap(
+    (section) => section.items,
+  );
 }
 
 function buildPermissionState(
   overrides: Partial<Record<string, Partial<UserPermissionFlags>>> = {},
+  dynamicWarehouses: readonly DynamicWarehousePermissionItem[] = [],
 ) {
-  return getAllPermissionItems().reduce<Record<string, UserPermissionFlags>>(
-    (accumulator, item) => {
-      accumulator[item.key] = {
-        view: false,
-        edit: false,
-        create: false,
-        ...overrides[item.key],
-      };
+  return getAllPermissionItems(dynamicWarehouses).reduce<
+    Record<string, UserPermissionFlags>
+  >((accumulator, item) => {
+    accumulator[item.key] = {
+      view: false,
+      edit: false,
+      create: false,
+      ...overrides[item.key],
+    };
 
-      return accumulator;
-    },
-    {},
-  );
+    return accumulator;
+  }, {});
 }
 
 const userManagementSeedRows: UserManagementSeedRow[] = [

@@ -829,22 +829,6 @@ const warehouseRows = withAuditFields(createMasterRows("warehouse-location-maste
     createdEditedDate: asDate("2026-05-09"),
     updatedDate: asDate("2026-05-28"),
   },
-  {
-    warehouseName: "Sample Store",
-    warehouseCode: "WH-S-04",
-    warehouseType: "Storage",
-    status: "Inactive",
-    address: "Office Basement, Iscon Cross Road",
-    city: "Ahmedabad",
-    pincode: "380015",
-    state: "Gujarat",
-    country: "India",
-    remark: "Reserved storage for archived and sample lots.",
-    createdEditedBy: "Aditi Desai",
-    updatedBy: "Atharva Patil",
-    createdEditedDate: asDate("2026-05-23"),
-    updatedDate: asDate("2026-06-06"),
-  },
 ]));
 
 const currencyRows = withAuditFields(createMasterRows("currency-master", [
@@ -1380,7 +1364,7 @@ export const warehouseLocationMasterDefinition: MasterDefinition = {
     { key: "city", label: "City", type: "text" },
     { key: "remark", label: "Remark", type: "text" },
   ],
-  rows: limitDemoListingRows(warehouseRows),
+  rows: warehouseRows,
 };
 
 export const currencyMasterDefinition: MasterDefinition = {
