@@ -375,7 +375,7 @@ export function UserManagementFormPage({
     "& .MuiOutlinedInput-root": {
       height: 36,
       minHeight: 36,
-      borderRadius: "8px",
+      borderRadius: "6px",
     },
     "& .MuiInputLabel-root": {
       fontSize: "0.75rem",
@@ -385,27 +385,162 @@ export function UserManagementFormPage({
     },
   };
 
+  const uniformFieldGridSx = {
+    ...compactFieldChromeSx,
+    "& > div": {
+      display: "grid !important",
+      width: "100%",
+      gridTemplateColumns: {
+        xs: "1fr !important",
+        sm: "repeat(2, 1fr) !important",
+        md: "repeat(3, 1fr) !important",
+        lg: "repeat(3, 1fr) !important",
+      },
+      columnGap: "16px !important",
+      rowGap: "16px !important",
+      justifyItems: "stretch !important",
+    },
+    "& > div > .MuiStack-root": {
+      width: "100% !important",
+      minWidth: "0 !important",
+      maxWidth: "100% !important",
+    },
+    "& > div > .MuiStack-root .MuiFormControl-root": {
+      width: "100% !important",
+    },
+    "& .MuiBox-root": {
+      width: "100%",
+    },
+  };
+
   const accountFieldGridSx = {
     ...compactFieldChromeSx,
-    ...getCompactFieldGridSx([260, 220, 220, 320, 308, 280], {
-      phoneFieldIndex: 5,
-    }),
+    width: "100%",
+    overflowX: "auto",
+    "& > div": {
+      display: "grid !important",
+      width: "100%",
+      minWidth: { xs: 0, lg: 960 },
+      gridTemplateColumns: {
+        xs: "1fr !important",
+        sm: "repeat(2, 1fr) !important",
+        md: "repeat(3, 1fr) !important",
+        lg: "repeat(6, minmax(0, 1fr)) !important",
+      },
+      columnGap: "16px !important",
+      rowGap: "16px !important",
+      justifyItems: "stretch !important",
+    },
+    "& > div > .MuiStack-root": {
+      width: "100% !important",
+      minWidth: "0 !important",
+      maxWidth: "100% !important",
+    },
+    "& > div > .MuiStack-root:nth-of-type(5) > .MuiBox-root": {
+      gridTemplateColumns: "70px minmax(0, 1fr) !important",
+      gap: "6px !important",
+    },
+    "& > div > .MuiStack-root:nth-of-type(5) .MuiSelect-select": {
+      paddingLeft: "8px !important",
+      paddingRight: "22px !important",
+      fontSize: "0.775rem !important",
+    },
+    "& > div > .MuiStack-root:nth-of-type(5) .MuiSelect-icon": {
+      right: "4px !important",
+    },
   };
 
   const personalFieldGridSx = {
     ...compactFieldChromeSx,
-    ...getCompactFieldGridSx([220, 140, 180]),
+    "& > div": {
+      display: "grid !important",
+      width: "100%",
+      gridTemplateColumns: {
+        xs: "1fr !important",
+        sm: "repeat(2, minmax(0, 200px)) !important",
+        md: "repeat(3, minmax(0, 200px)) !important",
+      },
+      columnGap: "16px !important",
+      rowGap: "16px !important",
+      justifyContent: "start !important",
+      justifyItems: "start !important",
+    },
+    "& > div > .MuiStack-root": {
+      width: "100% !important",
+      minWidth: "0 !important",
+      maxWidth: "200px !important",
+    },
+    "& > div > .MuiStack-root .MuiFormControl-root": {
+      width: "100% !important",
+    },
+    "& .MuiBox-root": {
+      width: "100%",
+    },
   };
 
   const addressFieldGridSx = {
     ...compactFieldChromeSx,
-    ...getCompactFieldGridSx([480, 180, 220, 220, 220]),
+    width: "100%",
+    overflowX: "auto",
+    "& > div": {
+      display: "grid !important",
+      width: "100%",
+      minWidth: { xs: 0, lg: 960 },
+      gridTemplateColumns: {
+        xs: "1fr !important",
+        sm: "repeat(2, 1fr) !important",
+        md: "repeat(3, 1fr) !important",
+        lg: "minmax(280px, 2.5fr) minmax(130px, 1fr) minmax(140px, 1.1fr) minmax(140px, 1.1fr) minmax(140px, 1.1fr) !important",
+      },
+      columnGap: "16px !important",
+      rowGap: "16px !important",
+      justifyItems: "stretch !important",
+    },
+    "& > div > .MuiStack-root": {
+      width: "100% !important",
+      minWidth: "0 !important",
+      maxWidth: "100% !important",
+    },
+    "& > div > .MuiStack-root .MuiFormControl-root": {
+      width: "100% !important",
+    },
+    "& .MuiBox-root": {
+      width: "100%",
+    },
   };
 
-  const additionalFieldGridSx = {
+  const identityDocumentGridSx = {
     ...compactFieldChromeSx,
-    ...getCompactFieldGridSx([520]),
+    width: "100%",
+    overflowX: "auto",
+    "& > div": {
+      display: "grid !important",
+      width: "100%",
+      minWidth: { xs: 0, lg: 800 },
+      gridTemplateColumns: {
+        xs: "1fr !important",
+        sm: "repeat(2, 1fr) !important",
+        md: "repeat(4, minmax(0, 1fr)) !important",
+        lg: "repeat(4, minmax(0, 1fr)) !important",
+      },
+      columnGap: "16px !important",
+      rowGap: "16px !important",
+      justifyItems: "stretch !important",
+    },
+    "& > div > .MuiStack-root": {
+      width: "100% !important",
+      minWidth: "0 !important",
+      maxWidth: "100% !important",
+    },
+    "& > div > .MuiStack-root .MuiFormControl-root": {
+      width: "100% !important",
+    },
+    "& .MuiBox-root": {
+      width: "100%",
+    },
   };
+
+  const additionalFieldGridSx = uniformFieldGridSx;
 
   const actionButtonSx = {
     minHeight: 36,
@@ -570,7 +705,7 @@ export function UserManagementFormPage({
                         <MasterFormFields
                           definition={{
                             fields: addressFields,
-                            gridColumns: 3,
+                            gridColumns: 5,
                           }}
                           onChange={handleFieldChange}
                           readOnly={mode === "view"}
@@ -581,12 +716,7 @@ export function UserManagementFormPage({
                     </InlineFormSection>
 
                     <InlineFormSection title="Identity Documents">
-                      <Box
-                        sx={{
-                          ...compactFieldChromeSx,
-                          ...getCompactFieldGridSx([220, 300, 220, 300]),
-                        }}
-                      >
+                      <Box sx={identityDocumentGridSx}>
                         <MasterFormFields
                           definition={{
                             fields: identityDocumentFields,
